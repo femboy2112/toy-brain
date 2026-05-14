@@ -2,6 +2,8 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
+> **Catalog version:** v0.4. Patches over v0.3 (Phase 2 v1.1): togglable `CognitionTracer` Protocol seam in `brain/trace.py`; three backends (`NullTracer`, `MemoryTracer`, `FileTracer`); +1 STRUCTURAL row (I-TRACE-01); +1 fixture (`trace_v1_1.py`). Observation-only — no semantic change to v0.3 invariants.
+>
 > **Catalog version:** v0.3. Patches over v0.2 (Phase 2 v1): LLM-backed `PtCns.eval` via the new `brain/llm/` seam; new `OBSERVED` Status; +4 REQUIRED rows (I-LLM-01, I-LLM-03, I-RT-08, I-BHV-01); +3 STRUCTURAL rows (I-LLM-04, I-RT-09, I-RT-10); +1 OBSERVED row (I-LLM-02); two new fixtures (`llm_protocol.py`, `scenario_v1.py`).
 >
 > **Catalog version:** v0.2. Patches over v0.1: numeric representation switched to `Fraction`; `Act` is an `Enum`; `PreservationRanking` stub is cogito-gated; `I-INT-01` uses Lean-exact `< 1`; `I-MSI-05` corrected to ρ/profile; `I-PHI-01` reclassified DEFERRED; trajectory shared-distance rows added; PCE-valence exclusions added; free-will witness rows reclassified NOT-EXERCISED; `I-RT-07` cogito-preservation invariant added; `ProjectMap.natural_dynamics` made an explicit Protocol method; `affect_kernel_collapse.py` fixture added.
@@ -280,6 +282,14 @@ This catalog is the spine of the v0 plan. Each row binds a Lean source declarati
 | I-LLM-03 | I-PTC-01 (cogito_invariance) | LLM-backed `PtCns.eval(COGITO_ID)` short-circuits to `PRESERVE` without an LLM call. | `LLMBackedPtCns.eval(COGITO_ID) == PRESERVE` and the underlying client is not called. | `llm_protocol.py` | REQUIRED |
 | I-LLM-04 | Plan convention (Phase 2 v1) | The LLM-backed implementation honors the `LLMClient` Protocol — `eval_consistency(prompt: str) -> str`. No direct HTTP coupling, no provider lock-in. | `isinstance(client, LLMClient)` and `LLMBackedPtCns` accepts any conforming client. | `llm_protocol.py` | STRUCTURAL |
 
+### `brain/trace.py` — Cognition trace seam (Phase 2 v1.1)
+
+> The togglable observation seam: a `CognitionTracer` Protocol with three backends (`NullTracer`, `MemoryTracer`, `FileTracer`). The tracer is observation-only — `tick()` output must be byte-identical whether a tracer is present or not. Toggle via `BRAIN_TRACE_PATH` env var or `--trace` CLI flag; default is `NullTracer()`.
+
+| ID | Source | Proposition | Python assertion | Fixture | Status |
+|---|---|---|---|---|---|
+| I-TRACE-01 | Plan convention (Phase 2 v1.1) | The tracer is observation-only. `tick(state, events, client, tracer)` produces identical `(BrainState, TickRecord)` output regardless of which `CognitionTracer` backend is supplied. | Run the first scenario through each of `{NullTracer(), MemoryTracer(), FileTracer(tmp_path)}` with the same MockClient seed; assert all three final `BrainState` values are equal and all three `mode_trace` sequences are identical. | `trace_v1_1.py` | STRUCTURAL |
+
 ### Behavioral (Phase 2 v1)
 
 | ID | Source | Proposition | Python assertion | Fixture | Status |
@@ -370,8 +380,9 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | `trajectory_step.py` | I-PMAP-02, I-TRJ-01..04, I-TRJ-08, I-TRJ-09, I-AFF-06 |
 | `llm_protocol.py` | I-LLM-01, I-LLM-02 (OBSERVED), I-LLM-03, I-LLM-04 |
 | `scenario_v1.py` | I-RT-08, I-RT-09, I-RT-10, I-BHV-01 |
+| `trace_v1_1.py` | I-TRACE-01 |
 
-13 fixtures total.
+14 fixtures total.
 
 ---
 
@@ -391,12 +402,12 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 ## Summary counts
 
 - **REQUIRED v0 invariants:** 84
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 10
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 11
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
 - **OBSERVED row-level:** 1 (Phase 2 v1; recorded in run summary, not gating)
 
-Total tabular entries: 110. v0.3 success is gated by the 84 REQUIRED rows distributed across 13 fixtures (the OBSERVED row is logged but does not gate).
+Total tabular entries: 111. v0.4 success is gated by the 84 REQUIRED rows distributed across 14 fixtures (the OBSERVED row is logged but does not gate).
 
 ---
 

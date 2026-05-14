@@ -29,6 +29,7 @@ from brain.tlica.modes import ModeOp
 from brain.tlica.profile import ContentID
 from brain.tlica.ptcns import ConsistencyEval
 from brain.toce_core import ContentState
+from brain.trace import CognitionTracer, FileTracer, NullTracer, make_tracer_from_env
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -101,36 +102,67 @@ def load_scenario(path: Path) -> ScenarioSpec:
     )
 
 
-def run_scenario(spec: ScenarioSpec, client: LLMClient) -> ScenarioResult:
+def run_scenario(
+    spec: ScenarioSpec,
+    client: LLMClient,
+    tracer: CognitionTracer | None = None,
+) -> ScenarioResult:
+    """Walk every tick of ``spec`` through ``brain.tick.tick`` with ``client``.
+
+    Phase 2 v1.1: ``tracer`` defaults to ``make_tracer_from_env()`` (file
+    tracer if ``BRAIN_TRACE_PATH`` is set, otherwise null). The same
+    tracer is passed into ``tick()`` per scenario tick and ``close()``
+    is called in a ``finally`` so JSONL streams flush even if a tick
+    raises.
+    """
+    tracer = tracer if tracer is not None else make_tracer_from_env()
     state = initial_state(msi_threshold=spec.initial_msi_threshold)
     actual_evals: list[ConsistencyEval] = []
     actual_modes: list[ModeOp] = []
     records: list[TickRecord] = []
-    for idx, scenario_tick in enumerate(spec.ticks):
-        state, record = tick(state, [scenario_tick.percept], client)
-        # Stamp the canonical tick index (the functional tick() doesn't
-        # know about the scenario index by itself).
-        record = dataclasses.replace(record, tick_index=idx)
-        records.append(record)
-        actual_evals.append(record.eval_map[scenario_tick.percept.content_id])
-        if record.triggered_mode is None:
-            raise RuntimeError(
-                f"scenario tick {scenario_tick.tick}: triggered_mode is None"
+    try:
+        for idx, scenario_tick in enumerate(spec.ticks):
+            state, record = tick(
+                state,
+                [scenario_tick.percept],
+                client,
+                tracer=tracer,
+                tick_id=idx + 1,
             )
-        actual_modes.append(record.triggered_mode)
-    return ScenarioResult(
-        spec=spec,
-        actual_evals=tuple(actual_evals),
-        actual_modes=tuple(actual_modes),
-        final_state=state,
-        records=tuple(records),
-    )
+            record = dataclasses.replace(record, tick_index=idx)
+            records.append(record)
+            actual_evals.append(record.eval_map[scenario_tick.percept.content_id])
+            if record.triggered_mode is None:
+                raise RuntimeError(
+                    f"scenario tick {scenario_tick.tick}: triggered_mode is None"
+                )
+            actual_modes.append(record.triggered_mode)
+        return ScenarioResult(
+            spec=spec,
+            actual_evals=tuple(actual_evals),
+            actual_modes=tuple(actual_modes),
+            final_state=state,
+            records=tuple(records),
+        )
+    finally:
+        tracer.close()
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
     spec = load_scenario(Path(args.path))
-    client: LLMClient = CachedClient(AnthropicAPIClient())
-    result = run_scenario(spec, client)
+    # Tracer precedence (per kickoff toggle table):
+    #   --trace FLAG   > BRAIN_TRACE_PATH env > NullTracer().
+    if args.trace:
+        tracer: CognitionTracer = FileTracer(Path(args.trace))
+    else:
+        tracer = make_tracer_from_env()
+    # Share the tracer with the cached LLM stack so cache_hit /
+    # cache_miss events thread through the same JSONL.
+    client: LLMClient = CachedClient(
+        AnthropicAPIClient(tracer=tracer),
+        tracer=tracer,
+    )
+    result = run_scenario(spec, client, tracer=tracer)
 
     matched = sum(
         1 for a, t in zip(result.actual_modes, spec.ticks) if a is t.expected_mode
@@ -158,6 +190,11 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     p_run = sub.add_parser("run", help="Run a scenario JSON file end-to-end.")
     p_run.add_argument("path")
+    p_run.add_argument(
+        "--trace",
+        metavar="PATH",
+        help="Write a JSONL cognition trace to PATH. Overrides BRAIN_TRACE_PATH env var.",
+    )
     p_run.set_defaults(func=_cmd_run)
     args = parser.parse_args(argv)
     return args.func(args)

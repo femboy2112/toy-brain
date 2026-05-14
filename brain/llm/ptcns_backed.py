@@ -11,6 +11,7 @@ Catalog rows owned: I-LLM-01..04.
 """
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from types import MappingProxyType
 
@@ -20,6 +21,7 @@ from brain.llm.prompts import PROMPT_TEMPLATE, RETRY_TEMPLATE
 from brain.tlica.msi import MSI
 from brain.tlica.profile import COGITO_ID, ContentID
 from brain.tlica.ptcns import ConsistencyEval
+from brain.trace import CognitionTracer, NullTracer
 
 
 class LLMBackedPtCns:
@@ -46,6 +48,7 @@ class LLMBackedPtCns:
         content_texts: Mapping[ContentID, str],
         client: LLMClient,
         max_attempts: int = 3,
+        tracer: CognitionTracer | None = None,
     ) -> None:
         """Construct an LLM-backed PtCns.
 
@@ -57,6 +60,11 @@ class LLMBackedPtCns:
         this convention with ``MockClient(["nonsense", "still bad",
         "PRESERVE"])`` — third attempt succeeds, two parse failures
         consumed.
+
+        tracer (Phase 2 v1.1): observation-only tracer. Emits
+        ``llm.request``, ``llm.response``, ``llm.retry``,
+        ``parse.success``, and ``parse.failure`` events during the
+        retry loop. Default ``NullTracer()`` — zero overhead.
         """
         if max_attempts < 1:
             raise ValueError(
@@ -66,6 +74,7 @@ class LLMBackedPtCns:
         self._texts = MappingProxyType(dict(content_texts))
         self._client = client
         self._max_attempts = max_attempts
+        self._tracer: CognitionTracer = tracer if tracer is not None else NullTracer()
         # I-LLM-03: cogito is short-circuited at construction; never an
         # LLM call regardless of client state.
         self._cache: dict[ContentID, ConsistencyEval] = {
@@ -91,15 +100,43 @@ class LLMBackedPtCns:
         last_error: ParseError | None = None
         last_raw: str | None = None
 
-        for _ in range(self._max_attempts):
+        for attempt in range(1, self._max_attempts + 1):
+            self._tracer.record(
+                "llm.request",
+                {"content_id": content_id, "attempt": attempt, "prompt": prompt},
+            )
+            start_ns = time.time_ns()
             raw = self._client.eval_consistency(prompt)
+            latency_ms = (time.time_ns() - start_ns) // 1_000_000
             last_raw = raw
+            self._tracer.record(
+                "llm.response",
+                {
+                    "content_id": content_id,
+                    "attempt": attempt,
+                    "raw": raw,
+                    "latency_ms": latency_ms,
+                },
+            )
             try:
                 parsed = parse_consistency_eval(raw)
             except ParseError as exc:
                 last_error = exc
+                self._tracer.record(
+                    "parse.failure",
+                    {"content_id": content_id, "attempt": attempt, "raw": raw, "error": str(exc)},
+                )
+                if attempt < self._max_attempts:
+                    self._tracer.record(
+                        "llm.retry",
+                        {"content_id": content_id, "attempt": attempt + 1, "reason": str(exc)},
+                    )
                 prompt = self._build_retry_prompt(prompt, raw, str(exc))
                 continue
+            self._tracer.record(
+                "parse.success",
+                {"content_id": content_id, "raw": raw, "parsed": parsed.name},
+            )
             self._cache[content_id] = parsed
             return parsed
 

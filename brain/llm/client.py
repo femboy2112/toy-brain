@@ -19,11 +19,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Iterator, Protocol, runtime_checkable
+
+from brain.trace import CognitionTracer, NullTracer
 
 
 @runtime_checkable
@@ -57,6 +60,12 @@ class AnthropicAPIClient:
 
     Default model: ``claude-sonnet-4-6`` (Sonnet 4.5 is on a retirement
     path, per corrigenda C2).
+
+    Phase 2 v1.1: ``tracer`` is stored at construction for symmetry with
+    ``CachedClient``. The retry shell (``LLMBackedPtCns``) owns the
+    ``llm.request`` / ``llm.response`` events because it has the
+    content_id / attempt context the taxonomy requires. ``tracer`` is
+    observation-only; its presence cannot affect the returned string.
     """
 
     api_key: str | None = None
@@ -69,6 +78,7 @@ class AnthropicAPIClient:
     max_tokens: int = 256
     anthropic_version: str = "2023-06-01"
     timeout_seconds: float = 30.0
+    tracer: CognitionTracer = field(default_factory=NullTracer)
 
     def _resolved_key(self) -> str:
         key = self.api_key or os.environ.get("ANTHROPIC_API_KEY")
@@ -160,24 +170,30 @@ class CachedClient:
     This is the across-tick / across-run determinism layer that I-LLM-02
     reports on. ``LLMBackedPtCns`` does its own per-instance caching for
     cogito short-circuit only; everything else flows through here.
+
+    Phase 2 v1.1: optional ``tracer`` records ``llm.cache_hit`` and
+    ``llm.cache_miss`` events with an 8-char key prefix for debugging.
     """
 
     def __init__(
         self,
         inner: LLMClient,
         cache_dir: Path = Path("brain/.llm_cache"),
+        tracer: CognitionTracer | None = None,
     ) -> None:
         self._inner = inner
         self._cache_dir = cache_dir
+        self._tracer: CognitionTracer = tracer if tracer is not None else NullTracer()
         self.hit_count = 0
         self.miss_count = 0
 
-    def _key_path(self, prompt: str) -> Path:
+    def _key_path(self, prompt: str) -> tuple[Path, str]:
         digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-        return self._cache_dir / f"{digest}.json"
+        return self._cache_dir / f"{digest}.json", digest
 
     def eval_consistency(self, prompt: str) -> str:
-        path = self._key_path(prompt)
+        path, digest = self._key_path(prompt)
+        key_prefix = digest[:8]
         if path.exists():
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
@@ -187,8 +203,10 @@ class CachedClient:
                     f"CachedClient: corrupt cache entry at {path}: {exc}"
                 ) from exc
             self.hit_count += 1
+            self._tracer.record("llm.cache_hit", {"cache_key_prefix": key_prefix})
             return response
         self.miss_count += 1
+        self._tracer.record("llm.cache_miss", {"cache_key_prefix": key_prefix})
         response = self._inner.eval_consistency(prompt)
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         path.write_text(

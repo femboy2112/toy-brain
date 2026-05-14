@@ -47,6 +47,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.fixtures.trajectory_step",
     "brain.fixtures.llm_protocol",
     "brain.fixtures.scenario_v1",
+    "brain.fixtures.trace_v1_1",
 ]
 
 

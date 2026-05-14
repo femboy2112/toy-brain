@@ -200,7 +200,7 @@ def _cmd_counts(args: argparse.Namespace) -> int:
     actual = actual_counts(rows)
     expected = {
         "REQUIRED": 84,
-        "STRUCTURAL": 10,
+        "STRUCTURAL": 11,
         "NOT-EXERCISED": 3,
         "DEFERRED": 12,
         "OBSERVED": 1,
