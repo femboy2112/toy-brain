@@ -79,6 +79,40 @@ def check_I_LLM_01() -> None:
         f"expected 3 LLM calls before giving up, got {len(fail_client.calls)}"
     )
 
+    # P4 (Phase 2 v1.2): the tightened parser must treat multi-token
+    # responses as ambiguous and retry. First two attempts contain two
+    # valid tokens (ambiguous); third returns a single canonical token.
+    ambiguous_then_ok = MockClient([
+        "PRESERVE AND DAMAGE",
+        "DAMAGE, not PRESERVE",
+        "PRESERVE",
+    ])
+    ptcns = LLMBackedPtCns(
+        msi=msi, content_texts=texts, client=ambiguous_then_ok, max_attempts=3
+    )
+    result = ptcns.eval(ContentID("ambig_then_ok"))
+    assert result is ConsistencyEval.PRESERVE, (
+        f"ambiguous-then-OK retry chain produced {result!r}, expected PRESERVE"
+    )
+    assert len(ambiguous_then_ok.calls) == 3
+
+    # All three attempts ambiguous → final failure with I-LLM-01 tag.
+    ambiguous_always = MockClient([
+        "PRESERVE OR DAMAGE",
+        "NEUTRAL AND PRESERVE",
+        "DAMAGE PRESERVE NEUTRAL",
+    ])
+    ambig_ptcns = LLMBackedPtCns(
+        msi=msi, content_texts=texts, client=ambiguous_always, max_attempts=3
+    )
+    raised_ambig = False
+    try:
+        ambig_ptcns.eval(ContentID("always_ambig"))
+    except ValueError as exc:
+        raised_ambig = True
+        assert "I-LLM-01" in str(exc)
+    assert raised_ambig, "ambiguous-only retry chain should fail with I-LLM-01"
+
 
 @register("I-LLM-02", status="OBSERVED")
 def check_I_LLM_02() -> None:

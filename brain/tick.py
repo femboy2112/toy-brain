@@ -112,6 +112,27 @@ def tick(
     during this call (cleared in a ``finally``).
     """
     tracer = tracer if tracer is not None else NullTracer()
+    # I-RT-11 (P2): v1 semantics handle at most one PerceptEvent per tick.
+    # Multi-event mode aggregation is deferred (see PHASE2_v1_KICKOFF.md
+    # "Still deferred"). Raise before any state mutation.
+    if len(events) > 1:
+        raise ValueError(
+            f"I-RT-11 violated: v1 tick() accepts at most one PerceptEvent; "
+            f"got {len(events)}. Multi-event mode aggregation is deferred "
+            f"to a future kickoff. See INVARIANT_CATALOG.md."
+        )
+    # I-RT-12 (P3): v1 promotion is one-shot per content. Re-promoting
+    # an existing content has no defined semantics; reject explicitly.
+    if events:
+        event = events[0]
+        if event.content_id in state.profile.domain:
+            raise ValueError(
+                f"I-RT-12 violated: PerceptEvent.content_id "
+                f"{event.content_id!r} is already in state.profile.domain. "
+                f"v1 promotion is one-shot per content; update semantics "
+                f"for existing content are deferred."
+            )
+
     tracer.set_tick(tick_id)
     try:
         start_ns = time.time_ns()
@@ -261,7 +282,7 @@ def tick(
 
         triggered = mode_trace[0] if mode_trace else None
         record = TickRecord(
-            tick_index=0,  # caller may override; the scenario runner stamps it
+            tick_index=tick_id,  # P2: propagate explicitly; no later stamping needed
             profile_values=MappingProxyType(dict(new_profile.values)),
             msi_contents=final_msi.contents,
             eval_map=MappingProxyType(dict(final_ptcns.eval_map)),

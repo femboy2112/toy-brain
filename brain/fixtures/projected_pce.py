@@ -106,6 +106,10 @@ def check_I_APRJ_01() -> None:
 
     Corrigenda C3: the stub builds a fresh MSI tied to each P, so domain
     match is guaranteed across all sampled profiles.
+
+    Phase 2 v1.2 (P5): also exercise the FutureMSIModel runtime guard
+    that rejects a bad stub — wrapping a callable that returns an MSI
+    over the wrong profile domain must raise ValueError with I-APRJ-01.
     """
     ctx, P, _, _ = _make_world()
     profiles_to_check = [P, ctx.proj.project(Act.NOOP, P), ctx.proj.project(Act.INTEGRATE, P)]
@@ -115,6 +119,27 @@ def check_I_APRJ_01() -> None:
             f"domain_match failed: msi_of(Q).profile.domain={msi_q.profile.domain!r} "
             f"vs Q.domain={Q.domain!r}"
         )
+
+    # Runtime-violation case: a stub that returns an MSI built over a
+    # *different* profile must trip FutureMSIModel's guard.
+    other_profile = make_profile_with_cogito({COGITO_ID: 1, "other": "3/4"})
+    other_msi = _msi_of(other_profile)
+
+    def _bad_msi_of(unused_P):
+        return other_msi
+
+    bad_model = FutureMSIModel(msi_of=_bad_msi_of)
+    raised = False
+    try:
+        bad_model.msi_of(P)
+    except ValueError as exc:
+        raised = True
+        assert "I-APRJ-01" in str(exc), (
+            f"FutureMSIModel raised but missing I-APRJ-01 tag: {exc}"
+        )
+    assert raised, (
+        "FutureMSIModel runtime guard did not raise for a wrong-domain stub"
+    )
 
 
 @register("I-APRJ-02")

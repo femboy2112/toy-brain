@@ -192,16 +192,70 @@ class _BrainJSONEncoder(json.JSONEncoder):
 # ---------------------------------------------------------------------------
 
 
-def make_tracer_from_env() -> CognitionTracer:
+# ---------------------------------------------------------------------------
+# SafeTracer — fail-open wrapper (Phase 2 v1.2; implements I-TRACE-02).
+# ---------------------------------------------------------------------------
+
+
+class SafeTracer:
+    """Wraps a ``CognitionTracer`` so backend failures never propagate.
+
+    Implements I-TRACE-02: ``tick()`` output must be identical whether
+    ``tracer.record`` (or ``set_tick`` / ``clear_tick`` / ``close``)
+    raises or not. This is the runtime enforcement of the
+    observation-only guarantee already documented in I-TRACE-01 — the
+    fixture exercises three backends under normal conditions; the
+    SafeTracer wrapper makes the kernel robust to backend failures
+    (full disk, permission denied, write-after-close, …).
+
+    Construct directly via ``SafeTracer(inner)``; the factory
+    ``make_tracer_from_env`` wraps automatically by default.
+    """
+
+    __slots__ = ("_inner",)
+
+    def __init__(self, inner: CognitionTracer) -> None:
+        self._inner = inner
+
+    def record(self, event_type: str, payload: Mapping[str, Any]) -> None:
+        try:
+            self._inner.record(event_type, payload)
+        except Exception:  # noqa: BLE001 — I-TRACE-02: never propagate
+            pass
+
+    def set_tick(self, tick_id: int) -> None:
+        try:
+            self._inner.set_tick(tick_id)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def clear_tick(self) -> None:
+        try:
+            self._inner.clear_tick()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def close(self) -> None:
+        try:
+            self._inner.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def make_tracer_from_env(*, safe: bool = True) -> CognitionTracer:
     """Return ``FileTracer($BRAIN_TRACE_PATH)`` if set, otherwise ``NullTracer()``.
 
     Single source of truth for the env-driven toggle. Callers that want
     to override (e.g. CLI ``--trace``) construct the tracer directly.
+
+    Phase 2 v1.2 (P1): wraps the inner tracer in :class:`SafeTracer` by
+    default so backend exceptions are swallowed (I-TRACE-02). Pass
+    ``safe=False`` to opt out (debugging only — bare tracer exceptions
+    will then propagate into ``tick()``).
     """
     path = os.environ.get("BRAIN_TRACE_PATH")
-    if path:
-        return FileTracer(Path(path))
-    return NullTracer()
+    inner: CognitionTracer = FileTracer(Path(path)) if path else NullTracer()
+    return SafeTracer(inner) if safe else inner
 
 
 __all__ = [
@@ -209,5 +263,6 @@ __all__ = [
     "NullTracer",
     "MemoryTracer",
     "FileTracer",
+    "SafeTracer",
     "make_tracer_from_env",
 ]

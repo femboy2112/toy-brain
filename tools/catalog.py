@@ -6,8 +6,10 @@ status, module, or fixture without re-parsing the file each time.
 
 CLI:
     python -m tools.catalog list [--status REQUIRED] [--module modes]
+                                 [--source-kind LEAN]
     python -m tools.catalog show I-AGN-03
     python -m tools.catalog counts
+    python -m tools.catalog generate-ids   # writes brain/_catalog_ids.py
 """
 from __future__ import annotations
 
@@ -15,10 +17,21 @@ import argparse
 import re
 import sys
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
+GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
+
+# v0.5 expected counts — bumped by Phase 2 v1.2 baseline hardening.
+EXPECTED_COUNTS: dict[str, int] = {
+    "REQUIRED": 84,
+    "STRUCTURAL": 15,
+    "NOT-EXERCISED": 3,
+    "DEFERRED": 12,
+    "OBSERVED": 1,
+}
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."
 _MODULE_HEADER_RE = re.compile(r"^###\s+`([^`]+)`")
@@ -32,6 +45,51 @@ _DEFERRED_BANNER_RE = re.compile(r"\*\*DEFERRED[^*]*\*\*\s*(\d+)")
 _OBSERVED_BANNER_RE = re.compile(r"\*\*OBSERVED[^*]*\*\*\s*(\d+)")
 
 
+class SourceKind(Enum):
+    """Phase 2 v1.2: explicit classification of each catalog row's origin.
+
+    Inferred from the row's ``Source`` field and ``Status`` by
+    :func:`infer_source_kind`. Becomes load-bearing in Phase 3 when
+    developmental / engineering rows need to be enumerable separately
+    from theory-derived rows.
+    """
+
+    LEAN = "lean"
+    PLAN_CONVENTION = "plan_convention"
+    ENGINEERING_HYPOTHESIS = "engineering_hypothesis"
+    OBSERVED = "observed"
+    DEFERRED = "deferred"
+
+
+_ENGINEERING_MARKERS: tuple[str, ...] = (
+    "phase 2 v1",
+    "phase 2 v1.1",
+    "phase 2 v1.2",
+    "phase 3",
+    "developmental layer",
+    "engineering hypothesis",
+)
+
+
+def infer_source_kind(source: str, status: str) -> SourceKind:
+    """Classify a catalog row's source/status as a :class:`SourceKind`.
+
+    Status-driven overrides win first (OBSERVED, DEFERRED, NOT-EXERCISED);
+    otherwise infer from the free-text Source field via heuristics that
+    detect Lean citations and Phase 2/3 engineering markers.
+    """
+    if status == "OBSERVED":
+        return SourceKind.OBSERVED
+    if status in ("DEFERRED", "NOT-EXERCISED"):
+        return SourceKind.DEFERRED
+    src_low = source.lower()
+    if "::" in source and ".lean" in src_low:
+        return SourceKind.LEAN
+    if any(marker in src_low for marker in _ENGINEERING_MARKERS):
+        return SourceKind.ENGINEERING_HYPOTHESIS
+    return SourceKind.PLAN_CONVENTION
+
+
 @dataclass(frozen=True, slots=True)
 class InvariantRow:
     id: str
@@ -41,6 +99,7 @@ class InvariantRow:
     fixture: str
     status: str
     module: str  # the brain/ owning module (last seen module header)
+    source_kind: SourceKind = SourceKind.PLAN_CONVENTION
 
 
 def _split_pipes(line: str) -> list[str]:
@@ -109,6 +168,7 @@ def load_catalog(path: Path | None = None) -> list[InvariantRow]:
                 fixture=fixture,
                 status=status,
                 module=module,
+                source_kind=infer_source_kind(cells[1], status),
             )
         )
     return rows
@@ -121,6 +181,7 @@ def filter_rows(
     module: str | None = None,
     fixture: str | None = None,
     id_prefix: str | None = None,
+    source_kind: SourceKind | None = None,
 ) -> list[InvariantRow]:
     out = rows
     if status is not None:
@@ -131,6 +192,8 @@ def filter_rows(
         out = [r for r in out if fixture in r.fixture]
     if id_prefix is not None:
         out = [r for r in out if r.id.startswith(id_prefix)]
+    if source_kind is not None:
+        out = [r for r in out if r.source_kind == source_kind]
     return out
 
 
@@ -164,12 +227,24 @@ def _fmt_row(r: InvariantRow) -> str:
 
 def _cmd_list(args: argparse.Namespace) -> int:
     rows = load_catalog()
+    kind = None
+    if args.source_kind:
+        try:
+            kind = SourceKind[args.source_kind.upper()]
+        except KeyError:
+            print(
+                f"unknown --source-kind {args.source_kind!r}; expected one of "
+                f"{[k.name for k in SourceKind]}",
+                file=sys.stderr,
+            )
+            return 1
     filtered = filter_rows(
         rows,
         status=args.status,
         module=args.module,
         fixture=args.fixture,
         id_prefix=args.id_prefix,
+        source_kind=kind,
     )
     for r in filtered:
         print(_fmt_row(r))
@@ -198,24 +273,77 @@ def _cmd_counts(args: argparse.Namespace) -> int:
     rows = load_catalog()
     banner = banner_counts()
     actual = actual_counts(rows)
-    expected = {
-        "REQUIRED": 84,
-        "STRUCTURAL": 11,
-        "NOT-EXERCISED": 3,
-        "DEFERRED": 12,
-        "OBSERVED": 1,
-    }
+    if args.by_source_kind:
+        return _print_counts_by_source_kind(rows)
     print(f"{'Category':16s}  {'Banner':>8s}  {'Actual':>8s}  {'Expected':>8s}")
     ok = True
+    # Strict gate (P6): banner ≠ actual ≠ expected ⇒ failure.
+    # Previously only actual-vs-expected mismatch failed, so stale banners
+    # could sneak past the gate.
     for k in ("REQUIRED", "STRUCTURAL", "NOT-EXERCISED", "DEFERRED", "OBSERVED"):
         b = banner.get(k, -1)
         a = actual.get(k, 0)
-        e = expected[k]
-        mark = "  ok" if (a == b == e) else "  !!"
-        if a != e:
+        e = EXPECTED_COUNTS[k]
+        passing = b == a == e
+        mark = "  ok" if passing else "  !!"
+        if not passing:
             ok = False
         print(f"{k:16s}  {b:8d}  {a:8d}  {e:8d}{mark}")
     return 0 if ok else 1
+
+
+def _print_counts_by_source_kind(rows: list[InvariantRow]) -> int:
+    counts: dict[SourceKind, int] = {kind: 0 for kind in SourceKind}
+    for r in rows:
+        counts[r.source_kind] += 1
+    print(f"{'Source kind':24s}  {'Count':>8s}")
+    for kind in SourceKind:
+        print(f"{kind.name:24s}  {counts[kind]:8d}")
+    print(f"\n{sum(counts.values())} total rows.")
+    return 0
+
+
+def _cmd_generate_ids(args: argparse.Namespace) -> int:
+    """Write ``brain/_catalog_ids.py`` from the catalog.
+
+    Source of truth for I-CAT-01 — every REQUIRED / STRUCTURAL ID listed
+    in the catalog appears in the generated frozenset; the runner audits
+    its registry against these at startup.
+    """
+    rows = load_catalog()
+    required = sorted(r.id for r in rows if r.status == "REQUIRED")
+    structural = sorted(r.id for r in rows if r.status == "STRUCTURAL")
+    lines = [
+        '"""Auto-generated from INVARIANT_CATALOG.md by tools/catalog.py.',
+        "",
+        "DO NOT EDIT BY HAND. Regenerate via:",
+        "",
+        "    python -m tools.catalog generate-ids",
+        "",
+        "This file is the source of truth for I-CAT-01 (every REQUIRED or",
+        "STRUCTURAL catalog row has a corresponding @register entry).",
+        '"""',
+        "from __future__ import annotations",
+        "",
+        "EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({",
+    ]
+    for rid in required:
+        lines.append(f'    "{rid}",')
+    lines.append("})")
+    lines.append("")
+    lines.append("EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({")
+    for rid in structural:
+        lines.append(f'    "{rid}",')
+    lines.append("})")
+    lines.append("")
+    content = "\n".join(lines)
+    GENERATED_IDS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    GENERATED_IDS_PATH.write_text(content, encoding="utf-8")
+    print(
+        f"wrote {GENERATED_IDS_PATH}  "
+        f"(REQUIRED={len(required)}, STRUCTURAL={len(structural)})"
+    )
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -227,14 +355,33 @@ def main(argv: list[str] | None = None) -> int:
     p_list.add_argument("--module")
     p_list.add_argument("--fixture")
     p_list.add_argument("--id-prefix")
+    p_list.add_argument(
+        "--source-kind",
+        help="Filter by inferred SourceKind: LEAN, PLAN_CONVENTION, "
+        "ENGINEERING_HYPOTHESIS, OBSERVED, DEFERRED.",
+    )
     p_list.set_defaults(func=_cmd_list)
 
     p_show = sub.add_parser("show", help="Show a single row by ID.")
     p_show.add_argument("row_id")
     p_show.set_defaults(func=_cmd_show)
 
-    p_counts = sub.add_parser("counts", help="Compare banner vs actual vs expected counts.")
+    p_counts = sub.add_parser(
+        "counts",
+        help="Compare banner vs actual vs expected counts (strict gate).",
+    )
+    p_counts.add_argument(
+        "--by-source-kind",
+        action="store_true",
+        help="Print counts grouped by SourceKind instead of the strict gate.",
+    )
     p_counts.set_defaults(func=_cmd_counts)
+
+    p_gen = sub.add_parser(
+        "generate-ids",
+        help="Write brain/_catalog_ids.py for the I-CAT-01 runner audit.",
+    )
+    p_gen.set_defaults(func=_cmd_generate_ids)
 
     args = parser.parse_args(argv)
     return args.func(args)

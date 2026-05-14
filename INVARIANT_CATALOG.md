@@ -2,6 +2,8 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
+> **Catalog version:** v0.5. Patches over v0.4 (Phase 2 v1.2 baseline hardening): +4 STRUCTURAL rows (I-RT-11 single-event tick, I-RT-12 duplicate content_id, I-TRACE-02 trace fail-open, I-CAT-01 catalog↔registry coverage); five correctness patches (P1 SafeTracer, P2 single-event guard, P3 duplicate guard, P4 ambiguous-parse rejection, P5 FutureMSIModel runtime guard); `SourceKind` schema field inferred by `tools/catalog.py`; auto-generated `brain/_catalog_ids.py`; strict `tools.catalog counts` gate; README synced. No new fixtures; existing fixtures gain new rows.
+>
 > **Catalog version:** v0.4. Patches over v0.3 (Phase 2 v1.1): togglable `CognitionTracer` Protocol seam in `brain/trace.py`; three backends (`NullTracer`, `MemoryTracer`, `FileTracer`); +1 STRUCTURAL row (I-TRACE-01); +1 fixture (`trace_v1_1.py`). Observation-only — no semantic change to v0.3 invariants.
 >
 > **Catalog version:** v0.3. Patches over v0.2 (Phase 2 v1): LLM-backed `PtCns.eval` via the new `brain/llm/` seam; new `OBSERVED` Status; +4 REQUIRED rows (I-LLM-01, I-LLM-03, I-RT-08, I-BHV-01); +3 STRUCTURAL rows (I-LLM-04, I-RT-09, I-RT-10); +1 OBSERVED row (I-LLM-02); two new fixtures (`llm_protocol.py`, `scenario_v1.py`).
@@ -289,6 +291,7 @@ This catalog is the spine of the v0 plan. Each row binds a Lean source declarati
 | ID | Source | Proposition | Python assertion | Fixture | Status |
 |---|---|---|---|---|---|
 | I-TRACE-01 | Plan convention (Phase 2 v1.1) | The tracer is observation-only. `tick(state, events, client, tracer)` produces identical `(BrainState, TickRecord)` output regardless of which `CognitionTracer` backend is supplied. | Run the first scenario through each of `{NullTracer(), MemoryTracer(), FileTracer(tmp_path)}` with the same MockClient seed; assert all three final `BrainState` values are equal and all three `mode_trace` sequences are identical. | `trace_v1_1.py` | STRUCTURAL |
+| I-TRACE-02 | Plan convention (Phase 2 v1.2 baseline hardening) | Tracer record failures do not propagate. `tick()` output is identical whether `tracer.record` raises or not. `SafeTracer` wraps every factory-built tracer and swallows backend exceptions. | Run the scenario through a `_TracerThatAlwaysRaises` wrapped in `SafeTracer`; assert resulting `BrainState` and `mode_trace` equal the `NullTracer` baseline. | `trace_v1_1.py` | STRUCTURAL |
 
 ### Behavioral (Phase 2 v1)
 
@@ -330,7 +333,7 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | I-RT-06 | Plan convention | Builders fail loudly on invalid construction (no silent clamping; out-of-bounds values raise). | `make_profile_with_cogito`, `make_msi`, `make_ptcns` raise `ValueError` on violation. | `brain/tlica/builders.py` |
 | I-RT-07 | Plan convention | Every projected profile produced by v0 `ProjectMap` preserves `COGITO_ID` at value `1`. | After every `project(a, P)`: `COGITO_ID in projected.domain and projected.values[COGITO_ID] == 1`. | `brain/tlica/project_map.py` + `brain/tick.py` |
 
-### Runtime / tick orchestration (Phase 2 v1)
+### Runtime / tick orchestration (Phase 2 v1 / v1.2)
 
 > *(I-RT-08 is enforced by `brain/tick.py::assert_state_invariants`. New runtime-applicable rows must be added there too — see that function's MAINTENANCE CONTRACT docstring.)*
 
@@ -339,6 +342,16 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | I-RT-08 | Plan convention (Phase 2 v1) | The invariant runner is green after every tick in any scenario. The kernel never sees an invalid state mid-trajectory. | After each `tick(state, events, client)` call, `brain/tick.py::assert_state_invariants(new_state)` re-asserts the runtime-applicable v0.2 rows; the scenario fixture asserts no exception escapes the loop. | `brain/tick.py` | `scenario_v1.py` | REQUIRED |
 | I-RT-09 | Plan convention (Phase 2 v1) | `PerceptEvent.text` is non-empty and printable. | At ingest: `event.text and event.text.isprintable()`; raises `ValueError` otherwise. | `brain/io_types.py` | `scenario_v1.py` | STRUCTURAL |
 | I-RT-10 | Plan convention (Phase 2 v1) | Content registry retains text metadata across ticks for content already integrated into the profile. | `len(registry.texts) >= len(profile.domain) - 1` (one less because cogito has no text). | `brain/io_types.py` | `scenario_v1.py` | STRUCTURAL |
+| I-RT-11 | Plan convention (Phase 2 v1.2 baseline hardening) | `tick()` rejects events list with length > 1 in v1 semantics. Multi-event mode aggregation is deferred. | `tick(state, [e1, e2], client)` raises `ValueError` naming I-RT-11. | `brain/tick.py` | `scenario_v1.py` | STRUCTURAL |
+| I-RT-12 | Plan convention (Phase 2 v1.2 baseline hardening) | `tick()` rejects `PerceptEvent` whose `content_id` is already in `state.profile.domain`. v1 promotion is one-shot per content. | `tick(state, [event_with_existing_id], client)` raises `ValueError` naming I-RT-12. | `brain/tick.py` | `scenario_v1.py` | STRUCTURAL |
+
+### Meta / runner integrity (Phase 2 v1.2)
+
+> *I-CAT-01 has fixture `_meta` because the check is enforced at runner entry rather than by a fixture function alone. A stub `@register` entry inside `brain/invariants.py` re-runs the audit so the row also satisfies its own registration requirement. See "Validation procedure" below.*
+
+| ID | Source | Proposition | Python assertion | Owning module | Fixture | Status |
+|---|---|---|---|---|---|---|
+| I-CAT-01 | Plan convention (Phase 2 v1.2 baseline hardening) | Every catalog row with status REQUIRED or STRUCTURAL has a registered check. The runner refuses to claim "all green" if any row is missing registration. | After load + import of `FIXTURE_MODULES`, registered IDs ⊇ catalog's REQUIRED ∪ STRUCTURAL IDs (excluding `_meta`-fixture rows that the runner enforces directly); mismatch raises before any check runs. | `brain/invariants.py` | `_meta` | STRUCTURAL |
 
 ---
 
@@ -379,16 +392,16 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | `affect_kernel_collapse.py` | I-AFF-05 |
 | `trajectory_step.py` | I-PMAP-02, I-TRJ-01..04, I-TRJ-08, I-TRJ-09, I-AFF-06 |
 | `llm_protocol.py` | I-LLM-01, I-LLM-02 (OBSERVED), I-LLM-03, I-LLM-04 |
-| `scenario_v1.py` | I-RT-08, I-RT-09, I-RT-10, I-BHV-01 |
-| `trace_v1_1.py` | I-TRACE-01 |
+| `scenario_v1.py` | I-RT-08, I-RT-09, I-RT-10, I-RT-11, I-RT-12, I-BHV-01 |
+| `trace_v1_1.py` | I-TRACE-01, I-TRACE-02 |
 
-14 fixtures total.
+14 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`.
 
 ---
 
 ## Validation procedure
 
-`python -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`).
+`python -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
 
 ---
 
@@ -402,12 +415,12 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 ## Summary counts
 
 - **REQUIRED v0 invariants:** 84
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 11
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 15
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
 - **OBSERVED row-level:** 1 (Phase 2 v1; recorded in run summary, not gating)
 
-Total tabular entries: 111. v0.4 success is gated by the 84 REQUIRED rows distributed across 14 fixtures (the OBSERVED row is logged but does not gate).
+Total tabular entries: 115. v0.5 success is gated by the 84 REQUIRED rows + 15 STRUCTURAL rows (the OBSERVED row is logged but does not gate; the new I-CAT-01 runner audit gates separately at startup).
 
 ---
 

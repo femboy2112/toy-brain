@@ -15,11 +15,16 @@ Drives:
 """
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 
 from brain.invariants import register
+from brain.io_types import PerceptEvent
 from brain.llm.client import MockClient
 from brain.scenario import REPO_ROOT, load_scenario, run_scenario
+from brain.tick import initial_state, tick
+from brain.tlica.profile import ContentID
+from brain.toce_core import ContentState
 
 SCENARIO_PATH = REPO_ROOT / "scenarios" / "first_scenario_v1.json"
 
@@ -81,6 +86,54 @@ def check_I_RT_10() -> None:
     assert len(final.registry.texts) >= len(final.profile.domain) - 1, (
         f"registry has {len(final.registry.texts)} texts but profile.domain "
         f"has {len(final.profile.domain)} contents (cogito excluded)"
+    )
+
+
+def _dummy_event(content_id: str, rho: str = "3/5") -> PerceptEvent:
+    return PerceptEvent(
+        content_id=ContentID(content_id),
+        text=f"dummy content for {content_id}",
+        content_state=ContentState(
+            available=True, verification_path=True, retrievable=True, operative=True
+        ),
+        initial_rho=Fraction(rho),
+    )
+
+
+@register("I-RT-11", status="STRUCTURAL")
+def check_I_RT_11() -> None:
+    """tick() with more than one event raises ValueError naming I-RT-11."""
+    state = initial_state()
+    events = [_dummy_event("a"), _dummy_event("b")]
+    try:
+        tick(state, events, MockClient([]))
+    except ValueError as exc:
+        assert "I-RT-11" in str(exc), (
+            f"multi-event tick raised but message missing I-RT-11: {exc}"
+        )
+        return
+    raise AssertionError(
+        "I-RT-11 violated: tick() did not raise on a 2-event call"
+    )
+
+
+@register("I-RT-12", status="STRUCTURAL")
+def check_I_RT_12() -> None:
+    """tick() rejects a percept whose content_id is already in profile.domain."""
+    state = initial_state()
+    # First tick: promote "foo" into the profile.
+    state, _ = tick(state, [_dummy_event("foo")], MockClient(["PRESERVE"]))
+    assert ContentID("foo") in state.profile.domain
+    # Second tick with the same content_id must raise.
+    try:
+        tick(state, [_dummy_event("foo")], MockClient(["PRESERVE"]))
+    except ValueError as exc:
+        assert "I-RT-12" in str(exc), (
+            f"duplicate-content tick raised but message missing I-RT-12: {exc}"
+        )
+        return
+    raise AssertionError(
+        "I-RT-12 violated: tick() did not raise on duplicate content_id"
     )
 
 

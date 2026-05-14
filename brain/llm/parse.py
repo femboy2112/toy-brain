@@ -24,16 +24,30 @@ def parse_consistency_eval(raw: str) -> ConsistencyEval:
     """Parse one of ``{PRESERVE, DAMAGE, NEUTRAL}`` from ``raw``.
 
     Tolerates trailing punctuation, surrounding markdown markers, and
-    full-sentence drift by scanning whitespace-separated tokens. Anything
-    less unambiguous raises ``ParseError``.
+    full-sentence drift by scanning whitespace-separated tokens. The
+    canonical exact-match short-circuit fires first.
+
+    Phase 2 v1.2 (P4): rejects ambiguous responses. If the scan finds
+    multiple distinct valid tokens (e.g. ``"PRESERVE AND DAMAGE"``,
+    ``"DAMAGE, not PRESERVE"``), raises ``ParseError`` so the retry
+    shell can ask the LLM for a single-word answer.
     """
     cleaned = raw.strip().upper()
     if cleaned in _VALID:
         return ConsistencyEval[cleaned]
+    found: set[str] = set()
     for token in cleaned.split():
         stripped = token.strip(_STRIP_CHARS)
         if stripped in _VALID:
-            return ConsistencyEval[stripped]
+            found.add(stripped)
+    if len(found) == 1:
+        return ConsistencyEval[found.pop()]
+    if len(found) > 1:
+        raise ParseError(
+            f"Ambiguous response — found multiple valid tokens "
+            f"{sorted(found)} in {raw!r}. Expected exactly one of "
+            f"PRESERVE / DAMAGE / NEUTRAL."
+        )
     raise ParseError(
         f"Could not parse {raw!r} as one of PRESERVE / DAMAGE / NEUTRAL"
     )

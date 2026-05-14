@@ -25,7 +25,24 @@ from brain.trace import (
     FileTracer,
     MemoryTracer,
     NullTracer,
+    SafeTracer,
 )
+
+
+class _TracerThatAlwaysRaises:
+    """Sink that fails on every call. Wrapped in SafeTracer for I-TRACE-02."""
+
+    def record(self, *args, **kwargs):
+        raise RuntimeError("simulated sink failure: record")
+
+    def set_tick(self, *args, **kwargs):
+        raise RuntimeError("simulated sink failure: set_tick")
+
+    def clear_tick(self, *args, **kwargs):
+        raise RuntimeError("simulated sink failure: clear_tick")
+
+    def close(self, *args, **kwargs):
+        raise RuntimeError("simulated sink failure: close")
 
 
 def _fresh_mock_responses() -> list[str]:
@@ -94,4 +111,23 @@ def check_I_TRACE_01() -> None:
     missing = expected_subset - captured_types
     assert not missing, (
         f"MemoryTracer missing expected event types: {sorted(missing)}"
+    )
+
+
+@register("I-TRACE-02", status="STRUCTURAL")
+def check_I_TRACE_02() -> None:
+    """Tracer failures must not propagate: a _TracerThatAlwaysRaises
+    wrapped in SafeTracer produces the same BrainState and mode_trace
+    as the NullTracer baseline.
+    """
+    null_result = _run_with_tracer(NullTracer())
+    failing = SafeTracer(_TracerThatAlwaysRaises())
+    failing_result = _run_with_tracer(failing)
+    assert null_result.final_state == failing_result.final_state, (
+        "I-TRACE-02 violated: SafeTracer(raising) produced different BrainState"
+    )
+    assert null_result.actual_modes == failing_result.actual_modes, (
+        "I-TRACE-02 violated: SafeTracer(raising) produced different mode_trace "
+        f"null={[m.name for m in null_result.actual_modes]} "
+        f"failing={[m.name for m in failing_result.actual_modes]}"
     )

@@ -15,7 +15,6 @@ deterministic runner output.
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import json
 import sys
 from dataclasses import dataclass
@@ -129,7 +128,9 @@ def run_scenario(
                 tracer=tracer,
                 tick_id=idx + 1,
             )
-            record = dataclasses.replace(record, tick_index=idx)
+            # P2: tick() propagates tick_id to TickRecord.tick_index
+            # directly; no override needed (scenario was previously
+            # stamping 0-based, which was brittle).
             records.append(record)
             actual_evals.append(record.eval_map[scenario_tick.percept.content_id])
             if record.triggered_mode is None:
