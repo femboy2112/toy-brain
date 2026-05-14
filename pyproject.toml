@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toy-brain"
+version = "0.1.0"
+description = "v0 TLICA-constrained Python brain kernel (catalog-driven)."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["brain*", "tools*"]
+exclude = ["lean_reference*", ".claude*"]
