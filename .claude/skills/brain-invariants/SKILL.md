@@ -6,8 +6,8 @@ description: Orchestrate the TLICA invariant catalog and runner for toy-brain. U
 # brain-invariants skill
 
 The `brain/` package is a theorem-constrained Python state machine.
-`INVARIANT_CATALOG.md` (v0.2) binds each Lean theorem to a Python runtime
-check; success is `python -m brain.invariants run` reporting all 80 REQUIRED
+`INVARIANT_CATALOG.md` (v0.4) binds each Lean theorem to a Python runtime
+check; success is `python -m brain.invariants run` reporting all 84 REQUIRED
 rows green. This skill bundles every helper that supports that loop.
 
 ## When to use this skill
@@ -17,6 +17,8 @@ rows green. This skill bundles every helper that supports that loop.
 - Checking catalog hygiene — banner counts, citation resolution.
 - The Lean upstream changed — run the refresh protocol.
 - Auditing the I-PCE-05 import rule (`agency.py` ⊄ `pce.py`).
+- Wiring the LLM seam (`brain/llm/`, `PtCns.eval`) or the cognition
+  tracer (`brain/trace.py`).
 
 ## Helpers
 
@@ -32,9 +34,11 @@ python -m tools.catalog show I-AGN-03              # full row detail
 python -m tools.catalog counts                     # banner vs actual vs expected
 ```
 
-The `counts` command must report `80 / 7 / 3 / 12` for REQUIRED / STRUCTURAL /
-NOT-EXERCISED / DEFERRED. If it doesn't, either the catalog has drifted or
-the parser broke — fix before relying on other helpers.
+The `counts` command must report `84 / 11 / 3 / 12 / 1` for REQUIRED /
+STRUCTURAL / NOT-EXERCISED / DEFERRED / OBSERVED. If it doesn't, either the
+catalog has drifted or the parser broke — fix before relying on other
+helpers. (OBSERVED rows are recorded in the run summary but do not fail the
+runner; they were added in v0.3 for the LLM seam.)
 
 ### `tools.citations` — verify Lean citations
 
@@ -122,6 +126,9 @@ invariant runner. Exits non-zero on the first failure. Use this for the
   pair has equal branch profiles AND equal projected PCE (I-AFF-05).
 - Every dataclass `__post_init__` raises on invariant violation;
   builders also raise and add axiom-tagged messages.
+- The `CognitionTracer` Protocol (`brain/trace.py`) is observation-only:
+  swapping `NullTracer` / `MemoryTracer` / `FileTracer` must not change
+  `(BrainState, TickRecord)` output for a given seed (I-TRACE-01).
 
 ## Refresh protocol (when upstream Lean evolves)
 

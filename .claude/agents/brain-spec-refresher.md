@@ -34,7 +34,9 @@ catalog must be re-aligned.
    python -m tools.catalog counts
    ```
    Counts in the banner must match the actual table contents. Bump the
-   version banner (`v0.2 → v0.3`) and list substantive changes.
+   version banner (e.g. `v0.4 → v0.5`) and list substantive changes;
+   prepend the new entry above the existing v0.4 / v0.3 / v0.2 lines so
+   the patch history reads newest-first.
 5. **Overwrite the snapshot** only after the catalog is reviewed:
    ```bash
    rm -rf lean_reference/TLICA
