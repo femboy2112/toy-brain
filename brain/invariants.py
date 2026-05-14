@@ -169,13 +169,35 @@ def check_I_CAT_01() -> None:
 def check_I_PCE_05() -> None:
     """Action selection never reads foundation PCE.
 
-    The runner already runs ``audit_agency_no_pce_import`` at startup; this
+    Positive case: the canonical ``agency.py`` audits clean. The runner
+    already runs ``audit_agency_no_pce_import`` at startup; this
     registered check re-asserts it so the row appears in the pass/fail
     summary like every other STRUCTURAL row.
+
+    Negative case (Phase 2 v1.2 corrigenda C1): the audit must catch
+    ``from brain.tlica import pce`` — a form that previously slipped
+    through because the walker only inspected ``node.module``.
     """
     ok, msg = audit_agency_no_pce_import()
     if not ok:
         raise AssertionError(f"I-PCE-05 violated: {msg}")
+
+    import ast
+    from brain._import_audit import _audit_pce_imports
+
+    bad_tree = ast.parse(
+        "from brain.tlica import pce\n"
+        "def f():\n"
+        "    return pce\n"
+    )
+    bad_ok, bad_msg = _audit_pce_imports(bad_tree, "synthetic_agency.py")
+    assert not bad_ok, (
+        "I-PCE-05 audit failed to reject `from brain.tlica import pce` "
+        "(C1 regression check)"
+    )
+    assert "I-PCE-05" in bad_msg, (
+        f"I-PCE-05 negative-case message lacks the row tag: {bad_msg!r}"
+    )
 
 
 @register("I-ISO-01", status="STRUCTURAL")

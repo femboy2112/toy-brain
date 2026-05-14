@@ -116,10 +116,22 @@ def check_I_TRACE_01() -> None:
 
 @register("I-TRACE-02", status="STRUCTURAL")
 def check_I_TRACE_02() -> None:
-    """Tracer failures must not propagate: a _TracerThatAlwaysRaises
-    wrapped in SafeTracer produces the same BrainState and mode_trace
-    as the NullTracer baseline.
+    """Tracer failures must not propagate.
+
+    Two sub-cases:
+
+    1. Pre-wrapped: ``SafeTracer(_TracerThatAlwaysRaises())`` produces
+       the same BrainState and mode_trace as the NullTracer baseline.
+       This was the original I-TRACE-02 contract.
+
+    2. (Phase 2 v1.2 corrigenda C2) Boundary-wrapped: a raw
+       ``_TracerThatAlwaysRaises`` passed directly to ``tick()`` must
+       *also* not propagate, because ``tick()`` now wraps any
+       non-SafeTracer in SafeTracer at the kernel boundary. Confirms
+       that explicit ``--trace`` paths and other call sites cannot
+       bypass the fail-open guarantee.
     """
+    # Sub-case 1: factory-wrapped path.
     null_result = _run_with_tracer(NullTracer())
     failing = SafeTracer(_TracerThatAlwaysRaises())
     failing_result = _run_with_tracer(failing)
@@ -130,4 +142,22 @@ def check_I_TRACE_02() -> None:
         "I-TRACE-02 violated: SafeTracer(raising) produced different mode_trace "
         f"null={[m.name for m in null_result.actual_modes]} "
         f"failing={[m.name for m in failing_result.actual_modes]}"
+    )
+
+    # Sub-case 2: boundary-wrapping path. Pass an UNWRAPPED raising
+    # tracer directly to tick(); tick() must wrap it internally.
+    from brain.tick import initial_state, tick
+    from brain.fixtures.scenario_v1 import _dummy_event
+
+    state = initial_state()
+    events = [_dummy_event("c2_boundary_test")]
+    client = MockClient(["PRESERVE"])
+    raw_raising = _TracerThatAlwaysRaises()  # NOT wrapped
+    new_state, record = tick(state, events, client, tracer=raw_raising)
+    assert record is not None, (
+        "I-TRACE-02 corrigenda C2 violated: tick() returned None when given "
+        "an unwrapped raising tracer (expected boundary-wrap to absorb it)."
+    )
+    assert new_state.profile.values, (
+        "I-TRACE-02 corrigenda C2 violated: tick() returned an empty profile"
     )

@@ -44,7 +44,7 @@ from brain.tlica.msi import MSI
 from brain.tlica.preservation import PreservationRanking
 from brain.tlica.profile import COGITO_ID, ContentID, ScalarProfile
 from brain.tlica.ptcns import ConsistencyEval, PtCns, PtCnsLike
-from brain.trace import CognitionTracer, NullTracer
+from brain.trace import CognitionTracer, NullTracer, SafeTracer
 from brain.validation import assert_partition
 
 
@@ -111,7 +111,17 @@ def tick(
     backend is used. ``tick_id`` is auto-tagged on every event recorded
     during this call (cleared in a ``finally``).
     """
-    tracer = tracer if tracer is not None else NullTracer()
+    # I-TRACE-02 (Phase 2 v1.2 corrigenda C2): make SafeTracer unavoidable
+    # at the kernel boundary. Callers may still pass a raw tracer
+    # (e.g. ``FileTracer(path)`` from a CLI ``--trace`` flag); we wrap it
+    # here so trace-sink failures cannot propagate into tick(). The
+    # ``isinstance`` check prevents redundant double-wrapping when the
+    # tracer already arrived from ``make_tracer_from_env`` (which
+    # SafeTracer-wraps by default).
+    if tracer is None:
+        tracer = SafeTracer(NullTracer())
+    elif not isinstance(tracer, SafeTracer):
+        tracer = SafeTracer(tracer)
     # I-RT-11 (P2): v1 semantics handle at most one PerceptEvent per tick.
     # Multi-event mode aggregation is deferred (see PHASE2_v1_KICKOFF.md
     # "Still deferred"). Raise before any state mutation.
