@@ -1,0 +1,170 @@
+"""Scenario loader + runner (Phase 2 v1).
+
+Loads ``scenarios/<name>.json``, walks each tick through
+``brain.tick.tick(...)``, records the eval/mode trace, and reports
+whether the actual modes matched the scenario's ``expected_mode``
+sequence.
+
+CLI:
+    python -m brain.scenario run <path/to/scenario.json>
+
+Default client = ``CachedClient(AnthropicAPIClient())``. The fixture
+path uses a ``MockClient`` seeded from ``expected_eval`` for
+deterministic runner output.
+"""
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import json
+import sys
+from dataclasses import dataclass
+from fractions import Fraction
+from pathlib import Path
+
+from brain.io_types import PerceptEvent, TickRecord
+from brain.llm.client import AnthropicAPIClient, CachedClient, LLMClient
+from brain.tick import BrainState, initial_state, tick
+from brain.tlica.modes import ModeOp
+from brain.tlica.profile import ContentID
+from brain.tlica.ptcns import ConsistencyEval
+from brain.toce_core import ContentState
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioTick:
+    tick: int
+    percept: PerceptEvent
+    expected_eval: ConsistencyEval
+    expected_mode: ModeOp
+    note: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioSpec:
+    name: str
+    description: str
+    initial_msi_threshold: Fraction
+    ticks: tuple[ScenarioTick, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioResult:
+    spec: ScenarioSpec
+    actual_evals: tuple[ConsistencyEval, ...]
+    actual_modes: tuple[ModeOp, ...]
+    final_state: BrainState
+    records: tuple[TickRecord, ...]
+
+    @property
+    def all_modes_matched(self) -> bool:
+        return self.actual_modes == tuple(t.expected_mode for t in self.spec.ticks)
+
+
+def _parse_content_state(payload: dict) -> ContentState:
+    return ContentState(
+        available=bool(payload["available"]),
+        verification_path=bool(payload["verification_path"]),
+        retrievable=bool(payload["retrievable"]),
+        operative=bool(payload["operative"]),
+    )
+
+
+def _parse_percept(payload: dict) -> PerceptEvent:
+    return PerceptEvent(
+        content_id=ContentID(payload["content_id"]),
+        text=payload["text"],
+        content_state=_parse_content_state(payload["content_state"]),
+        initial_rho=Fraction(payload["initial_rho"]),
+    )
+
+
+def load_scenario(path: Path) -> ScenarioSpec:
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    ticks = tuple(
+        ScenarioTick(
+            tick=int(t["tick"]),
+            percept=_parse_percept(t["percept"]),
+            expected_eval=ConsistencyEval[t["expected_eval"]],
+            expected_mode=ModeOp[t["expected_mode"]],
+            note=t.get("note", ""),
+        )
+        for t in raw["ticks"]
+    )
+    return ScenarioSpec(
+        name=raw["name"],
+        description=raw.get("description", ""),
+        initial_msi_threshold=Fraction(raw["initial_state"]["msi_threshold"]),
+        ticks=ticks,
+    )
+
+
+def run_scenario(spec: ScenarioSpec, client: LLMClient) -> ScenarioResult:
+    state = initial_state(msi_threshold=spec.initial_msi_threshold)
+    actual_evals: list[ConsistencyEval] = []
+    actual_modes: list[ModeOp] = []
+    records: list[TickRecord] = []
+    for idx, scenario_tick in enumerate(spec.ticks):
+        state, record = tick(state, [scenario_tick.percept], client)
+        # Stamp the canonical tick index (the functional tick() doesn't
+        # know about the scenario index by itself).
+        record = dataclasses.replace(record, tick_index=idx)
+        records.append(record)
+        actual_evals.append(record.eval_map[scenario_tick.percept.content_id])
+        if record.triggered_mode is None:
+            raise RuntimeError(
+                f"scenario tick {scenario_tick.tick}: triggered_mode is None"
+            )
+        actual_modes.append(record.triggered_mode)
+    return ScenarioResult(
+        spec=spec,
+        actual_evals=tuple(actual_evals),
+        actual_modes=tuple(actual_modes),
+        final_state=state,
+        records=tuple(records),
+    )
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    spec = load_scenario(Path(args.path))
+    client: LLMClient = CachedClient(AnthropicAPIClient())
+    result = run_scenario(spec, client)
+
+    matched = sum(
+        1 for a, t in zip(result.actual_modes, spec.ticks) if a is t.expected_mode
+    )
+    total = len(spec.ticks)
+    print(f"\nScenario: {spec.name}")
+    for idx, t in enumerate(spec.ticks):
+        ok = "ok" if result.actual_modes[idx] is t.expected_mode else "!!"
+        print(
+            f"  tick {t.tick}: eval={result.actual_evals[idx].name:8s} "
+            f"mode={result.actual_modes[idx].name:7s} "
+            f"(expected eval={t.expected_eval.name}, mode={t.expected_mode.name})  {ok}"
+        )
+    status = (
+        "invariants green throughout"
+        if result.all_modes_matched
+        else "MODE TRACE MISMATCH"
+    )
+    print(f"\n{matched}/{total} modes matched expected; {status}")
+    return 0 if result.all_modes_matched else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="brain.scenario")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    p_run = sub.add_parser("run", help="Run a scenario JSON file end-to-end.")
+    p_run.add_argument("path")
+    p_run.set_defaults(func=_cmd_run)
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    # Same dual-module fix as `brain.invariants`: run the canonical
+    # module so any decorator-based registries remain coherent.
+    import brain.scenario as _canonical
+    sys.exit(_canonical.main())

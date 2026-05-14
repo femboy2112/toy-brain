@@ -9,10 +9,31 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
-from typing import Mapping
+from typing import Mapping, Protocol, runtime_checkable
 
 from brain.tlica.msi import MSI
 from brain.tlica.profile import COGITO_ID, ContentID
+
+
+@runtime_checkable
+class PtCnsLike(Protocol):
+    """Structural surface shared by ``PtCns`` (v0 dataclass) and
+    ``LLMBackedPtCns`` (Phase 2 v1).
+
+    Downstream consumers (``boundary``, ``from_eval``, the runtime
+    state validator in ``brain/tick.py``) should accept ``PtCnsLike``
+    so either implementation works interchangeably. Additional fields
+    on the concrete ``PtCns`` dataclass (notably ``msi``) are not
+    required by this Protocol.
+    """
+
+    eval_map: Mapping[ContentID, "ConsistencyEval"]
+    positive_contents: frozenset[ContentID]
+    negative_contents: frozenset[ContentID]
+    neutral_contents: frozenset[ContentID]
+
+    def eval(self, x: ContentID) -> "ConsistencyEval":
+        ...
 
 
 class ConsistencyEval(Enum):

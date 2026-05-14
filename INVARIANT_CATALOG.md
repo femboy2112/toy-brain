@@ -2,6 +2,8 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
+> **Catalog version:** v0.3. Patches over v0.2 (Phase 2 v1): LLM-backed `PtCns.eval` via the new `brain/llm/` seam; new `OBSERVED` Status; +4 REQUIRED rows (I-LLM-01, I-LLM-03, I-RT-08, I-BHV-01); +3 STRUCTURAL rows (I-LLM-04, I-RT-09, I-RT-10); +1 OBSERVED row (I-LLM-02); two new fixtures (`llm_protocol.py`, `scenario_v1.py`).
+>
 > **Catalog version:** v0.2. Patches over v0.1: numeric representation switched to `Fraction`; `Act` is an `Enum`; `PreservationRanking` stub is cogito-gated; `I-INT-01` uses Lean-exact `< 1`; `I-MSI-05` corrected to ρ/profile; `I-PHI-01` reclassified DEFERRED; trajectory shared-distance rows added; PCE-valence exclusions added; free-will witness rows reclassified NOT-EXERCISED; `I-RT-07` cogito-preservation invariant added; `ProjectMap.natural_dynamics` made an explicit Protocol method; `affect_kernel_collapse.py` fixture added.
 
 ## Schema
@@ -14,7 +16,7 @@ This catalog is the spine of the v0 plan. Each row binds a Lean source declarati
 | **Python assertion** | Pseudocode for the runtime check. |
 | **Owning module** | The `brain/` file that hosts the assertion. |
 | **Fixture** | The `brain/fixtures/` file that drives it. |
-| **Status** | `REQUIRED` (must assert green in v0) · `STRUCTURAL` (type-enforced at construction or covered by another row's fixture; no per-tick assertion of its own) · `NOT-EXERCISED` (Python surface exists but no v0 fixture drives it) · `DEFERRED` (explicit non-goal per `CLAIM_GUARDRAILS.md` or Lean deferred marker). |
+| **Status** | `REQUIRED` (must assert green in v0) · `STRUCTURAL` (type-enforced at construction or covered by another row's fixture; no per-tick assertion of its own) · `NOT-EXERCISED` (Python surface exists but no v0 fixture drives it) · `DEFERRED` (explicit non-goal per `CLAIM_GUARDRAILS.md` or Lean deferred marker) · `OBSERVED` (recorded in the run summary for inspection; does not fail the runner — used for properties useful to track but not required for correctness). |
 
 ## Conventions
 
@@ -267,6 +269,25 @@ This catalog is the spine of the v0 plan. Each row binds a Lean source declarati
 | I-TOCE-04 | `TOCE_Core.lean::clear_requires_availability` | `consciousClear ⇒ available=true`. | Truth-table check. | `content_classification.py` | REQUIRED |
 | I-TOCE-05 | `TOCE_Core.lean::fuzzy_requires_availability` | `consciousFuzzy ⇒ available=true`. | Truth-table check. | `content_classification.py` | REQUIRED |
 
+### `brain/llm/` — LLM client seam (Phase 2 v1)
+
+> The LLM-backed `PtCns.eval` layer. Foundation `PtCns` (the v0 dataclass) is unchanged; `LLMBackedPtCns` is a duck-typed alternative that consults an `LLMClient` Protocol.
+
+| ID | Source | Proposition | Python assertion | Fixture | Status |
+|---|---|---|---|---|---|
+| I-LLM-01 | Plan convention (Phase 2 v1) | `PtCns.eval` returns one of `{PRESERVE, DAMAGE, NEUTRAL}` after retry resolution. Up to 3 attempts; final failure raises and the tick fails. | `LLMBackedPtCns(content)` returns `ConsistencyEval` member; never returns sentinel "invalid"; raises `ValueError` on Nth-attempt failure. | `llm_protocol.py` | REQUIRED |
+| I-LLM-02 | Plan convention (Phase 2 v1) | Cached identical prompts produce identical outputs. | Same prompt routed twice through `CachedClient` returns same response without re-calling the inner client. | `llm_protocol.py` | OBSERVED |
+| I-LLM-03 | I-PTC-01 (cogito_invariance) | LLM-backed `PtCns.eval(COGITO_ID)` short-circuits to `PRESERVE` without an LLM call. | `LLMBackedPtCns.eval(COGITO_ID) == PRESERVE` and the underlying client is not called. | `llm_protocol.py` | REQUIRED |
+| I-LLM-04 | Plan convention (Phase 2 v1) | The LLM-backed implementation honors the `LLMClient` Protocol — `eval_consistency(prompt: str) -> str`. No direct HTTP coupling, no provider lock-in. | `isinstance(client, LLMClient)` and `LLMBackedPtCns` accepts any conforming client. | `llm_protocol.py` | STRUCTURAL |
+
+### Behavioral (Phase 2 v1)
+
+| ID | Source | Proposition | Python assertion | Fixture | Status |
+|---|---|---|---|---|---|
+| I-BHV-01 | Plan convention (Phase 2 v1, criterion 3) | Given a forced eval sequence (via MockClient seeded from `expected_eval`), the resulting mode trace matches `expected_mode`. Verifies the eval→mode→state-update orchestration; *does not* verify LLM behavior. | After running `scenarios/first_scenario_v1.json`: `actual_modes == [tick["expected_mode"] for tick in scenario.ticks]`. | `scenario_v1.py` | REQUIRED |
+
+> **Note.** I-BHV-01 verifies the brain's deterministic orchestration of eval→mode under controlled MockClient inputs. The actual LLM behavioral check (does the LLM correctly classify the scenario's percepts?) happens in `python -m brain.scenario run …` with a real `AnthropicAPIClient` and is not part of the runner gate.
+
 ---
 
 ## Modules with no v0-required invariants
@@ -287,7 +308,7 @@ Shell-stratified distance bounds and pseudo-emetric instance. v0 exposes the typ
 
 ## Cross-cutting / runtime-only invariants
 
-These are not Lean theorems but are needed for the runtime to be coherent. Owned by `brain/invariants.py` and `brain/tlica/builders.py`.
+These are not Lean theorems but are needed for the runtime to be coherent. Owned by `brain/invariants.py`, `brain/tlica/builders.py`, and `brain/tick.py`.
 
 | ID | Source | Proposition | Python assertion | Owning module |
 |---|---|---|---|---|
@@ -298,6 +319,16 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | I-RT-05 | Plan convention | The tick log is append-only; no state is mutated retroactively. | `TickRecord` instances are frozen dataclasses. | `brain/io_types.py` |
 | I-RT-06 | Plan convention | Builders fail loudly on invalid construction (no silent clamping; out-of-bounds values raise). | `make_profile_with_cogito`, `make_msi`, `make_ptcns` raise `ValueError` on violation. | `brain/tlica/builders.py` |
 | I-RT-07 | Plan convention | Every projected profile produced by v0 `ProjectMap` preserves `COGITO_ID` at value `1`. | After every `project(a, P)`: `COGITO_ID in projected.domain and projected.values[COGITO_ID] == 1`. | `brain/tlica/project_map.py` + `brain/tick.py` |
+
+### Runtime / tick orchestration (Phase 2 v1)
+
+> *(I-RT-08 is enforced by `brain/tick.py::assert_state_invariants`. New runtime-applicable rows must be added there too — see that function's MAINTENANCE CONTRACT docstring.)*
+
+| ID | Source | Proposition | Python assertion | Owning module | Fixture | Status |
+|---|---|---|---|---|---|---|
+| I-RT-08 | Plan convention (Phase 2 v1) | The invariant runner is green after every tick in any scenario. The kernel never sees an invalid state mid-trajectory. | After each `tick(state, events, client)` call, `brain/tick.py::assert_state_invariants(new_state)` re-asserts the runtime-applicable v0.2 rows; the scenario fixture asserts no exception escapes the loop. | `brain/tick.py` | `scenario_v1.py` | REQUIRED |
+| I-RT-09 | Plan convention (Phase 2 v1) | `PerceptEvent.text` is non-empty and printable. | At ingest: `event.text and event.text.isprintable()`; raises `ValueError` otherwise. | `brain/io_types.py` | `scenario_v1.py` | STRUCTURAL |
+| I-RT-10 | Plan convention (Phase 2 v1) | Content registry retains text metadata across ticks for content already integrated into the profile. | `len(registry.texts) >= len(profile.domain) - 1` (one less because cogito has no text). | `brain/io_types.py` | `scenario_v1.py` | STRUCTURAL |
 
 ---
 
@@ -337,8 +368,10 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | `projected_pce.py` | I-PCE-01..04, I-APRJ-01..06, I-AFF-01..04, I-AFF-11..13 |
 | `affect_kernel_collapse.py` | I-AFF-05 |
 | `trajectory_step.py` | I-PMAP-02, I-TRJ-01..04, I-TRJ-08, I-TRJ-09, I-AFF-06 |
+| `llm_protocol.py` | I-LLM-01, I-LLM-02 (OBSERVED), I-LLM-03, I-LLM-04 |
+| `scenario_v1.py` | I-RT-08, I-RT-09, I-RT-10, I-BHV-01 |
 
-11 fixtures total.
+13 fixtures total.
 
 ---
 
@@ -357,12 +390,13 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 
 ## Summary counts
 
-- **REQUIRED v0 invariants:** 80
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 7
+- **REQUIRED v0 invariants:** 84
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 10
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
+- **OBSERVED row-level:** 1 (Phase 2 v1; recorded in run summary, not gating)
 
-Total tabular entries: 102. v0 success is gated by the 80 REQUIRED rows distributed across 11 fixtures.
+Total tabular entries: 110. v0.3 success is gated by the 84 REQUIRED rows distributed across 13 fixtures (the OBSERVED row is logged but does not gate).
 
 ---
 

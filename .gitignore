@@ -25,3 +25,4 @@ venv/
 
 # Spec-refresh scratch space (per SPEC_UPDATES.md)
 /tmp/lean-scratch-latest/
+brain/.llm_cache/

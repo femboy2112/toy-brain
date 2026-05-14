@@ -45,6 +45,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.fixtures.projected_pce",
     "brain.fixtures.affect_kernel_collapse",
     "brain.fixtures.trajectory_step",
+    "brain.fixtures.llm_protocol",
+    "brain.fixtures.scenario_v1",
 ]
 
 
@@ -102,7 +104,8 @@ class RunReport:
             return False
         if not self.audit_passed:
             return False
-        return all(r.passed for r in self.rows)
+        # OBSERVED rows are reported but never gate the runner.
+        return all(r.passed for r in self.rows if r.spec.status != "OBSERVED")
 
     def summary(self) -> dict[str, int]:
         out: dict[str, int] = {}
@@ -166,8 +169,11 @@ def _print_table(report: RunReport) -> None:
     for mod in sorted(by_module):
         print(f"\n[{mod}]")
         for r in sorted(by_module[mod], key=lambda x: x.spec.id):
-            mark = "PASS" if r.passed else "FAIL"
-            print(f"  {mark}  {r.spec.id:11s}  {r.spec.status}")
+            if r.spec.status == "OBSERVED":
+                mark = "OBS-PASS" if r.passed else "OBS-FAIL"
+            else:
+                mark = "PASS" if r.passed else "FAIL"
+            print(f"  {mark:8s}  {r.spec.id:11s}  {r.spec.status}")
             if not r.passed:
                 for line in r.detail.splitlines():
                     print(f"        {line}")
@@ -181,13 +187,24 @@ def _print_table(report: RunReport) -> None:
     print(report.audit_message)
     summary = report.summary()
     total_rows = len(report.rows)
-    failed = sum(1 for r in report.rows if not r.passed)
     required_pass = summary.get("REQUIRED/pass", 0)
     required_fail = summary.get("REQUIRED/fail", 0)
-    print(
-        f"\n{total_rows} rows checked  ·  REQUIRED green: {required_pass} "
-        f"·  REQUIRED red: {required_fail}  ·  total failed: {failed}"
+    structural_pass = summary.get("STRUCTURAL/pass", 0)
+    structural_fail = summary.get("STRUCTURAL/fail", 0)
+    observed_pass = summary.get("OBSERVED/pass", 0)
+    observed_fail = summary.get("OBSERVED/fail", 0)
+    gate_failed = sum(
+        1 for r in report.rows if not r.passed and r.spec.status != "OBSERVED"
     )
+    line = (
+        f"\n{total_rows} rows checked  ·  REQUIRED green: {required_pass} "
+        f"·  REQUIRED red: {required_fail}  ·  STRUCTURAL green: {structural_pass} "
+        f"·  STRUCTURAL red: {structural_fail}"
+    )
+    if observed_pass or observed_fail:
+        line += f"  ·  OBSERVED: {observed_pass} pass / {observed_fail} fail"
+    line += f"  ·  gate failures: {gate_failed}"
+    print(line)
 
 
 def _cmd_run(args: argparse.Namespace) -> int:

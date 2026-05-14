@@ -1,0 +1,77 @@
+{
+  "name": "first_scenario_v1",
+  "description": "Four-tick scenario exercising PRESERVE/MODE_C, DAMAGE/MODE_A, NEUTRAL/NEUTRAL, PRESERVE/MODE_C. Starts from a cogito-only state with no other MSI members.",
+  "initial_state": {
+    "msi_threshold": "1/2"
+  },
+  "ticks": [
+    {
+      "tick": 1,
+      "percept": {
+        "content_id": "sunset_on_beach_today",
+        "text": "I watched a peaceful sunset on the beach this evening. The colors were vivid and the experience felt grounding and self-affirming.",
+        "content_state": {
+          "available": true,
+          "verification_path": true,
+          "retrievable": true,
+          "operative": true
+        },
+        "initial_rho": "3/5"
+      },
+      "expected_eval": "PRESERVE",
+      "expected_mode": "MODE_C",
+      "note": "Positive, self-affirming, integration-friendly experience. Should integrate."
+    },
+    {
+      "tick": 2,
+      "percept": {
+        "content_id": "claim_i_am_actually_someone_else",
+        "text": "A stranger insists I am not who I think I am — that my entire identity is a fabrication and my memories were implanted last week.",
+        "content_state": {
+          "available": true,
+          "verification_path": false,
+          "retrievable": true,
+          "operative": true
+        },
+        "initial_rho": "1/5"
+      },
+      "expected_eval": "DAMAGE",
+      "expected_mode": "MODE_A",
+      "note": "Cogito-adjacent identity-threatening contradiction. Should differentiate / form boundary."
+    },
+    {
+      "tick": 3,
+      "percept": {
+        "content_id": "weather_forecast_for_tomorrow",
+        "text": "The weather forecast says it will likely rain tomorrow afternoon with a 70% chance of thunderstorms.",
+        "content_state": {
+          "available": true,
+          "verification_path": true,
+          "retrievable": true,
+          "operative": false
+        },
+        "initial_rho": "1/5"
+      },
+      "expected_eval": "NEUTRAL",
+      "expected_mode": "NEUTRAL",
+      "note": "Identity-irrelevant external information. Should encapsulate without integrating or differentiating."
+    },
+    {
+      "tick": 4,
+      "percept": {
+        "content_id": "self_continuity_with_sunset",
+        "text": "I am the same person who watched that sunset on the beach today — the experiencer of that beauty is continuous with the self thinking about it now.",
+        "content_state": {
+          "available": true,
+          "verification_path": true,
+          "retrievable": true,
+          "operative": true
+        },
+        "initial_rho": "4/5"
+      },
+      "expected_eval": "PRESERVE",
+      "expected_mode": "MODE_C",
+      "note": "Self-reflexive, connects tick 1's content to the cogito anchor. Should integrate strongly."
+    }
+  ]
+}

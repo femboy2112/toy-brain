@@ -29,6 +29,7 @@ _REQUIRED_BANNER_RE = re.compile(r"\*\*REQUIRED v0 invariants:\*\*\s*(\d+)")
 _STRUCTURAL_BANNER_RE = re.compile(r"\*\*STRUCTURAL[^*]*\*\*\s*(\d+)")
 _NOT_EXERCISED_BANNER_RE = re.compile(r"\*\*NOT-EXERCISED[^*]*\*\*\s*(\d+)")
 _DEFERRED_BANNER_RE = re.compile(r"\*\*DEFERRED[^*]*\*\*\s*(\d+)")
+_OBSERVED_BANNER_RE = re.compile(r"\*\*OBSERVED[^*]*\*\*\s*(\d+)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,15 +88,27 @@ def load_catalog(path: Path | None = None) -> list[InvariantRow]:
         first = cells[0]
         if not _ROW_ID_RE.match(first):
             continue
+        # Standard catalog rows have 6 columns:
+        #   ID | Lean source | Proposition | Python assertion | Fixture | Status
+        # The Phase 2 v1 cross-cutting table has 7 columns:
+        #   ID | Source | Proposition | Python assertion | Owning module | Fixture | Status
+        # Read Status/Fixture from the right end so both shapes parse correctly;
+        # when an Owning module column is present, prefer it over current_module.
+        status = cells[-1]
+        fixture = cells[-2]
+        if len(cells) >= 7:
+            module = cells[-3]
+        else:
+            module = current_module
         rows.append(
             InvariantRow(
                 id=first,
                 lean_source=cells[1],
                 proposition=cells[2],
                 py_assertion=cells[3],
-                fixture=cells[4],
-                status=cells[5],
-                module=current_module,
+                fixture=fixture,
+                status=status,
+                module=module,
             )
         )
     return rows
@@ -131,6 +144,7 @@ def banner_counts(path: Path | None = None) -> dict[str, int]:
         ("STRUCTURAL", _STRUCTURAL_BANNER_RE),
         ("NOT-EXERCISED", _NOT_EXERCISED_BANNER_RE),
         ("DEFERRED", _DEFERRED_BANNER_RE),
+        ("OBSERVED", _OBSERVED_BANNER_RE),
     ):
         m = pattern.search(text)
         counts[label] = int(m.group(1)) if m else -1
@@ -184,10 +198,16 @@ def _cmd_counts(args: argparse.Namespace) -> int:
     rows = load_catalog()
     banner = banner_counts()
     actual = actual_counts(rows)
-    expected = {"REQUIRED": 80, "STRUCTURAL": 7, "NOT-EXERCISED": 3, "DEFERRED": 12}
+    expected = {
+        "REQUIRED": 84,
+        "STRUCTURAL": 10,
+        "NOT-EXERCISED": 3,
+        "DEFERRED": 12,
+        "OBSERVED": 1,
+    }
     print(f"{'Category':16s}  {'Banner':>8s}  {'Actual':>8s}  {'Expected':>8s}")
     ok = True
-    for k in ("REQUIRED", "STRUCTURAL", "NOT-EXERCISED", "DEFERRED"):
+    for k in ("REQUIRED", "STRUCTURAL", "NOT-EXERCISED", "DEFERRED", "OBSERVED"):
         b = banner.get(k, -1)
         a = actual.get(k, 0)
         e = expected[k]

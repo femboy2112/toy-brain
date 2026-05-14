@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from brain.tlica.msi import MSI
 from brain.tlica.profile import ContentID
-from brain.tlica.ptcns import PtCns
+from brain.tlica.ptcns import PtCnsLike
 
 
-def boundary(msi: MSI, ptcns: PtCns) -> frozenset[ContentID]:
+def boundary(msi: MSI, ptcns: PtCnsLike) -> frozenset[ContentID]:
     """``IBoundary.lean::boundary``.
 
     The PtCns-positive ∪ PtCns-negative content, i.e. contents that elicit
@@ -25,7 +25,7 @@ def boundary(msi: MSI, ptcns: PtCns) -> frozenset[ContentID]:
     return ptcns.positive_contents | ptcns.negative_contents
 
 
-def contestable_boundary(msi: MSI, ptcns: PtCns) -> frozenset[ContentID]:
+def contestable_boundary(msi: MSI, ptcns: PtCnsLike) -> frozenset[ContentID]:
     """``IBoundary.lean::contestableBoundary``.
 
     DEFERRED in v0 (I-IBND-05): aliased to ``boundary``. The refined
