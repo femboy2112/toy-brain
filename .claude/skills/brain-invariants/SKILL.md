@@ -6,19 +6,25 @@ description: Orchestrate the TLICA invariant catalog and runner for toy-brain. U
 # brain-invariants skill
 
 The `brain/` package is a theorem-constrained Python state machine.
-`INVARIANT_CATALOG.md` (v0.4) binds each Lean theorem to a Python runtime
-check; success is `python -m brain.invariants run` reporting all 84 REQUIRED
-rows green. This skill bundles every helper that supports that loop.
+`INVARIANT_CATALOG.md` (v0.5) binds each Lean theorem — plus engineering-
+hypothesis rows added by Phase 2 — to a Python runtime check; success is
+`python -m brain.invariants run` reporting all 84 REQUIRED rows green plus
+15 STRUCTURAL rows green (1 OBSERVED logged). This skill bundles every
+helper that supports that loop.
 
 ## When to use this skill
 
 - Implementing a new fixture or module — look up the rows it owns.
 - A row is red — find its Lean citation, fixture path, and module.
-- Checking catalog hygiene — banner counts, citation resolution.
+- Checking catalog hygiene — banner counts, citation resolution,
+  `_catalog_ids.py` freshness (regenerate via `python -m tools.catalog
+  generate-ids`).
 - The Lean upstream changed — run the refresh protocol.
 - Auditing the I-PCE-05 import rule (`agency.py` ⊄ `pce.py`).
-- Wiring the LLM seam (`brain/llm/`, `PtCns.eval`) or the cognition
-  tracer (`brain/trace.py`).
+- Auditing catalog↔registry coverage (I-CAT-01).
+- Wiring the LLM seam (`brain/llm/`, `PtCns.eval`), the cognition
+  tracer (`brain/trace.py`, `SafeTracer`), or the tick guards
+  (I-RT-11 single-event, I-RT-12 duplicate content_id).
 
 ## Helpers
 
@@ -30,15 +36,19 @@ python -m tools.catalog list --status REQUIRED     # filter by status
 python -m tools.catalog list --module modes        # filter by owning module
 python -m tools.catalog list --fixture cogito      # filter by fixture
 python -m tools.catalog list --id-prefix I-AFF     # filter by ID prefix
+python -m tools.catalog list --source-kind LEAN    # filter by inferred source kind
 python -m tools.catalog show I-AGN-03              # full row detail
-python -m tools.catalog counts                     # banner vs actual vs expected
+python -m tools.catalog counts                     # strict banner vs actual vs expected gate
+python -m tools.catalog counts --by-source-kind    # counts grouped by SourceKind
+python -m tools.catalog generate-ids               # regen brain/_catalog_ids.py
 ```
 
-The `counts` command must report `84 / 11 / 3 / 12 / 1` for REQUIRED /
-STRUCTURAL / NOT-EXERCISED / DEFERRED / OBSERVED. If it doesn't, either the
-catalog has drifted or the parser broke — fix before relying on other
-helpers. (OBSERVED rows are recorded in the run summary but do not fail the
-runner; they were added in v0.3 for the LLM seam.)
+The `counts` command must report `84 / 15 / 3 / 12 / 1` for REQUIRED /
+STRUCTURAL / NOT-EXERCISED / DEFERRED / OBSERVED. The v0.5 strict gate
+exits non-zero on any banner ≠ actual ≠ expected drift. (OBSERVED rows
+are recorded in the run summary but do not fail the runner; they were
+added in v0.3 for the LLM seam. SourceKind is inferred from each row's
+Source/Status by `tools.catalog.infer_source_kind`.)
 
 ### `tools.citations` — verify Lean citations
 
@@ -101,9 +111,10 @@ tools/run_invariants.sh --id I-AGN     # filter by ID prefix
 tools/check_all.sh
 ```
 
-Runs, in order: catalog counts → citation verification → import audit →
-invariant runner. Exits non-zero on the first failure. Use this for the
-"is everything green?" gate.
+Runs, in order: generated-ids freshness → catalog counts (strict) →
+citation verification → import audit → invariant runner (with I-CAT-01
+coverage audit at startup). Exits non-zero on the first failure. Use
+this for the "is everything green?" gate.
 
 ## Conventions (canonical from the catalog)
 
@@ -129,6 +140,13 @@ invariant runner. Exits non-zero on the first failure. Use this for the
 - The `CognitionTracer` Protocol (`brain/trace.py`) is observation-only:
   swapping `NullTracer` / `MemoryTracer` / `FileTracer` must not change
   `(BrainState, TickRecord)` output for a given seed (I-TRACE-01).
+  Backend failures are swallowed by `SafeTracer` (I-TRACE-02).
+- `tick()` rejects multi-event lists (I-RT-11) and duplicate
+  `content_id` re-promotion (I-RT-12); both raise `ValueError` with the
+  row name in the message.
+- Every catalog REQUIRED/STRUCTURAL row must have a `@register` entry;
+  the I-CAT-01 audit runs at runner startup and fails fast if any are
+  missing.
 
 ## Refresh protocol (when upstream Lean evolves)
 
