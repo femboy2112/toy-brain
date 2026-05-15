@@ -14,6 +14,11 @@ model_verbosity = "medium"
 max_threads = 4
 max_depth = 1
 
+[agents.brain_current_mission]
+description = "Execute the current repo mission from CURRENT_MISSION.md when the user says go."
+config_file = "agents/brain_current_mission.toml"
+nickname_candidates = ["Go", "Mission", "Current"]
+
 [agents.brain_explorer]
 description = "Read-only navigator for TLICA Lean references, invariant catalog rows, traces, and docs."
 config_file = "agents/brain_explorer.toml"
