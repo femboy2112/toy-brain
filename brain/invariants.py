@@ -62,6 +62,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.focus_contact_protocol",
     "brain.development.fixtures.focus_stabilizes_or_dissolves",
     "brain.development.fixtures.proto_content_promotion",
+    "brain.development.fixtures.output_echo",
 ]
 
 
@@ -288,17 +289,11 @@ for _row_id, _status in _PHASE3_1_PENDING_ROWS.items():
 
 
 _PHASE3_2_PENDING_ROWS: dict[str, str] = {
-    "I-OUT-01": "STRUCTURAL",
-    "I-OUT-02": "STRUCTURAL",
-    "I-OUT-03": "REQUIRED",
-    "I-OUT-04": "REQUIRED",
-    "I-OUT-05": "STRUCTURAL",
     "I-OUT-06": "REQUIRED",
     "I-OUT-07": "REQUIRED",
     "I-OUT-08": "REQUIRED",
     "I-OUT-09": "STRUCTURAL",
     "I-OUT-10": "REQUIRED",
-    "I-OUT-12": "REQUIRED",
 }
 
 
