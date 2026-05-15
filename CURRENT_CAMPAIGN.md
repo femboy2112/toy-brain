@@ -6,9 +6,7 @@
 DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / FINAL-PR
 ```
 
-This campaign replaces the completed Phase 3.5 Expression + ReadabilityPredictor campaign. It defines the fastest safe route from the current v0.12 repo to a bounded text-stream interaction loop.
-
-The campaign must run on a dedicated branch, must push successful step commits to that branch, and must finish by opening a pull request into `main`. It must not commit or push directly to `main`, and it must not merge without explicit user approval.
+This campaign replaces the completed Phase 3.5 Expression + ReadabilityPredictor campaign. It defines the fastest safe route from the current v0.12 repo to a bounded text-stream interaction loop, while preserving the existing catalog, identity, event, and tick-boundary disciplines.
 
 Preferred campaign branch:
 
@@ -22,21 +20,39 @@ Preferred final PR title:
 phase3: fast safe text interaction campaign
 ```
 
----
-
-## 0. Strategic target
-
-Target user-visible loop:
+Rules:
 
 ```text
-operator submits bounded text chunks
-  -> chunks enter local TextStreamHistory
-  -> deterministic stream summaries and candidates become inspectable
-  -> operator explicitly promotes a validated candidate into the queue
-  -> existing /step route remains the only tick() route
+work on the campaign branch
+commit successful step results
+push every successful step commit to the campaign branch
+finish by opening a PR into main
+never push campaign work directly to main
+never merge without explicit user approval
 ```
 
-Target commands after the final campaign phase:
+---
+
+## Mandatory files to read
+
+Before doing campaign work, a repo-capable agent must read:
+
+```text
+CURRENT_MISSION.md
+CURRENT_CAMPAIGN.md
+README.md
+INVARIANT_CATALOG.md
+PHASE3_5_EXPRESSION_READABILITY_AUDIT.md
+PHASE3_8B_LLM_TOGGLE_AMENDMENT.md
+```
+
+The LLM toggle amendment is mandatory context. It must be incorporated before final interactive testing is considered complete.
+
+---
+
+## Strategic target
+
+Target user-visible loop:
 
 ```text
 /stream <text>
@@ -48,11 +64,36 @@ Target commands after the final campaign phase:
 /state
 ```
 
-This is not a free-form chat layer. Text first becomes local developmental evidence. Only explicit, validated promotion candidates may approach the existing event queue.
+Meaning:
+
+```text
+/stream            appends bounded text to local stream history
+/stream-summary    displays read-only stream statistics
+/stream-candidates displays read-only candidate structure
+/stream-promote    validates and queues one explicit candidate
+/step              remains the route that advances tick processing
+```
+
+Final testing must also support an explicit runtime client mode toggle:
+
+```text
+offline       default deterministic mode
+mock          deterministic canned-response mode
+anthropic-api explicit model-backed API mode
+claude-cli    explicit local CLI-backed mode
+```
+
+The default must remain:
+
+```text
+offline
+```
+
+Model-backed modes must be opt-in and must reuse the existing `LLMClient` protocol and existing `tick(..., client, ...)` seam. This campaign does not authorize a second classification path.
 
 ---
 
-## 1. Baseline
+## Baseline
 
 Expected starting state:
 
@@ -65,34 +106,33 @@ Audit verdict: PASS
 Recommended next mission: Phase 3.6 Reflective Inspection
 ```
 
-Known operational drift to fix first:
+Known repo-state drift to address first:
 
 ```text
-README.md still contains older catalog-count language.
-CURRENT_MISSION.md still pointed at Phase 3.5 before this campaign.
-CURRENT_CAMPAIGN.md still contained the completed Phase 3.5 campaign before this campaign.
+README.md contains older catalog-count language
+current mission/campaign files previously pointed at completed Phase 3.5 work
+standalone roadmap file should exist and agree with this campaign
 ```
 
 ---
 
-## 2. Non-negotiable boundaries
+## Guardrails
 
-Preserve these boundaries throughout the whole macro-campaign:
+Preserve these constraints throughout:
 
 ```text
 COGITO_ID remains reserved
 raw text never maps to COGITO_ID
 raw text never mutates BrainState directly
 developmental histories remain local until explicit promotion
-tick() remains the only TLICA runtime transition route
+tick() remains the only formal runtime transition route
 single-event tick discipline remains intact
 Expression remains local evidence only
 Readability remains local readability evidence only
 Reflective Inspection remains read-only and below Mode B
 operator commands remain finite, typed, bounded, and inspectable
+model-backed testing remains explicit opt-in and defaults offline
 ```
-
-Do not add unrestricted host capabilities, real LLM behavior, social/language harnessing, Mode B planning, or direct TLICA mutation from developmental histories.
 
 Guarded paths may be touched only when a step explicitly allows them:
 
@@ -108,23 +148,24 @@ brain/llm/
 
 ---
 
-## 3. Macro-campaign phases
+## Macro sequence
 
 ```text
-Step 1      Repo-state sync
-Steps 2-9   Phase 3.6 Reflective Inspection
-Steps 10-18 Phase 3.7 Text Stream Ingress
-Steps 19-26 Phase 3.8 Operator Stream Interaction
-Step 27     Final PR preparation
+Step 1        Repo-state sync
+Steps 2-9     Phase 3.6 Reflective Inspection
+Steps 10-18   Phase 3.7 Text Stream Ingress
+Steps 19-24   Phase 3.8 Operator Stream Interaction
+Steps 24A-24G Phase 3.8b LLM Runtime Toggle
+Steps 25-27   Final audit, dry run, and PR preparation
 ```
 
-Each step that changes files must be committed and pushed to the campaign branch before stopping or continuing.
+Every step that changes files must be committed and pushed to the campaign branch.
 
 ---
 
 # Step 1 — Repo-state sync
 
-Purpose: remove operational drift before any new runtime layer is planned.
+Purpose: remove operational drift before new runtime work.
 
 Allowed files:
 
@@ -138,10 +179,9 @@ PHASE3_FAST_SAFE_TEXT_INTERACTION_ROADMAP.md
 Required work:
 
 ```text
-update README.md so it no longer claims catalog v0.6/v0.5 as current
-make CURRENT_MISSION.md point to this campaign
-make CURRENT_CAMPAIGN.md describe this campaign
-add or refresh PHASE3_FAST_SAFE_TEXT_INTERACTION_ROADMAP.md
+sync README with catalog v0.12
+make mission/campaign point to this macro-campaign
+ensure roadmap agrees with this campaign
 state that Phase 3.5 is complete and Phase 3.6 is next
 state branch/push/PR workflow explicitly
 ```
@@ -155,13 +195,7 @@ python3 -m tools.import_audit
 bash tools/check_all.sh
 ```
 
-Commit message:
-
-```text
-docs(campaign): sync fast-safe text interaction mission
-```
-
-Push branch. Stop after this step if validation fails or README state is ambiguous.
+Commit and push.
 
 ---
 
@@ -173,15 +207,13 @@ Create:
 PHASE3_6_REFLECTIVE_INSPECTION_SYNTHESIS.md
 ```
 
-Purpose: define Reflective Inspection as a read-only developmental summary layer.
-
 Required content:
 
 ```text
 v0.12 baseline
-why Phase 3.6 follows Phase 3.5 audit recommendation
+why Phase 3.6 follows the Phase 3.5 audit
 Reflective Inspection thesis
-read-only summary over OutputHistory / WorldletHistory / ProtoBasicHistory / ExpressionHistory / OperatorTranscript where available
+read-only summary over existing developmental histories
 why this is not Mode B
 why this is not language/social communication
 why this is not truth scoring
@@ -226,7 +258,7 @@ no Mode B planning
 no self-modification
 no natural-language teacher
 no social model
-no real LLM calls
+no model-backed scoring
 no direct tick promotion
 no TLICA mutation
 no UI integration unless later accepted
@@ -293,7 +325,7 @@ no Mode B / agency / truth / language claims
 OBSERVED aggregate inspection walk
 ```
 
-Stop at review gate after committing and pushing this plan. Do not apply catalog patch until user approves the plan.
+Stop at review gate after committing and pushing this plan. Do not apply catalog changes until the plan is accepted.
 
 ---
 
@@ -308,14 +340,14 @@ brain/_catalog_ids.py
 brain/invariants.py
 ```
 
-Optional package marker if the accepted plan allows it:
+Optional package marker if accepted:
 
 ```text
 brain/development/reflective.py
 brain/development/fixtures/reflective_*.py
 ```
 
-Apply accepted rows only. Register pending checks where needed so coverage stays coherent.
+Apply accepted rows only. Register pending checks where needed.
 
 Validation:
 
@@ -412,8 +444,6 @@ Create:
 ```text
 PHASE3_7_TEXT_STREAM_INGRESS_SYNTHESIS.md
 ```
-
-Purpose: define raw text stream ingress below promotion.
 
 Required thesis:
 
@@ -651,9 +681,7 @@ Create:
 PHASE3_8_OPERATOR_STREAM_INTERACTION_SYNTHESIS.md
 ```
 
-Purpose: expose text stream ingress through the finite Operator TUI command surface.
-
-Required target commands:
+Target commands:
 
 ```text
 /stream <text>
@@ -795,6 +823,196 @@ Commit and push.
 
 ---
 
+# Step 24A — LLM runtime toggle synthesis
+
+Create:
+
+```text
+PHASE3_8B_LLM_RUNTIME_TOGGLE_SYNTHESIS.md
+```
+
+Use `PHASE3_8B_LLM_TOGGLE_AMENDMENT.md` as mandatory source context.
+
+Required thesis:
+
+```text
+offline mode remains the default
+model-backed mode is explicit opt-in
+client selection reuses the existing LLMClient protocol
+selected client enters through the existing tick client argument
+no second classification path is introduced
+fixtures remain deterministic unless explicitly OBSERVED/manual
+```
+
+Commit and push.
+
+---
+
+# Step 24B — LLM runtime toggle kickoff
+
+Create:
+
+```text
+PHASE3_8B_LLM_RUNTIME_TOGGLE_KICKOFF.md
+```
+
+Define:
+
+```text
+LlmRuntimeMode
+LlmRuntimeConfig
+build_llm_client_from_config(...)
+CLI/env precedence
+cache policy
+startup failure behavior
+fixture policy
+```
+
+Likely accepted modes:
+
+```text
+offline
+mock
+anthropic-api
+claude-cli
+```
+
+Commit and push.
+
+---
+
+# Step 24C — LLM runtime toggle corrigenda
+
+Create:
+
+```text
+PHASE3_8B_LLM_RUNTIME_TOGGLE_CORRIGENDA.md
+```
+
+Check:
+
+```text
+finite mode parsing
+default deterministic behavior
+explicit opt-in semantics
+credential/tool availability behavior
+cache behavior
+trace/summary wording
+fixture status mapping
+UI import-audit implications
+```
+
+Commit and push.
+
+---
+
+# Step 24D — LLM runtime toggle catalog patch plan
+
+Create:
+
+```text
+PHASE3_8B_LLM_RUNTIME_TOGGLE_CATALOG_PATCH_PLAN.md
+```
+
+Likely row family:
+
+```text
+I-LLMTOG-*
+```
+
+Likely rows:
+
+```text
+default client mode is offline
+accepted modes are finite and closed
+model-backed modes require explicit opt-in
+unavailable backend fails locally before launch
+deterministic fixtures do not require model-backed mode
+model-backed smoke is OBSERVED/manual, not REQUIRED
+client factory returns an LLMClient-compatible object
+selected client enters through the existing tick client argument
+```
+
+Stop at review gate after committing and pushing. Do not implement until the plan is accepted.
+
+---
+
+# Step 24E — Apply accepted LLM toggle catalog patch
+
+Allowed files:
+
+```text
+INVARIANT_CATALOG.md
+tools/catalog.py
+brain/_catalog_ids.py
+brain/invariants.py
+```
+
+Optional marker files only if accepted by the patch plan:
+
+```text
+brain/ui/llm_runtime.py
+brain/ui/fixtures/llm_runtime_toggle.py
+```
+
+Commit and push after catalog count validation.
+
+---
+
+# Step 24F — Implement LLM runtime toggle
+
+Likely files:
+
+```text
+brain/ui/llm_runtime.py
+brain/ui/__main__.py
+brain/ui/fixtures/llm_runtime_toggle.py
+brain/invariants.py
+README.md
+```
+
+Required behavior:
+
+```text
+closed LlmRuntimeMode enumeration
+config object with CLI/env-derived fields
+factory returning LLMClient-compatible client
+offline default
+model-backed modes explicit only
+optional cache wrapping if configured
+clear local error on unavailable backend
+run_curses receives selected client
+--print-once remains independent of selected client
+```
+
+Commit and push after targeted and full validation.
+
+---
+
+# Step 24G — LLM runtime toggle audit
+
+Create:
+
+```text
+PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md
+```
+
+Audit:
+
+```text
+default offline behavior
+explicit model-backed opt-in
+client factory behavior
+fixture determinism
+OBSERVED/manual smoke status
+full gate result
+interaction with final Phase 3.8 audit
+```
+
+Commit and push.
+
+---
+
 # Step 25 — Phase 3.8 audit
 
 Create:
@@ -811,6 +1029,8 @@ Audit complete interaction path:
 /stream-candidates -> read-only
 /stream-promote -> queue only
 /step -> existing tick path
+LLM toggle default remains offline
+LLM toggle model-backed modes are explicit opt-in
 failure isolation
 full gate
 ```
@@ -827,7 +1047,7 @@ Create or update:
 PHASE3_TEXT_INTERACTION_DRY_RUN.md
 ```
 
-Document a deterministic local session:
+Document deterministic local session:
 
 ```text
 /stream hello world
@@ -839,7 +1059,7 @@ Document a deterministic local session:
 /tick
 ```
 
-No real LLM scenario is required unless the user explicitly requests it.
+Also document optional model-backed launch examples after the toggle exists.
 
 Commit and push.
 
@@ -870,6 +1090,7 @@ completed steps
 catalog version/count transition
 validation results
 interaction loop achieved
+LLM runtime toggle status and offline-default confirmation
 remaining deferred work
 confirmation that main was not pushed directly
 confirmation that PR is not merged
