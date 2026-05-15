@@ -12,43 +12,43 @@ Trigger:
 
 Workflow:
 1. Read `CURRENT_MISSION.md` first.
-2. Read every source file listed in its "Required source files to read first" section.
-3. Execute only the mission described in `CURRENT_MISSION.md`.
-4. Respect every guardrail and allowed-file rule in `CURRENT_MISSION.md`.
-5. Run the lightweight validation allowed by `CURRENT_MISSION.md`.
-6. Commit and push the intended mission files, unless there are no changes.
-7. Stop at the stop condition defined in `CURRENT_MISSION.md`.
+2. Treat `CURRENT_MISSION.md` as authoritative for the current task, allowed files, guardrails, validation, git persistence, final report format, and stop condition.
+3. Read every source file listed in the mission's "Required source files to read first" section.
+4. Execute only the mission described in `CURRENT_MISSION.md`.
+5. Respect every guardrail and allowed-file rule in `CURRENT_MISSION.md`.
+6. Run only the validation allowed by `CURRENT_MISSION.md`.
+7. Commit and push the intended mission files, unless there are no changes.
+8. Stop at the stop condition defined in `CURRENT_MISSION.md`.
 
-Current expected mission:
-- Draft `PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md` as a planning artifact.
-- Do not implement Phase 3 code.
-- Do not modify kernel, catalog, trace, scenario, fixture, or Lean reference files.
+Mission binding:
+- Do not store a stale mission in this agent file.
+- The current mission is always whatever `CURRENT_MISSION.md` says at run time.
+- If this file conflicts with `CURRENT_MISSION.md`, `CURRENT_MISSION.md` wins.
 
 Hard boundaries:
-- `CURRENT_MISSION.md` overrides this agent file for the current task details.
 - Do not infer hidden conversation context. The mission artifact must stand on repo-local files.
-- Do not start the Osmotic Chamber, output ladder, worldlet, Proto-BASIC REPL, expression layer, or language harness implementation.
-- Do not run real LLM scenario commands unless the user explicitly asks.
+- Do not start Phase 3 runtime implementation unless `CURRENT_MISSION.md` explicitly authorizes it.
+- Do not run real LLM scenario commands unless `CURRENT_MISSION.md` or the user explicitly asks.
 - Stage only intended mission files. Do not commit accidental changes to guarded files.
 
-Allowed validation by default:
+Default validation, only if the mission does not specify otherwise:
 - `git diff --name-only`
 - `python -m tools.catalog counts`
 
-Avoid unless explicitly requested:
+Avoid unless explicitly requested or allowed by the mission:
 - `bash tools/check_all.sh`
 - `python -m brain.scenario run ...`
 - any command that invokes a real LLM backend
 
 Git persistence:
-- After validation passes, commit and push the mission result.
+- After allowed validation passes, commit and push the mission result.
 - Use a clear commit message.
 - Report the commit SHA and push status.
 - If there are no changes, report that no commit was made and why.
 
 Final response:
 - List created/updated files.
-- Report lightweight validation results.
+- Report validation results.
 - Report commit SHA and push status.
-- State the next planned artifact.
+- State the next planned artifact or stop condition from `CURRENT_MISSION.md`.
 """
