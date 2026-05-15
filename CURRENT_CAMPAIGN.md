@@ -1,8 +1,8 @@
-# CURRENT_CAMPAIGN.md — Phase 3.2 Output Ladder Campaign
+# CURRENT_CAMPAIGN.md — Phase 3.3 Minimal Worldlet Campaign
 
 ## Purpose
 
-This campaign lets Codex proceed through Phase 3.2 without requiring a new `CURRENT_MISSION.md` for every micro-step.
+This campaign lets Codex proceed through Phase 3.3 without requiring a new `CURRENT_MISSION.md` for every micro-step.
 
 When the user says `go`, Codex should:
 
@@ -17,9 +17,9 @@ commit and push after each completed step
 stop only at explicit gates, failures requiring user judgment, or campaign completion
 ```
 
-This campaign is bounded to **Phase 3.2 Output Ladder** only.
+This campaign is bounded to **Phase 3.3 Minimal Worldlet** only.
 
-It does not authorize Phase 3.3 Minimal Worldlet, Proto-BASIC REPL, expression/readability, social/language, or Mode B implementation.
+It does not authorize Proto-BASIC REPL, expression/readability, social/language, or Mode B implementation.
 
 ---
 
@@ -39,42 +39,50 @@ Treat these repo-local files as accepted inputs unless the user explicitly says 
 
 ```text
 PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
-PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
-PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
-PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
 PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md
+PHASE3_2_OUTPUT_LADDER_KICKOFF.md
+PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md
+PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md
+PHASE3_2_OUTPUT_LADDER_AUDIT.md
 INVARIANT_CATALOG.md
 ```
 
-Core bridge principle inherited from Phase 3.1:
+Core inherited principle:
 
 ```text
 PRESERVE should be earned, not labeled.
 ```
 
-Phase 3.2-specific principle:
+Phase 3.2 boundary inherited into Phase 3.3:
 
 ```text
-Output should become action-like only through echo, recurrence, source-tagged history, and bounded consequence evidence; it is not reflective agency yet.
+Output readiness is only local history evidence; it is not agency, language, or world consequence.
+```
+
+Phase 3.3-specific principle:
+
+```text
+A worldlet supplies bounded not-I pushback and consequence evidence, but it is still a deterministic harness, not a real environment and not reflective agency.
 ```
 
 ---
 
 ## Current baseline
 
-Current baseline should be v0.6 after the Phase 3.1 Osmotic Chamber campaign and promotion-gate tightening.
+Current baseline should be v0.7 after the Phase 3.2 Output Ladder campaign.
 
 Expected baseline:
 
 ```text
-92 REQUIRED
-20 STRUCTURAL
+99 REQUIRED
+24 STRUCTURAL
 3 NOT-EXERCISED
 12 DEFERRED
-2 OBSERVED
+3 OBSERVED
 ```
 
-`I-TRACE-03` is present and green. Phase 3.1 source tags, proto-patterns, probes, proto-content, and promotion through `PerceptEvent` + `tick()` are present.
+The Phase 3.2 audit reports PASS. `I-OUT-*` rows are green, output echo remains below agency, learned output tokens remain below language, and proto-output-action readiness is OBSERVED only.
 
 ---
 
@@ -95,13 +103,14 @@ brain/llm/
 Never implement in this campaign:
 
 ```text
-Minimal Worldlet
 Proto-BASIC REPL
 expression layer
 readability predictor
 social/language harness
 Mode B developmental layer
 real LLM training behavior
+real host execution
+open-ended process execution
 prompt-tuning solely to force the four-tick scenario to pass
 seeded-MSI scenario shortcut
 ```
@@ -131,13 +140,13 @@ If tests fail, fix within the step's allowed scope. If the fix requires files ou
 
 Codex should infer completed steps from repo state:
 
-- If `PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md` exists, Step 1 may be complete.
-- If `PHASE3_2_OUTPUT_LADDER_KICKOFF.md` exists, Step 2 may be complete.
-- If `PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md` exists, Step 3 may be complete.
-- If `PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md` exists, Step 4 may be complete.
-- If `INVARIANT_CATALOG.md` has v0.7 output-ladder rows and `tools/catalog.py` expected counts match, Step 5 may be complete.
-- If `brain/development/output.py` or equivalent output-ladder modules exist with targeted rows green, implementation steps may be complete.
-- If `PHASE3_2_OUTPUT_LADDER_AUDIT.md` exists and full gate is green, the campaign may be complete.
+- If `PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md` exists, Step 1 may be complete.
+- If `PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md` exists, Step 2 may be complete.
+- If `PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md` exists, Step 3 may be complete.
+- If `PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md` exists, Step 4 may be complete.
+- If `INVARIANT_CATALOG.md` has v0.8 Minimal Worldlet rows and `tools/catalog.py` expected counts match, Step 6 may be complete.
+- If `brain/development/worldlet.py` or equivalent worldlet modules exist with targeted rows green, implementation steps may be complete.
+- If `PHASE3_3_MINIMAL_WORLDLET_AUDIT.md` exists and full gate is green, the campaign may be complete.
 
 When in doubt, inspect files and tests before deciding.
 
@@ -147,7 +156,7 @@ When in doubt, inspect files and tests before deciding.
 
 ## Purpose
 
-Confirm the repo is ready for Phase 3.2 planning.
+Confirm the repo is ready for Phase 3.3 planning.
 
 ## Required reads
 
@@ -156,8 +165,8 @@ CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
-PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
-brain/development/
+PHASE3_2_OUTPUT_LADDER_AUDIT.md
+brain/development/output.py
 ```
 
 ## Commands
@@ -167,35 +176,35 @@ git status --short
 git branch --show-current
 git log --oneline -10
 python3 -m tools.catalog counts
-python3 -m brain.invariants run --id I-DEV-05
+python3 -m brain.invariants run --id I-OUT-11
 bash tools/check_all.sh
 ```
 
 ## Branch logic
 
 - If there are uncommitted external changes, stop and report.
-- If the full gate fails, do not start Phase 3.2; diagnose within current scope or stop.
-- If the promotion-gate tightening is absent, stop and report that Phase 3.1 audit patch is incomplete.
+- If the full gate fails, do not start Phase 3.3; diagnose within current scope or stop.
+- If Phase 3.2 audit is absent or not PASS, stop and report.
 - If preflight is green, proceed to Step 1.
 
 ---
 
-# Step 1 — Phase 3.2 synthesis
+# Step 1 — Phase 3.3 synthesis
 
 ## Purpose
 
-Draft the bridge document explaining why the Output Ladder follows the Osmotic Chamber.
+Draft the bridge document explaining why the Minimal Worldlet follows the Output Ladder.
 
 ## Output file
 
 ```text
-PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md
+PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md
+PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md
 ```
 
 ## Required contents
@@ -203,19 +212,21 @@ PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md
 Include:
 
 ```text
-v0.6 Phase 3.1 baseline summary
-why output follows substrate history
-output ladder thesis
+v0.7 Phase 3.2 baseline summary
+why worldlet follows output readiness
+minimal worldlet thesis
+not-I pushback and bounded consequence evidence
+why this is still below agency and Mode B
 non-goals
 expected phase ordering
 risks
-next artifact: PHASE3_2_OUTPUT_LADDER_KICKOFF.md
+next artifact: PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
 ```
 
 Core thesis:
 
 ```text
-Output is not language and not reflective action at first; it begins as source-tagged output echo and becomes action-like only after recurrence and consequence history.
+The Minimal Worldlet converts local proto-output readiness into bounded consequence-bearing attempts, but only inside a deterministic harness. It supplies not-I pushback; it does not create reflective agency, language, REPL command syntax, or real-world action.
 ```
 
 ## Validation
@@ -229,22 +240,22 @@ Commit/push after drafting.
 
 ---
 
-# Step 2 — Phase 3.2 kickoff
+# Step 2 — Phase 3.3 kickoff
 
 ## Purpose
 
-Draft a precise kickoff for the Output Ladder implementation plan.
+Draft a precise kickoff for the Minimal Worldlet implementation plan.
 
 ## Output file
 
 ```text
-PHASE3_2_OUTPUT_LADDER_KICKOFF.md
+PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_2_OUTPUT_LADDER_KICKOFF.md
+PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
 ```
 
 ## Required scope
@@ -252,25 +263,27 @@ PHASE3_2_OUTPUT_LADDER_KICKOFF.md
 The kickoff should cover only:
 
 ```text
-OutputImpulse
-OutputEchoFrame / output source tagging
-OutputPattern / recurrence
-OutputTokenCandidate
-LearnedOutputToken
-ProtoOutputAction
-output-history storage
-output echo is not agency
-stable output token is not language yet
-promotion/interaction with existing substrate history
+WorldletState
+WorldletObject / target surface if needed
+WorldletAttempt
+WorldletResponse
+WorldletValence bounded in [-1, 1]
+WorldletHistory
+not-I pushback
+bounded deterministic consequence evidence
+connection from ProtoOutputActionReadiness to WorldletAttempt
+worldlet response enters local worldlet history, not TLICA state
 ```
 
 Do not include:
 
 ```text
-Worldlet consequence rules
 Proto-BASIC grammar
+open-ended sandbox execution
+real host execution
 natural language teacher
 expression/readability
+social/language harness
 Mode B reflective planning
 ```
 
@@ -294,13 +307,13 @@ Review and tighten the kickoff before catalog rows or code.
 ## Output file
 
 ```text
-PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md
+PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md
+PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md
 ```
 
 ## Required issues to check
@@ -308,12 +321,14 @@ PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md
 At minimum:
 
 ```text
-output echo vs agency distinction
-whether output token candidates require recurrence + echo provenance
-whether output source kinds require new enum values or use existing GENERATED / ENDOGENOUS / PROBE_ECHO
-whether output action candidates require worldlet evidence or should stay proto-action only
+worldlet consequence vs agency distinction
+whether WorldletAttempt may be constructed from readiness alone or requires learned token support
+whether response valence is bounded and source-tagged
+whether failed attempts produce negative-but-bounded evidence without fear/avoidance pathology
+whether not-I pushback is represented without claiming external reality
 whether rows should be REQUIRED / STRUCTURAL / OBSERVED
-whether any Phase 3.3 worldlet semantics leaked in
+whether Proto-BASIC / REPL semantics leaked in
+whether worldlet evidence can ever enter PerceptEvent/tick in this phase or must remain local
 ```
 
 ## Validation
@@ -331,18 +346,18 @@ Commit/push after drafting.
 
 ## Purpose
 
-Design the future v0.7 Phase 3.2 catalog patch without applying it yet.
+Design the future v0.8 Phase 3.3 catalog patch without applying it yet.
 
 ## Output file
 
 ```text
-PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md
+PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md
+PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md
 ```
 
 ## Required contents
@@ -350,9 +365,9 @@ PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md
 Specify:
 
 ```text
-proposed row families, likely I-OUT-*
+proposed row families, likely I-WLD-*
 row IDs, statuses, owning modules, fixtures
-count impact from current v0.6
+count impact from current v0.7
 fixture roster
 owning module map
 catalog patch mechanics
@@ -364,13 +379,14 @@ stop condition
 Likely row themes:
 
 ```text
-output impulses are source-tagged
-output echo enters substrate history but is not agency
-repeated output pattern creates OutputPattern
-token candidate requires recurrence and correction/echo support
-learned output token is still not language
-proto-output action requires consequence history below Mode B
-no direct TLICA state mutation
+worldlet state is finite and deterministic
+worldlet attempts are constructed from output readiness / learned token support only
+worldlet attempts are not agency and do not select Act
+worldlet responses are bounded and source-tagged
+valid attempts may change only WorldletHistory, not TLICA runtime state
+invalid or unavailable attempts produce bounded negative valence
+not-I pushback is recorded as response evidence, not external reality
+worldlet consequence evidence is local and below Mode B
 ```
 
 Do not apply the catalog patch in this step.
@@ -390,7 +406,7 @@ Commit/push after drafting.
 
 ## Purpose
 
-Do not automatically apply the v0.7 catalog patch unless the catalog patch plan is coherent and no open decision blocks implementation.
+Do not automatically apply the v0.8 catalog patch unless the catalog patch plan is coherent and no open decision blocks implementation.
 
 ## Branch logic
 
@@ -402,11 +418,11 @@ This is an explicit review gate.
 
 ---
 
-# Step 6 — Apply accepted v0.7 catalog patch
+# Step 6 — Apply accepted v0.8 catalog patch
 
 ## Purpose
 
-Apply the accepted Output Ladder catalog rows.
+Apply the accepted Minimal Worldlet catalog rows.
 
 ## Allowed files
 
@@ -418,7 +434,7 @@ brain/invariants.py
 brain/development/fixtures/__init__.py
 ```
 
-Only create module/fixture placeholders if necessary for registry coherence. Do not implement full output ladder behavior in this step unless the plan explicitly allows it.
+Only create module/fixture placeholders if necessary for registry coherence. Do not implement full worldlet behavior in this step unless the plan explicitly allows it.
 
 ## Commands
 
@@ -432,17 +448,18 @@ Commit/push when catalog and generated IDs are coherent. If I-CAT-01 requires fi
 
 ---
 
-# Step 7 — Implement output echo and source-tag rows
+# Step 7 — Implement worldlet state and response boundary rows
 
 ## Purpose
 
-Implement the first output-ladder layer.
+Implement the minimal worldlet state/response surface.
 
 ## Allowed files
 
 ```text
-brain/development/output.py
-brain/development/fixtures/output_echo.py
+brain/development/worldlet.py
+brain/development/fixtures/worldlet_state.py
+brain/development/fixtures/worldlet_response.py
 brain/invariants.py
 brain/_catalog_ids.py
 ```
@@ -450,64 +467,66 @@ brain/_catalog_ids.py
 ## Expected behavior
 
 ```text
-OutputImpulse
-OutputEcho
-output echo source/provenance
-output echo is not agency
-output echo does not mutate TLICA state
+finite deterministic WorldletState
+WorldletResponse
+WorldletValence bounded in [-1, 1]
+source/provenance tags
+copy-on-write WorldletHistory
+no TLICA runtime mutation
 ```
 
 Run targeted rows from the accepted plan and commit/push when green.
 
 ---
 
-# Step 8 — Implement output pattern / token candidate rows
+# Step 8 — Implement worldlet attempt and consequence rows
 
 ## Purpose
 
-Implement recurrence-based output patterns and token candidates.
+Implement consequence-bearing attempts below agency.
 
 ## Allowed files
 
 ```text
-brain/development/output.py
-brain/development/fixtures/output_pattern.py
-brain/development/fixtures/output_token_candidate.py
+brain/development/worldlet.py
+brain/development/fixtures/worldlet_attempt.py
+brain/development/fixtures/worldlet_consequence.py
 brain/invariants.py
 ```
 
 ## Expected behavior
 
 ```text
-repeated output impulse creates output pattern
-one-off output noise does not become token
-stable token candidate requires recurrence/support
-learned output token is not language
+WorldletAttempt from learned output token / proto-output readiness support
+attempt is not Act and not AgencyWitness
+valid attempt produces deterministic WorldletResponse
+invalid/unavailable attempt produces bounded negative response
+response updates WorldletHistory only
 ```
 
 Commit/push when targeted checks pass.
 
 ---
 
-# Step 9 — Implement proto-output action rows if authorized
+# Step 9 — Implement not-I pushback / local evidence rows if authorized
 
 ## Purpose
 
-Only implement proto-output-action behavior if the accepted catalog plan includes it.
+Represent not-I pushback and local consequence evidence only if the accepted catalog plan includes it.
 
 ## Stop logic
 
-If the accepted plan defers proto-output actions to a later phase, skip this step and proceed to audit.
+If the accepted plan defers not-I pushback to a later phase, skip this step and proceed to full gate.
 
-If included, keep it below Mode B and below worldlet semantics.
+If included, keep it below external reality claims, below Mode B, and below language.
 
 Allowed behavior:
 
 ```text
-proto-output action candidate from recurrence and echo history
-not reflective agency
-not worldlet causality
-not language
+not-I pushback as deterministic response evidence
+bounded valence
+local history only
+no PerceptEvent promotion unless explicitly authorized by the accepted plan
 ```
 
 Commit/push when targeted checks pass.
@@ -518,7 +537,7 @@ Commit/push when targeted checks pass.
 
 ## Purpose
 
-Verify the whole repo after Phase 3.2 rows are implemented.
+Verify the whole repo after Phase 3.3 rows are implemented.
 
 ## Commands
 
@@ -538,12 +557,12 @@ Commit/push any final sync docs if needed.
 
 ## Purpose
 
-Audit Phase 3.2 after implementation.
+Audit Phase 3.3 after implementation.
 
 ## Output file
 
 ```text
-PHASE3_2_OUTPUT_LADDER_AUDIT.md
+PHASE3_3_MINIMAL_WORLDLET_AUDIT.md
 ```
 
 ## Required verdict
@@ -559,8 +578,9 @@ Audit:
 ```text
 scope creep
 row-family registration
-output echo vs agency distinction
-learned token vs language distinction
+worldlet response vs agency distinction
+not-I pushback vs external reality distinction
+bounded valence
 kernel boundary
 full gate
 recommended next mission
@@ -580,8 +600,8 @@ a fix requires changing tick() semantics
 a fix requires changing scenario schema
 a fix requires real LLM execution
 a test failure suggests the campaign plan itself is wrong
-Phase 3.3 worldlet semantics become necessary
 Proto-BASIC syntax becomes necessary
+open-ended host execution becomes necessary
 there are uncommitted external changes
 ```
 
@@ -592,10 +612,10 @@ there are uncommitted external changes
 When complete, report:
 
 ```text
-Phase 3.2 Output Ladder campaign complete.
+Phase 3.3 Minimal Worldlet campaign complete.
 Catalog: <version>
 Counts: <actual>
 Full gate: pass
 Commits: <list>
-Remaining deferred work: Phase 3.3 Minimal Worldlet and later phases
+Remaining deferred work: Phase 3.4 Proto-BASIC REPL and later phases
 ```
