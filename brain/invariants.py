@@ -71,6 +71,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.worldlet_consequence",
     "brain.development.fixtures.repl_grammar",
     "brain.development.fixtures.repl_feedback",
+    "brain.development.fixtures.repl_execution",
+    "brain.development.fixtures.repl_history",
 ]
 
 
@@ -356,16 +358,13 @@ for _row_id, _status in _PHASE3_3_PENDING_ROWS.items():
 
 
 _PHASE3_4_PENDING_ROWS: dict[str, str] = {
-    # Step 7 has landed I-REPL-01..10 and I-REPL-17 via
+    # Step 7 landed I-REPL-01..10 and I-REPL-17 via
     # brain.development.fixtures.repl_grammar and
-    # brain.development.fixtures.repl_feedback. The remaining rows stay
-    # pending until Step 8 / Step 9 fixtures replace them.
-    "I-REPL-11": "STRUCTURAL",
-    "I-REPL-12": "REQUIRED",
-    "I-REPL-13": "STRUCTURAL",
-    "I-REPL-14": "REQUIRED",
+    # brain.development.fixtures.repl_feedback. Step 8 lands I-REPL-11..14 and
+    # I-REPL-16 via brain.development.fixtures.repl_execution and
+    # brain.development.fixtures.repl_history. I-REPL-15 (diminishing returns)
+    # stays pending until Step 9 implements the diminishing-returns schedule.
     "I-REPL-15": "REQUIRED",
-    "I-REPL-16": "REQUIRED",
 }
 
 

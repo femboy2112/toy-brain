@@ -27,6 +27,7 @@ from typing import Mapping
 
 from brain.development.drives import require_unit_fraction
 from brain.development.history import TraceEventID, require_printable_id
+from brain.development.output import LearnedOutputToken, OutputHistory
 from brain.development.stream import FrameSourceKind
 from brain.tlica.profile import COGITO_ID
 
@@ -1048,6 +1049,500 @@ def score_feedback(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Command construction and execution (I-REPL-11, I-REPL-12, I-REPL-13).
+# ---------------------------------------------------------------------------
+
+
+# Reserved command identifiers must never become legal Proto-BASIC command IDs.
+# COGITO_ID is the canonical reserved profile identifier and is rejected
+# anywhere the runtime accepts a printable Proto-BASIC ID. Additional reserved
+# names below cover trace/tick/llm hooks that must not be plumbed through the
+# Proto-BASIC surface.
+_PROTO_BASIC_RESERVED_COMMAND_IDS: frozenset[str] = frozenset(
+    {
+        COGITO_ID,
+        "tick",
+        "percept-event",
+        "PerceptEvent",
+        "act",
+        "ModeOp",
+        "AgencyWitness",
+        "feasibleProjectedPCE",
+        "selected-action",
+    }
+)
+
+
+# Public surface forbidden on ProtoBasicCommand per I-REPL-11. Any of these
+# attribute names appearing on a constructed command (or its dataclass slot
+# inventory) signal a scope violation.
+_PROTO_BASIC_COMMAND_FORBIDDEN_FIELDS: frozenset[str] = frozenset(
+    {
+        "act",
+        "mode_op",
+        "agency_witness",
+        "percept_event",
+        "selected_action",
+        "feasible_projected_pce",
+        "tick",
+        "tick_callback",
+        "interpreter",
+        "interpreter_handle",
+        "subprocess",
+        "subprocess_handle",
+        "file_descriptor",
+        "fd",
+        "socket",
+        "network_socket",
+        "teacher_utterance",
+        "teacher",
+        "social_register",
+        "readability_score",
+        "readability",
+        "expression",
+        "expression_handle",
+        "mode_b_plan",
+        "mode_b",
+        "trace_event",
+        "trace_event_id",
+        "free_will_branch",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoBasicCommand:
+    """A bounded, locally-scoped REPL command (I-REPL-11, I-REPL-12).
+
+    Construction requires a valid ``ProtoBasicParseResult`` whose
+    ``matched_token_ids`` all reference enumerated grammar tokens. When the
+    grammar declares any token kind as requiring ``LearnedOutputToken``
+    backing, an ``OutputHistory`` with corresponding learned tokens must be
+    supplied.
+
+    The command carries no agency, language, host-execution, teacher,
+    expression, or trace fields (I-REPL-11). The forbidden-attribute set is
+    enforced by ``__post_init__`` against the dataclass slot inventory.
+    """
+
+    command_id: str
+    source_line_id: ProtoBasicLineID
+    matched_shape: tuple[ProtoBasicTokenKind, ...]
+    matched_token_ids: tuple[ProtoBasicTokenID, ...]
+    canonical_form: str
+
+    def __post_init__(self) -> None:
+        # Reserved command IDs are rejected with the row tag (I-REPL-12).
+        if (
+            not isinstance(self.command_id, str)
+            or self.command_id in _PROTO_BASIC_RESERVED_COMMAND_IDS
+        ):
+            raise ValueError(
+                "I-REPL-12 violated: ProtoBasicCommand.command_id is reserved"
+            )
+        # Non-printable / empty command IDs are rejected with the row tag.
+        try:
+            _require_non_reserved_id(
+                self.command_id,
+                field="ProtoBasicCommand.command_id",
+                row_id="I-REPL-12",
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "I-REPL-12 violated: ProtoBasicCommand.command_id must be a "
+                "non-empty printable non-reserved identifier"
+            ) from exc
+        try:
+            _require_non_reserved_id(
+                self.source_line_id,
+                field="ProtoBasicCommand.source_line_id",
+                row_id="I-REPL-12",
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "I-REPL-12 violated: ProtoBasicCommand.source_line_id must be "
+                "a non-empty printable non-reserved identifier"
+            ) from exc
+        if not isinstance(self.matched_shape, tuple) or not self.matched_shape:
+            raise ValueError(
+                "I-REPL-12 violated: ProtoBasicCommand.matched_shape must be a "
+                "non-empty tuple"
+            )
+        for kind in self.matched_shape:
+            if not isinstance(kind, ProtoBasicTokenKind):
+                raise TypeError(
+                    "I-REPL-12 violated: matched_shape entries must be "
+                    "ProtoBasicTokenKind"
+                )
+        if not isinstance(self.matched_token_ids, tuple) or not self.matched_token_ids:
+            raise ValueError(
+                "I-REPL-12 violated: ProtoBasicCommand.matched_token_ids must "
+                "be a non-empty tuple"
+            )
+        if len(self.matched_token_ids) != len(self.matched_shape):
+            raise ValueError(
+                "I-REPL-12 violated: matched_token_ids length must equal "
+                "matched_shape length"
+            )
+        for tok_id in self.matched_token_ids:
+            _require_non_reserved_id(
+                tok_id,
+                field="ProtoBasicCommand.matched_token_id",
+                row_id="I-REPL-12",
+            )
+        if (
+            not isinstance(self.canonical_form, str)
+            or not self.canonical_form
+            or not self.canonical_form.isprintable()
+        ):
+            raise ValueError(
+                "I-REPL-12 violated: ProtoBasicCommand.canonical_form must be "
+                "non-empty printable text"
+            )
+        if self.canonical_form == COGITO_ID:
+            raise ValueError(
+                "I-REPL-12 violated: ProtoBasicCommand.canonical_form cannot "
+                "be COGITO_ID"
+            )
+
+        # I-REPL-11: dataclass slot inventory must not include any
+        # forbidden agency/language/host-execution/trace field name.
+        slots = set(type(self).__slots__)
+        leak = slots & _PROTO_BASIC_COMMAND_FORBIDDEN_FIELDS
+        if leak:
+            raise ValueError(
+                "I-REPL-11 violated: ProtoBasicCommand exposes forbidden "
+                f"fields {sorted(leak)}"
+            )
+
+
+def canonical_command_form(
+    *,
+    matched_shape: tuple[ProtoBasicTokenKind, ...],
+    matched_token_ids: tuple[ProtoBasicTokenID, ...],
+) -> str:
+    """Deterministic canonical string for a parsed command shape.
+
+    Used for ``ProtoBasicHistory.emit_counts`` keys and for diminishing-returns
+    bookkeeping (Step 9 / I-REPL-15). Two commands share a canonical form iff
+    their shapes and token IDs match position-for-position.
+    """
+    kinds = "|".join(kind.value for kind in matched_shape)
+    tokens = "|".join(matched_token_ids)
+    return f"shape={kinds};tokens={tokens}"
+
+
+def build_command(
+    *,
+    grammar: ProtoBasicGrammar,
+    parse_result: ProtoBasicParseResult,
+    command_id: str,
+    output_history: OutputHistory | None = None,
+    require_learned_kinds: frozenset[ProtoBasicTokenKind] = frozenset(),
+) -> ProtoBasicCommand:
+    """Construct a ``ProtoBasicCommand`` from a valid parse (I-REPL-12).
+
+    Rejects:
+
+      * non-VALID parse results,
+      * parse results referencing tokens not present in ``grammar``,
+      * reserved/non-printable command IDs,
+      * any kind in ``require_learned_kinds`` whose matched token has no
+        corresponding ``LearnedOutputToken`` in ``output_history``.
+
+    ``output_history`` may be omitted when ``require_learned_kinds`` is empty.
+    No host execution, subprocess, file I/O, or network I/O is performed.
+    """
+    if not isinstance(grammar, ProtoBasicGrammar):
+        raise TypeError(
+            "I-REPL-12 violated: build_command grammar must be ProtoBasicGrammar"
+        )
+    if not isinstance(parse_result, ProtoBasicParseResult):
+        raise TypeError(
+            "I-REPL-12 violated: build_command parse_result must be "
+            "ProtoBasicParseResult"
+        )
+    if parse_result.category is not ProtoBasicParseCategory.VALID:
+        raise ValueError(
+            "I-REPL-12 violated: build_command requires a valid parse result "
+            f"(got category {parse_result.category.value})"
+        )
+    if parse_result.matched_shape is None or not parse_result.matched_token_ids:
+        raise ValueError(
+            "I-REPL-12 violated: valid parse must carry matched_shape and "
+            "matched_token_ids"
+        )
+    if not isinstance(require_learned_kinds, frozenset):
+        raise TypeError(
+            "I-REPL-12 violated: require_learned_kinds must be a frozenset"
+        )
+    for kind in require_learned_kinds:
+        if not isinstance(kind, ProtoBasicTokenKind):
+            raise TypeError(
+                "I-REPL-12 violated: require_learned_kinds entries must be "
+                "ProtoBasicTokenKind"
+            )
+
+    # Every matched token must be an enumerated grammar token.
+    matched_tokens: list[ProtoBasicToken] = []
+    for tok_id in parse_result.matched_token_ids:
+        token = next((t for t in grammar.tokens if t.token_id == tok_id), None)
+        if token is None:
+            raise ValueError(
+                "I-REPL-12 violated: parse result references non-enumerated "
+                f"token_id {tok_id!r}"
+            )
+        matched_tokens.append(token)
+
+    # If any kind requires learned-output backing, every token of that kind
+    # must appear as a LearnedOutputToken in output_history.
+    if require_learned_kinds:
+        if not isinstance(output_history, OutputHistory):
+            raise ValueError(
+                "I-REPL-12 violated: build_command requires OutputHistory when "
+                "require_learned_kinds is non-empty"
+            )
+        learned_map = output_history.learned_tokens or {}
+        learned_texts = {
+            tok.text.casefold()
+            for tok in learned_map.values()
+            if isinstance(tok, LearnedOutputToken)
+        }
+        for token in matched_tokens:
+            if token.kind in require_learned_kinds:
+                if token.canonical not in learned_texts:
+                    raise ValueError(
+                        "I-REPL-12 violated: token "
+                        f"{token.token_id!r} kind {token.kind.value} requires "
+                        "LearnedOutputToken support in OutputHistory"
+                    )
+
+    canonical = canonical_command_form(
+        matched_shape=parse_result.matched_shape,
+        matched_token_ids=parse_result.matched_token_ids,
+    )
+    return ProtoBasicCommand(
+        command_id=command_id,
+        source_line_id=parse_result.line_id,
+        matched_shape=parse_result.matched_shape,
+        matched_token_ids=parse_result.matched_token_ids,
+        canonical_form=canonical,
+    )
+
+
+def execute_command(
+    command: ProtoBasicCommand,
+    *,
+    category: ProtoBasicExecutionCategory = (
+        ProtoBasicExecutionCategory.VALID_EFFECTIVE
+    ),
+    detail: str = "",
+) -> ProtoBasicExecutionResult:
+    """Return a deterministic local ``ProtoBasicExecutionResult`` (I-REPL-13).
+
+    This does NOT invoke a host process, subprocess, file system, network, or
+    real BASIC interpreter. The caller picks the bounded outcome category; the
+    function only enforces local invariants and assembles the result. The
+    ``effective`` flag is derived from ``category`` (true iff valid-effective).
+    """
+    if not isinstance(command, ProtoBasicCommand):
+        raise TypeError(
+            "I-REPL-13 violated: execute_command requires a ProtoBasicCommand"
+        )
+    if not isinstance(category, ProtoBasicExecutionCategory):
+        raise TypeError(
+            "I-REPL-13 violated: execute_command category must be a "
+            "ProtoBasicExecutionCategory"
+        )
+    if not isinstance(detail, str):
+        raise TypeError(
+            "I-REPL-13 violated: execute_command detail must be a string"
+        )
+    effective = category is ProtoBasicExecutionCategory.VALID_EFFECTIVE
+    return ProtoBasicExecutionResult(
+        line_id=command.source_line_id,
+        category=category,
+        effective=effective,
+        detail=detail,
+    )
+
+
+# ---------------------------------------------------------------------------
+# History (I-REPL-14, I-REPL-16).
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoBasicHistory:
+    """Immutable, copy-on-write Proto-BASIC interaction history (I-REPL-14).
+
+    Stores parse results, constructed commands, execution results, and
+    feedback records in append-only tuples plus a per-canonical-form
+    ``emit_counts`` map used by diminishing-returns bookkeeping in Step 9
+    (I-REPL-15).
+    """
+
+    parse_results: tuple[ProtoBasicParseResult, ...] = ()
+    commands: tuple[ProtoBasicCommand, ...] = ()
+    execution_results: tuple[ProtoBasicExecutionResult, ...] = ()
+    feedback: tuple[ProtoBasicFeedback, ...] = ()
+    emit_counts: Mapping[str, int] | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.parse_results, tuple):
+            raise TypeError(
+                "I-REPL-14 violated: ProtoBasicHistory.parse_results must be a "
+                "tuple"
+            )
+        for item in self.parse_results:
+            if not isinstance(item, ProtoBasicParseResult):
+                raise TypeError(
+                    "ProtoBasicHistory.parse_results must hold "
+                    "ProtoBasicParseResult values"
+                )
+        if not isinstance(self.commands, tuple):
+            raise TypeError(
+                "I-REPL-14 violated: ProtoBasicHistory.commands must be a tuple"
+            )
+        for item in self.commands:
+            if not isinstance(item, ProtoBasicCommand):
+                raise TypeError(
+                    "ProtoBasicHistory.commands must hold ProtoBasicCommand "
+                    "values"
+                )
+        if not isinstance(self.execution_results, tuple):
+            raise TypeError(
+                "I-REPL-14 violated: ProtoBasicHistory.execution_results must "
+                "be a tuple"
+            )
+        for item in self.execution_results:
+            if not isinstance(item, ProtoBasicExecutionResult):
+                raise TypeError(
+                    "ProtoBasicHistory.execution_results must hold "
+                    "ProtoBasicExecutionResult values"
+                )
+        if not isinstance(self.feedback, tuple):
+            raise TypeError(
+                "I-REPL-14 violated: ProtoBasicHistory.feedback must be a tuple"
+            )
+        for item in self.feedback:
+            if not isinstance(item, ProtoBasicFeedback):
+                raise TypeError(
+                    "ProtoBasicHistory.feedback must hold ProtoBasicFeedback "
+                    "values"
+                )
+        counts = dict(self.emit_counts or {})
+        for key, value in counts.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError(
+                    "I-REPL-14 violated: ProtoBasicHistory.emit_counts keys "
+                    "must be non-empty strings"
+                )
+            if not isinstance(value, int) or value < 0:
+                raise ValueError(
+                    "I-REPL-14 violated: ProtoBasicHistory.emit_counts values "
+                    "must be non-negative integers"
+                )
+        object.__setattr__(self, "emit_counts", MappingProxyType(counts))
+
+    def emit_count_for(self, canonical_form: str) -> int:
+        """Return the recorded emit count for a canonical command form."""
+        if not isinstance(canonical_form, str):
+            raise TypeError("canonical_form must be a string")
+        counts = self.emit_counts or {}
+        return counts.get(canonical_form, 0)
+
+
+def append_history(
+    history: ProtoBasicHistory,
+    *,
+    parse_result: ProtoBasicParseResult | None = None,
+    command: ProtoBasicCommand | None = None,
+    execution_result: ProtoBasicExecutionResult | None = None,
+    feedback: ProtoBasicFeedback | None = None,
+) -> ProtoBasicHistory:
+    """Copy-on-write append for ``ProtoBasicHistory`` (I-REPL-14, I-REPL-16).
+
+    At most one entry may be appended per call; the prior history is preserved
+    unchanged. When an ``execution_result`` is appended, the new history's
+    ``emit_counts`` map is incremented for the canonical command form derived
+    from the corresponding command (looked up from history.commands by
+    ``source_line_id``); other entries leave ``emit_counts`` unchanged.
+
+    No TLICA runtime mutation occurs: this function does not call ``tick()``,
+    emit ``PerceptEvent``, touch profile/MSI/PtCns/content registry,
+    ``OutputHistory``, ``WorldletHistory``, scenario schema, or trace files
+    (I-REPL-16).
+    """
+    if not isinstance(history, ProtoBasicHistory):
+        raise TypeError(
+            "I-REPL-14 violated: append_history requires a ProtoBasicHistory"
+        )
+    provided = [
+        x for x in (parse_result, command, execution_result, feedback)
+        if x is not None
+    ]
+    if len(provided) != 1:
+        raise ValueError(
+            "I-REPL-14 violated: append_history requires exactly one entry "
+            "(parse_result, command, execution_result, or feedback)"
+        )
+
+    new_parse = history.parse_results
+    new_commands = history.commands
+    new_execution = history.execution_results
+    new_feedback = history.feedback
+    new_counts: dict[str, int] = dict(history.emit_counts or {})
+
+    if parse_result is not None:
+        if not isinstance(parse_result, ProtoBasicParseResult):
+            raise TypeError(
+                "I-REPL-14 violated: parse_result must be ProtoBasicParseResult"
+            )
+        new_parse = new_parse + (parse_result,)
+    elif command is not None:
+        if not isinstance(command, ProtoBasicCommand):
+            raise TypeError(
+                "I-REPL-14 violated: command must be ProtoBasicCommand"
+            )
+        new_commands = new_commands + (command,)
+    elif execution_result is not None:
+        if not isinstance(execution_result, ProtoBasicExecutionResult):
+            raise TypeError(
+                "I-REPL-14 violated: execution_result must be "
+                "ProtoBasicExecutionResult"
+            )
+        new_execution = new_execution + (execution_result,)
+        # Increment emit_counts for the canonical form derived from the
+        # corresponding command (matched by source_line_id).
+        matching = next(
+            (
+                cmd
+                for cmd in new_commands
+                if cmd.source_line_id == execution_result.line_id
+            ),
+            None,
+        )
+        if matching is not None:
+            key = matching.canonical_form
+            new_counts[key] = new_counts.get(key, 0) + 1
+    elif feedback is not None:
+        if not isinstance(feedback, ProtoBasicFeedback):
+            raise TypeError(
+                "I-REPL-14 violated: feedback must be ProtoBasicFeedback"
+            )
+        new_feedback = new_feedback + (feedback,)
+
+    return ProtoBasicHistory(
+        parse_results=new_parse,
+        commands=new_commands,
+        execution_results=new_execution,
+        feedback=new_feedback,
+        emit_counts=new_counts,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ProtoBasicProgram:
     """A thin one-line wrapper around ``ProtoBasicLine`` (I-REPL-17).
@@ -1081,6 +1576,7 @@ __all__ = [
     "PROTO_BASIC_STRONG_POSITIVE_THRESHOLD",
     "EXECUTION_CATEGORIES",
     "PARSE_CATEGORIES",
+    "ProtoBasicCommand",
     "ProtoBasicCorrectionHint",
     "ProtoBasicEditKind",
     "ProtoBasicExecutionCategory",
@@ -1088,6 +1584,7 @@ __all__ = [
     "ProtoBasicFeedback",
     "ProtoBasicFeedbackProvenance",
     "ProtoBasicGrammar",
+    "ProtoBasicHistory",
     "ProtoBasicLine",
     "ProtoBasicParseCategory",
     "ProtoBasicParseResult",
@@ -1095,6 +1592,10 @@ __all__ = [
     "ProtoBasicToken",
     "ProtoBasicTokenKind",
     "ProtoBasicValence",
+    "append_history",
+    "build_command",
+    "canonical_command_form",
+    "execute_command",
     "parse_line",
     "require_proto_basic_valence",
     "score_feedback",
