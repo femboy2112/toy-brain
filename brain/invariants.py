@@ -73,6 +73,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.repl_feedback",
     "brain.development.fixtures.repl_execution",
     "brain.development.fixtures.repl_history",
+    "brain.ui.fixtures.snapshot_view",
+    "brain.ui.fixtures.render_view",
 ]
 
 
@@ -393,22 +395,25 @@ for _row_id, _status in _PHASE3_4_PENDING_ROWS.items():
 # row execution fail explicitly. Step 7 (snapshots + renderer), Step 8
 # (commands + session + bottom-up event path), and Step 9 (curses wrapper +
 # entrypoint + UI import audit) replace these with real fixture-backed
-# checks. I-UI-14 is OBSERVED and is not pending here; it is registered when
-# its fixture lands. I-UI-15 is NOT-EXERCISED and does not participate in
-# I-CAT-01 coverage.
+# checks. Step 7 lands I-UI-01, I-UI-02 (REQUIRED) and I-UI-08, I-UI-09
+# (STRUCTURAL) via brain.ui.fixtures.snapshot_view and
+# brain.ui.fixtures.render_view. I-UI-14 is OBSERVED and is not pending here;
+# it is registered when its fixture lands. I-UI-15 is NOT-EXERCISED and does
+# not participate in I-CAT-01 coverage.
 # ---------------------------------------------------------------------------
 
 
 _OPERATOR_TUI_PENDING_ROWS: dict[str, str] = {
-    "I-UI-01": "REQUIRED",
-    "I-UI-02": "REQUIRED",
+    # Step 7 landed I-UI-01, I-UI-02 (REQUIRED) and I-UI-08, I-UI-09
+    # (STRUCTURAL) via brain.ui.fixtures.snapshot_view and
+    # brain.ui.fixtures.render_view. The remaining rows below stay pending
+    # until Step 8 (router/session/commands) and Step 9 (curses wrapper +
+    # entrypoint + tui_smoke) replace them with real fixture-backed checks.
     "I-UI-03": "REQUIRED",
     "I-UI-04": "REQUIRED",
     "I-UI-05": "REQUIRED",
     "I-UI-06": "REQUIRED",
     "I-UI-07": "REQUIRED",
-    "I-UI-08": "STRUCTURAL",
-    "I-UI-09": "STRUCTURAL",
     "I-UI-10": "STRUCTURAL",
     "I-UI-11": "STRUCTURAL",
     "I-UI-12": "STRUCTURAL",
