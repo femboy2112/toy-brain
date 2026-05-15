@@ -1,39 +1,36 @@
-# CURRENT_CAMPAIGN.md — Operator TUI Campaign
+# CURRENT_CAMPAIGN.md — Operator TUI Live Input Patch Campaign
 
 ## Purpose
 
-Build a simple terminal / ncurses-style operator interface for `toy-brain`.
+Patch the existing Operator TUI so it is actually usable for bottom-up interaction.
 
-The UI is for **bottom-up interaction and inspection**:
+Current problem:
 
 ```text
-inspect BrainState / TickRecord
-inspect Phase 3.1–3.4 developmental histories
-queue bottom-up PerceptEvent inputs
-step through tick() deterministically
-view classifications, modes, actions, traces, and local evidence
+python3 -m brain.ui opens / renders the Operator TUI, but the entrypoint passes no percept_factory into run_curses().
+The e key maps to QUEUE_PERCEPT, but without a percept_factory it only reports "queue percept: no input prompt configured".
+The UI therefore mostly shows static state from a default offline session instead of letting the operator type bottom-up content and step it.
 ```
 
-This is an operator-facing UI campaign, not a new cognitive/theory phase.
+This campaign adds a real terminal input prompt for queuing a bottom-up PerceptEvent through the existing public UI command path.
 
-It does **not** authorize Phase 3.5 Expression + ReadabilityPredictor, social/language, Mode B, real LLM behavior, real host execution, open-ended process execution, shell execution, network I/O, or arbitrary code execution.
+This is a **focused UI usability patch**, not a new theory/cognitive phase.
 
 ---
 
 ## Saved project state / baseline
 
-Current saved state:
+Current saved state at campaign creation:
 
 ```text
-Catalog: v0.9
-Phase 3.4 Proto-BASIC REPL: PASS
-Counts: 116 REQUIRED / 35 STRUCTURAL / 3 NOT-EXERCISED / 12 DEFERRED / 5 OBSERVED
+Catalog: v0.10
+Operator TUI campaign: PASS
+Counts: 123 REQUIRED / 41 STRUCTURAL / 4 NOT-EXERCISED / 12 DEFERRED / 6 OBSERVED
 Full gate: green
-Completed developmental layers: Phase 3.1 Osmotic Chamber, Phase 3.2 Output Ladder, Phase 3.3 Minimal Worldlet, Phase 3.4 Proto-BASIC REPL
+Entrypoint: python3 -m brain.ui
+Known usability gap: no interactive percept input factory is wired into the curses entrypoint
 Next cognitive campaign still deferred: Phase 3.5 Expression + ReadabilityPredictor
 ```
-
-The TUI may inspect these layers but must not reinterpret them as language, reflective agency, Mode B, external reality, or runtime promotion.
 
 ---
 
@@ -67,41 +64,26 @@ Use `python3 -m ...` for all Python module commands. Convert copied `python -m .
 Read these as current state references unless the user says otherwise:
 
 ```text
-PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
-PHASE3_2_OUTPUT_LADDER_AUDIT.md
-PHASE3_3_MINIMAL_WORLDLET_AUDIT.md
-PHASE3_4_PROTO_BASIC_REPL_AUDIT.md
+OPERATOR_TUI_AUDIT.md
 INVARIANT_CATALOG.md
 README.md
+brain/ui/tui.py
+brain/ui/__main__.py
+brain/ui/commands.py
+brain/ui/session.py
+brain/ui/render.py
+brain/ui/fixtures/tui_smoke.py
+brain/ui/fixtures/command_router.py
+brain/ui/fixtures/bottom_up_tick.py
 brain/tick.py
 brain/io_types.py
-brain/development/output.py
-brain/development/worldlet.py
-brain/development/repl.py
 ```
 
 ---
 
-## UI-specific rule
+## Hard boundaries
 
-The TUI may display and route operator inputs through public APIs only.
-
-Allowed state transitions must go through approved public surfaces, such as:
-
-```text
-PerceptEvent -> tick()
-OutputHistory helper functions
-WorldletHistory helper functions
-ProtoBasicHistory helper functions
-```
-
-No UI command may directly mutate `BrainState`, profile, MSI, PtCns, content registry, developmental histories, traces, scenario files, catalog files, or private dataclass fields.
-
----
-
-## Global hard boundaries
-
-Never modify unless a step explicitly allows it:
+Do not modify unless a step explicitly allows it:
 
 ```text
 brain/tlica/
@@ -111,9 +93,12 @@ traces/RUN_SUMMARY.md
 scenarios/
 brain/tick.py
 brain/llm/
+INVARIANT_CATALOG.md
+tools/catalog.py
+brain/_catalog_ids.py
 ```
 
-Never implement in this campaign:
+Do not implement:
 
 ```text
 Phase 3.5 Expression + ReadabilityPredictor
@@ -121,14 +106,32 @@ social/language harness
 Mode B
 real LLM calls
 real host execution
-open-ended process execution
-arbitrary Python execution
 shell execution
 network I/O
-file-system mutation outside explicit user-approved save/export paths
+arbitrary Python execution
+save/export filesystem writes
+new catalog rows
+catalog count changes
 ```
 
-Prefer standard-library `curses` plus pure non-interactive renderer/router modules for tests. Do not add external dependencies unless a reviewed plan explicitly allows them.
+No external dependencies. Use only standard library curses and existing project APIs.
+
+---
+
+## Patch thesis
+
+```text
+The TUI should let the operator press e, type a bounded content_id and text payload, queue that payload through the existing QueuePerceptPayload / Command path, then press space to route the queued PerceptEvent through tick().
+```
+
+The patch must keep all state mutation through existing public boundaries:
+
+```text
+curses prompt -> QueuePerceptPayload -> Command(QUEUE_PERCEPT) -> OperatorSession.dispatch()
+space key -> Command(STEP_TICK) -> OperatorSession.step_tick() -> tick(current_state, [queued_event], client)
+```
+
+No UI code may directly mutate BrainState internals, profile, MSI, PtCns, registry, developmental histories, traces, scenario files, or catalog files.
 
 ---
 
@@ -139,14 +142,12 @@ Prefer standard-library `curses` plus pure non-interactive renderer/router modul
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-README.md
-INVARIANT_CATALOG.md
-PHASE3_4_PROTO_BASIC_REPL_AUDIT.md
-brain/tick.py
-brain/io_types.py
-brain/development/output.py
-brain/development/worldlet.py
-brain/development/repl.py
+OPERATOR_TUI_AUDIT.md
+brain/ui/tui.py
+brain/ui/__main__.py
+brain/ui/commands.py
+brain/ui/session.py
+brain/ui/fixtures/tui_smoke.py
 ```
 
 ## Commands
@@ -156,342 +157,244 @@ git status --short
 git branch --show-current
 git log --oneline -10
 python3 -m tools.catalog counts
-python3 -m brain.invariants run --id I-REPL-18
+python3 -m brain.invariants run --id I-UI-14
 bash tools/check_all.sh
 ```
 
-Stop if the tree is dirty, the full gate fails, or Phase 3.4 audit is absent/not PASS.
+Stop if the tree is dirty, the full gate fails, or Operator TUI audit is absent/not PASS.
 
 ---
 
-# Step 1 — Operator TUI synthesis
+# Step 1 — Implement curses percept input prompt
 
-Create `OPERATOR_TUI_SYNTHESIS.md`.
+## Purpose
 
-Required content:
+Add a real interactive percept input path to the curses wrapper.
 
-```text
-v0.9 saved-state summary
-why a TUI is an operator tool, not a cognitive layer
-bottom-up interaction thesis
-state-inspection requirements
-allowed input routes
-forbidden mutation routes
-non-goals
-risks
-next artifact: OPERATOR_TUI_KICKOFF.md
-```
-
-Validation:
-
-```bash
-git diff --name-only
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 2 — Operator TUI kickoff
-
-Create `OPERATOR_TUI_KICKOFF.md`.
-
-Scope only:
-
-```text
-OperatorSession
-BrainSnapshot / StateSnapshot
-DevelopmentSnapshot
-TuiViewModel
-pure renderer
-thin curses wrapper
-OperatorCommand
-OperatorEventQueue
-approved command router
-bottom-up PerceptEvent injection through tick()
-read-only inspection of OutputHistory / WorldletHistory / ProtoBasicHistory
-keyboard map
-status/error pane
-```
-
-No real LLM, no new theory semantics, no Mode B, no expression/readability, no social/language, no shell/file/network execution.
-
-Validation:
-
-```bash
-git diff --name-only
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 3 — Operator TUI corrigenda
-
-Create `OPERATOR_TUI_CORRIGENDA.md`.
-
-Check:
-
-```text
-UI view vs cognitive layer
-snapshot read-only discipline
-allowed public API routes
-bottom-up input representation
-interactive curses vs testable pure renderer split
-I-UI-* row status choices
-save/export policy
-trace/scenario write prohibition by default
-```
-
-Validation:
-
-```bash
-git diff --name-only
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 4 — Operator TUI catalog patch plan
-
-Create `OPERATOR_TUI_CATALOG_PATCH_PLAN.md`.
-
-Specify:
-
-```text
-I-UI-* rows, statuses, owning modules, fixtures
-count impact from current v0.9
-fixture roster
-module map
-catalog patch mechanics
-implementation order
-open decisions
-stop conditions
-```
-
-Likely row themes:
-
-```text
-snapshots are read-only / serializable
-pure renderer is deterministic
-command router uses only approved APIs
-bottom-up PerceptEvent route goes through tick()
-UI cannot directly mutate core or developmental state
-curses wrapper is thin over tested renderer/router
-no LLM / shell / network / host execution
-status pane is local UI state only
-```
-
-Do not apply the catalog patch.
-
-Validation:
-
-```bash
-git diff --name-only
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 5 — Review gate
-
-Stop unless `OPERATOR_TUI_CATALOG_PATCH_PLAN.md` is coherent and no open decision blocks implementation. If coherent, proceed only when the user says `go` again or explicitly accepts the plan.
-
-## Mandatory review-gate corrigendum before Step 6
-
-The Step 5 review found one concrete issue in `OPERATOR_TUI_CATALOG_PATCH_PLAN.md`:
-
-```text
-D3 currently claims the existing tools/import_audit.py walks brain/ui/.
-That is false: tools/import_audit.py currently only wraps audit_agency_no_pce_import().
-```
-
-Before Step 6, the active agent must patch **only** `OPERATOR_TUI_CATALOG_PATCH_PLAN.md`:
-
-```text
-Patch D3 so it no longer claims existing tools.import_audit walks brain/ui/.
-Replace it with the rule that I-UI-07's tui_smoke.py fixture performs a UI-specific static AST audit over brain/ui/ for forbidden imports and forbidden host-execution surfaces.
-Do not modify row IDs.
-Do not modify counts.
-Do not modify statuses.
-Do not modify implementation order except to clarify that the UI import audit lands with the I-UI-07 fixture.
-Commit and push the plan-only corrigendum.
-```
-
-After that plan-only corrigendum lands, Step 6 may proceed on the next `go`.
-
----
-
-# Step 6 — Apply accepted UI catalog patch
-
-Allowed files:
-
-```text
-INVARIANT_CATALOG.md
-tools/catalog.py
-brain/_catalog_ids.py
-brain/invariants.py
-brain/ui/__init__.py
-brain/ui/fixtures/__init__.py
-```
-
-Apply accepted `I-UI-*` rows, expected counts, generated IDs, and pending registrations only. No UI runtime behavior unless explicitly allowed by the accepted plan.
-
-Commands:
-
-```bash
-python3 -m tools.catalog counts
-python3 -m tools.catalog generate-ids
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 7 — Read-only snapshots and pure renderer
-
-Allowed files:
-
-```text
-brain/ui/snapshot.py
-brain/ui/render.py
-brain/ui/fixtures/snapshot_view.py
-brain/ui/fixtures/render_view.py
-brain/invariants.py
-```
-
-Expected behavior:
-
-```text
-read-only BrainSnapshot / DevelopmentSnapshot
-snapshot creation does not mutate state
-pure renderer returns deterministic strings / view models
-missing histories handled gracefully
-panes for core state, latest tick, output/worldlet/repl histories, errors
-```
-
-Run targeted rows from the accepted plan. Commit/push.
-
----
-
-# Step 8 — Operator command router and bottom-up event path
-
-Allowed files:
-
-```text
-brain/ui/session.py
-brain/ui/commands.py
-brain/ui/fixtures/command_router.py
-brain/ui/fixtures/bottom_up_tick.py
-brain/invariants.py
-```
-
-Expected behavior:
-
-```text
-OperatorSession stores current BrainState and local histories
-OperatorCommand is finite and typed
-router supports inspect, queue PerceptEvent, step tick, help, quit
-queued bottom-up tick path calls existing tick()
-router stores TickRecord
-invalid commands update local UI status only
-no direct mutation of BrainState internals or developmental histories
-```
-
-Run targeted rows. Commit/push.
-
----
-
-# Step 9 — Curses-style wrapper and CLI entrypoint
-
-Allowed files:
+## Allowed files
 
 ```text
 brain/ui/tui.py
+brain/ui/fixtures/tui_smoke.py
+```
+
+## Required behavior
+
+Add a helper in `brain/ui/tui.py`, for example:
+
+```text
+prompt_queue_percept(stdscr, session) -> Command
+```
+
+The helper should:
+
+```text
+1. temporarily show a bounded prompt area in the terminal
+2. collect a printable content_id
+3. collect printable text/content
+4. optionally use safe defaults for any required ContentState / rho fields
+5. build QueuePerceptPayload using the existing public constructor/API
+6. return Command(OperatorCommand.QUEUE_PERCEPT, payload)
+7. never mutate session directly
+8. never call tick()
+9. never write files, traces, scenarios, catalog rows, or developmental histories
+10. fail closed as local UI status/error through the existing step_loop/percept_factory path
+```
+
+If the current `QueuePerceptPayload` requires additional fields, use conservative defaults already accepted by existing fixtures. Do not broaden the payload model unless absolutely necessary.
+
+## Test requirement
+
+Update `tui_smoke.py` to test the prompt without a real terminal by using a fake curses window with deterministic `getstr` / `getkey` / equivalent input methods.
+
+The test must prove:
+
+```text
+prompt helper returns QUEUE_PERCEPT Command
+returned payload validates through existing QueuePerceptPayload / Command machinery
+prompt does not call tick()
+prompt does not mutate BrainState/session directly
+invalid input becomes local error/status path, not an exception that kills the loop
+```
+
+## Validation
+
+```bash
+python3 -m brain.invariants run --id I-UI-11
+python3 -m brain.invariants run --id I-UI-12
+python3 -m brain.invariants run --id I-UI-14
+python3 -m tools.catalog counts
+```
+
+Commit/push.
+
+---
+
+# Step 2 — Wire prompt into CLI entrypoint
+
+## Purpose
+
+Make `python3 -m brain.ui` pass the real prompt factory into `run_curses()`.
+
+## Allowed files
+
+```text
 brain/ui/__main__.py
+brain/ui/tui.py
 brain/ui/fixtures/tui_smoke.py
 README.md
 ```
 
-Expected behavior:
+## Required behavior
+
+Update the entrypoint so the usable-terminal path does not call:
 
 ```text
-python3 -m brain.ui launches TUI or prints helpful no-terminal message
-curses layer is thin over renderer/router
-keyboard map includes inspect, queue percept, step, help, quit
-non-interactive smoke test does not require real terminal
-no LLM / shell / network / file mutation / host execution
+run_curses(session, client=client)
 ```
 
-Run targeted rows. Commit/push.
+without a percept factory.
 
----
+It should call something equivalent to:
 
-# Step 10 — Full gate
+```text
+run_curses(session, client=client, percept_factory=<curses prompt factory>)
+```
 
-Run:
+where the factory uses the curses window/session path added in Step 1.
+
+If `run_curses()` currently lacks access to `stdscr` inside `percept_factory`, adjust the wrapper minimally so the factory can prompt safely. Keep the wrapper thin.
+
+Expected operator flow after this step:
+
+```text
+e      open prompt
+text   enter content_id and content text
+enter  queue bottom-up PerceptEvent
+space  run tick with queued event
+s/t/o/w/r switch views
+c      clear status
+?      help
+q      quit
+```
+
+`--print-once` may remain static and non-interactive.
+
+## README requirement
+
+Update the Operator TUI README section with the actual interactive flow.
+
+Include at minimum:
+
+```text
+python3 -m brain.ui
+press e to queue a percept
+press space to step tick()
+use --print-once for non-interactive render
+use --check-terminal for terminal diagnostics
+```
+
+## Validation
 
 ```bash
+python3 -m brain.invariants run --id I-UI-07
+python3 -m brain.invariants run --id I-UI-11
+python3 -m brain.invariants run --id I-UI-12
+python3 -m brain.invariants run --id I-UI-14
 python3 -m tools.catalog counts
-python3 -m tools.citations verify
-python3 -m tools.import_audit
-python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-Commit/push final sync docs if needed.
+Commit/push.
 
 ---
 
-# Step 11 — Post-completion audit
+# Step 3 — Manual usability notes / patch audit
 
-Create `OPERATOR_TUI_AUDIT.md` with verdict:
+## Purpose
+
+Create a small audit note confirming the TUI is now interactive.
+
+## Output file
 
 ```text
-PASS
-PASS WITH PATCHES
-BLOCKED
+OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md
 ```
 
-Audit:
+## Allowed files
 
 ```text
-scope creep
-row registration
-read-only snapshot discipline
-pure renderer determinism
-bottom-up event route through tick()
-curses wrapper thinness
-kernel boundary
-full gate
-recommended next mission
+OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md
+```
+
+## Required content
+
+Include:
+
+```text
+problem fixed
+files changed
+operator flow
+validation commands and results
+safety boundaries preserved
+manual test instructions
+remaining limitations
+```
+
+Manual test instructions should include:
+
+```bash
+python3 -m brain.ui --check-terminal
+python3 -m brain.ui --print-once
+python3 -m brain.ui
+```
+
+and the key sequence:
+
+```text
+e -> type content_id/text -> space -> inspect tick/state
+```
+
+## Validation
+
+```bash
+python3 -m tools.catalog counts
+bash tools/check_all.sh
 ```
 
 Commit/push.
+
+---
+
+## Campaign complete criteria
+
+Campaign complete when:
+
+```text
+the e key opens a bounded in-TUI percept prompt
+the prompt returns a QUEUE_PERCEPT command through existing public constructors
+space routes the queued event through tick()
+README documents the interactive key flow
+OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md exists
+bash tools/check_all.sh passes
+```
 
 ---
 
 ## Stop conditions requiring user review
 
-Stop if any fix requires:
+Stop if the patch requires:
 
 ```text
 editing brain/tlica/
 changing tick() semantics
+changing PerceptEvent semantics
 changing scenario schema
 real LLM execution
-non-standard dependency
-state inspection via direct mutation
-bottom-up interaction outside public APIs
+new external dependency
 shell/file/network execution
-uncommitted external changes
+catalog row or count changes
+direct mutation of BrainState/profile/MSI/PtCns/registry/developmental histories
 ```
 
 ---
@@ -499,10 +402,11 @@ uncommitted external changes
 ## Campaign complete output
 
 ```text
-Operator TUI campaign complete.
-Catalog: <version>
-Counts: <actual>
+Operator TUI live input patch complete.
+Catalog remains: v0.10
+Counts remain: 123 / 41 / 4 / 12 / 6
 Full gate: pass
 Entrypoint: python3 -m brain.ui
-Remaining deferred work: Phase 3.5 Expression + ReadabilityPredictor and later cognitive campaigns
+Interactive flow: e queues percept, space steps tick
+Remaining deferred work: Phase 3.5 Expression + ReadabilityPredictor
 ```
