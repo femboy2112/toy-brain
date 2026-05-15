@@ -46,9 +46,11 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Optional, TextIO
 
 from brain.ui.commands import Command, OperatorCommand, make_command
-from brain.ui.render import render
+from brain.ui.composer import ComposerState
+from brain.ui.render import render_agent
 from brain.ui.session import OperatorSession
-from brain.ui.tui import build_view_for_session
+from brain.ui.transcript import OperatorTranscript
+from brain.ui.tui import build_agent_view_for_session
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only imports
     pass
@@ -124,7 +126,8 @@ def build_no_terminal_message(check: TerminalCheck) -> str:
         "  next:   re-run inside an interactive terminal "
         "(stdin + stdout both TTY, TERM set, not 'dumb').",
         "  alt:    `python3 -m brain.ui --print-once` renders one "
-        "deterministic frame of the operator view to stdout and exits.",
+        "deterministic agent-layout frame of the operator view to stdout "
+        "and exits.",
         "  policy: this entrypoint does not spawn shells, open files, "
         "call a browser, or perform network I/O.",
     )
@@ -222,9 +225,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     Flags:
 
-    * ``--print-once`` — render one deterministic frame of the default
-      operator view to stdout and exit. Useful for non-interactive
-      inspection and for the I-UI-12 smoke fixture.
+    * ``--print-once`` — render one deterministic agent-layout frame of
+      the default operator view to stdout and exit. Useful for
+      non-interactive inspection and for the I-UI-12 smoke fixture.
     * ``--check-terminal`` — print the result of :func:`detect_terminal`
       and exit. Never touches curses.
     """
@@ -241,8 +244,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--print-once",
         action="store_true",
         help=(
-            "render one deterministic frame of the default operator view "
-            "to stdout and exit"
+            "render one deterministic agent-layout frame of the default "
+            "operator view to stdout and exit"
         ),
     )
     parser.add_argument(
@@ -302,12 +305,14 @@ def main(
 
     if args.print_once:
         session = build_default_session()
-        view = build_view_for_session(
+        view = build_agent_view_for_session(
             session,
+            ComposerState.empty(),
+            OperatorTranscript.empty(),
             width=max(int(args.width), 20),
             height=max(int(args.height), 6),
         )
-        for row in render(view):
+        for row in render_agent(view):
             print(row, file=stdout_)
         return 0
 
@@ -354,8 +359,14 @@ def _render_once_to_string(session: OperatorSession, *, width: int, height: int)
     reconstruct an argparse ``Namespace``. Returns the concatenated
     rendered rows joined by newlines.
     """
-    view = build_view_for_session(session, width=width, height=height)
-    return "\n".join(render(view))
+    view = build_agent_view_for_session(
+        session,
+        ComposerState.empty(),
+        OperatorTranscript.empty(),
+        width=width,
+        height=height,
+    )
+    return "\n".join(render_agent(view))
 
 
 __all__ = [

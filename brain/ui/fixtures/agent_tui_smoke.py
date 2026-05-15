@@ -157,7 +157,7 @@ def check_I_UI_21_wrapper_delegates_to_composer_parser_router() -> None:
         assert router[ctrl_code].kind is AgentKeyKind.SUBMIT
     assert router[16].kind is AgentKeyKind.HISTORY_PREV
     assert router[14].kind is AgentKeyKind.HISTORY_NEXT
-    for bs_code in (8, 127):
+    for bs_code in (8, 127, 263):
         assert router[bs_code].kind is AgentKeyKind.BACKSPACE
 
     # ---- Reserved accelerator fires only on empty buffer + non-"/". ----
@@ -402,9 +402,63 @@ def check_I_UI_21_wrapper_delegates_to_composer_parser_router() -> None:
         "I-UI-21: parse error advanced the tick counter"
     )
 
-    # ---- Backspace deletes a typed character without dispatch. ---------
+    # ---- A later valid command clears the stale parse error. ----------
+    # Regression coverage for the live-input symptom: after a bad
+    # command, subsequent valid /queue and /step dispatches must log
+    # QUEUED / STEP rather than reusing the old ERROR text.
     composer_state = bad_submit.composer_state
     transcript = bad_submit.transcript
+    recovery_queue = "/queue gamma recovered"
+    for ch in recovery_queue:
+        result = step_agent_loop(
+            session, composer_state, transcript, ord(ch), client=client
+        )
+        composer_state = result.composer_state
+        transcript = result.transcript
+    recovery_queue_submit = step_agent_loop(
+        session, composer_state, transcript, _KEY_ENTER, client=client
+    )
+    assert recovery_queue_submit.transcript_appends == [
+        TranscriptKind.SUBMIT,
+        TranscriptKind.QUEUED,
+    ], (
+        "I-UI-21: valid /queue after a parse error reused stale ERROR "
+        f"(got {recovery_queue_submit.transcript_appends!r})"
+    )
+    assert session.error_message == "", (
+        f"I-UI-21: valid /queue left stale error {session.error_message!r}"
+    )
+    composer_state = recovery_queue_submit.composer_state
+    transcript = recovery_queue_submit.transcript
+
+    recovery_step = "/step"
+    tick_before_recovery = session.tick_counter
+    for ch in recovery_step:
+        result = step_agent_loop(
+            session, composer_state, transcript, ord(ch), client=client
+        )
+        composer_state = result.composer_state
+        transcript = result.transcript
+    recovery_step_submit = step_agent_loop(
+        session, composer_state, transcript, _KEY_ENTER, client=client
+    )
+    assert recovery_step_submit.transcript_appends == [
+        TranscriptKind.SUBMIT,
+        TranscriptKind.STEP,
+    ], (
+        "I-UI-21: valid /step after a parse error reused stale ERROR "
+        f"(got {recovery_step_submit.transcript_appends!r})"
+    )
+    assert session.error_message == "", (
+        f"I-UI-21: valid /step left stale error {session.error_message!r}"
+    )
+    assert session.tick_counter == tick_before_recovery + 1, (
+        "I-UI-21: recovery /step did not advance tick_counter"
+    )
+    composer_state = recovery_step_submit.composer_state
+    transcript = recovery_step_submit.transcript
+
+    # ---- Backspace deletes a typed character without dispatch. ---------
     bs_state = step_agent_loop(
         session, composer_state, transcript, ord("a"), client=client
     ).composer_state
@@ -415,6 +469,13 @@ def check_I_UI_21_wrapper_delegates_to_composer_parser_router() -> None:
     assert bs_state2.buffer == "", (
         f"I-UI-21: backspace did not clear single-char buffer "
         f"(got {bs_state2.buffer!r})"
+    )
+    bs_state3 = step_agent_loop(
+        session, ComposerState(buffer="abc", cursor=3), transcript, 263, client=client
+    ).composer_state
+    assert bs_state3.buffer == "ab", (
+        "I-UI-21: curses KEY_BACKSPACE code 263 did not delete one char "
+        f"(got {bs_state3.buffer!r})"
     )
 
     # ---- ^U clears the composer buffer (without /clear semantics). ----

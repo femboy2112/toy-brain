@@ -1,64 +1,46 @@
-# CURRENT_CAMPAIGN.md — Operator TUI Agent-Style Layout Campaign
+# CURRENT_CAMPAIGN.md - Operator TUI Input/Switch Repair Campaign
 
 ## Purpose
 
-Redesign the existing Operator TUI into a usable agent-style terminal interface, closer to Codex / Claude Code style CLIs.
-
-The current TUI is safe and now has live input, but it still lacks the interaction shape the operator wants:
-
-```text
-persistent multi-pane layout
-bottom input composer
-typed local commands
-visible transcript / event log
-status bar
-state / tick / developmental-history inspectors
-interactive queue + step workflow
-```
-
-This is a UI/UX campaign only. It is **not** Phase 3.5 Expression + ReadabilityPredictor and does not introduce language, social behavior, Mode B, real LLM calls, shell execution, network I/O, or host execution.
-
----
-
-## Saved baseline
-
-Expected baseline before this campaign:
+Fix the Operator TUI behavior that made the agent-style UI feel unreliable in
+real use:
 
 ```text
-Catalog: v0.10
-Operator TUI campaign: PASS
-Operator TUI live input patch: PASS and merged
-Counts: 123 REQUIRED / 41 STRUCTURAL / 4 NOT-EXERCISED / 12 DEFERRED / 6 OBSERVED
-Full gate: green
-Entrypoint: python3 -m brain.ui
+--print-once did not show the agent layout
+valid commands after a parse error showed stale ERROR transcript/footer state
+Backspace keycode 263 did not edit the composer
 ```
 
-If `OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md` is absent or not PASS, stop and report that the live input patch must be merged/applied first.
+This campaign is a focused repair branch, not a new developmental phase.
 
----
+## Branch
 
-## Execution rule
-
-When the user says `go`, the active repo-capable agent should:
+All implementation work belongs on:
 
 ```text
-read CURRENT_MISSION.md
-read CURRENT_CAMPAIGN.md
-run preflight
-infer the next eligible step from repo state
-execute only that step's allowed scope
-validate as specified
-commit and push after successful steps
-stop at review gates, failures requiring user judgment, or campaign completion
+codex/operator-tui-input-switch-fixes
 ```
 
-Use `python3 -m ...` for Python module commands. Convert copied `python -m ...` examples to `python3 -m ...`.
+If an agent is on another branch, stop and switch to the branch above before
+editing.
 
----
+## Scope
 
-## Hard boundaries
+Allowed files:
 
-Do not modify unless a step explicitly allows it:
+```text
+CURRENT_MISSION.md
+CURRENT_CAMPAIGN.md
+README.md
+OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
+brain/ui/__main__.py
+brain/ui/session.py
+brain/ui/tui.py
+brain/ui/fixtures/tui_smoke.py
+brain/ui/fixtures/agent_tui_smoke.py
+```
+
+Do not touch:
 
 ```text
 brain/tlica/
@@ -70,423 +52,117 @@ brain/tick.py
 brain/llm/
 ```
 
-Do not implement:
+## Findings
 
-```text
-Phase 3.5 Expression + ReadabilityPredictor
-social/language harness
-Mode B
-real LLM calls
-real host execution
-shell execution
-network I/O
-arbitrary Python execution
-save/export filesystem writes
-real terminal automation outside the curses UI
+### Finding 1 - `--print-once` rendered the wrong UI
+
+Reproduction:
+
+```bash
+python3 -m brain.ui --print-once --width 60 --height 12
 ```
 
-No external dependencies. Use only standard library modules and existing project APIs.
-
----
-
-## Design thesis
-
-The TUI should behave like an operator console with a stable interface contract:
+Before repair, the output began with:
 
 ```text
-top/header: current state summary and tick count
-left pane: BrainState / profile / MSI / PtCns / registry
-right pane: selected inspector details
-center/bottom pane: transcript / event log
-bottom composer: typed input, cursor, prompt mode, and status
-footer: key hints and safety status
+[ core state ]----------------------------------------------
 ```
 
-The operator should be able to type local UI commands in the bottom composer:
+That meant the command used the retained legacy single-pane renderer. The
+campaign corrigenda expected the non-interactive entrypoint to render an
+`AgentTuiViewModel` so operators can inspect the bottom composer without a
+real TTY.
+
+Fix:
 
 ```text
-/help
-/state
-/tick
-/output
-/worldlet
-/repl
-/queue <content_id> <text>
-/step
-/clear
-/quit
+brain/ui/__main__.py now builds ComposerState.empty(),
+OperatorTranscript.empty(), AgentTuiViewModel, and render_agent() for
+--print-once and _render_once_to_string().
 ```
 
-These are **UI commands only**. They are not shell commands, natural-language understanding, Proto-BASIC, Mode B, or a real LLM chat surface.
+### Finding 2 - stale errors survived later valid commands
 
-Allowed bottom-up path:
+Reproduction:
 
 ```text
-bottom composer -> local UI command parser -> QueuePerceptPayload -> Command(QUEUE_PERCEPT) -> OperatorSession.dispatch()
-/step or space -> Command(STEP_TICK) -> OperatorSession.step_tick() -> tick(current_state, [queued_event], client)
+type /bad + Enter
+type /queue beta hello-world + Enter
+type /step + Enter
 ```
 
-No direct mutation of kernel state or developmental histories is allowed.
+Before repair, `/queue` and `/step` dispatched successfully but transcript
+entries after those submissions were still `ERROR unknown command: /bad`.
 
----
-
-# Step 0 — Preflight
-
-Read:
+Fix:
 
 ```text
+OperatorSession.dispatch() clears error_message at the start of each valid
+Command dispatch. Failure handlers set a fresh error; success paths no longer
+inherit stale local UI errors.
+```
+
+### Finding 3 - Backspace code 263 was ignored
+
+Reproduction:
+
+```text
+ComposerState(buffer="abc", cursor=3)
+send raw keycode 263
+```
+
+Before repair, the route kind was `none` and the buffer stayed `abc`.
+
+Fix:
+
+```text
+build_agent_keystroke_router() maps literal curses KEY_BACKSPACE code 263 to
+AgentKeyKind.BACKSPACE.
+```
+
+## Implementation Steps
+
+1. Preflight:
+
+```bash
+git status --short --branch
+python3 -m tools.catalog counts
+python3 -m brain.ui --print-once --width 60 --height 12
+```
+
+2. Runtime repair:
+
+```text
+brain/ui/__main__.py
+brain/ui/session.py
+brain/ui/tui.py
+```
+
+3. Regression coverage:
+
+```text
+brain/ui/fixtures/tui_smoke.py
+brain/ui/fixtures/agent_tui_smoke.py
+```
+
+4. Documentation and mission handoff:
+
+```text
+README.md
+OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-README.md
-INVARIANT_CATALOG.md
-OPERATOR_TUI_AUDIT.md
-OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md
-brain/ui/tui.py
-brain/ui/__main__.py
-brain/ui/render.py
-brain/ui/session.py
-brain/ui/commands.py
 ```
 
-Run:
+5. Validation:
 
 ```bash
-git status --short
-git branch --show-current
-git log --oneline -10
-python3 -m tools.catalog counts
-python3 -m brain.invariants run --id I-UI-14
-bash tools/check_all.sh
-```
-
-Stop if the tree is dirty, the full gate fails, or either required audit is absent/not PASS.
-
----
-
-# Step 1 — UX synthesis
-
-Create:
-
-```text
-OPERATOR_TUI_AGENT_LAYOUT_SYNTHESIS.md
-```
-
-Include:
-
-```text
-problem statement: current TUI is safe but not ergonomically interactive
-agent-style target layout
-bottom composer thesis
-pane/window requirements
-typed local command requirements
-transcript/event-log requirements
-how it remains an operator UI, not cognition
-non-goals
-risks
-next artifact: OPERATOR_TUI_AGENT_LAYOUT_KICKOFF.md
-```
-
-Validate:
-
-```bash
-git diff --name-only
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 2 — Kickoff
-
-Create:
-
-```text
-OPERATOR_TUI_AGENT_LAYOUT_KICKOFF.md
-```
-
-Cover:
-
-```text
-AgentLayout
-PaneSpec
-PaneRenderResult
-BottomComposer
-ComposerState
-ComposerAction
-LocalCommandLine parser
-OperatorTranscript / TranscriptEntry
-layout-aware TuiViewModel
-responsive pane sizing
-typed command flow
-keyboard flow
-scrollback / log discipline
-non-interactive fixture strategy
-```
-
-Do not include real LLM chat, shell command execution, filesystem save/export, network I/O, Mode B planning, Expression + ReadabilityPredictor, social/language harness, or new theory semantics.
-
-Validate:
-
-```bash
-git diff --name-only
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 3 — Corrigenda
-
-Create:
-
-```text
-OPERATOR_TUI_AGENT_LAYOUT_CORRIGENDA.md
-```
-
-Check:
-
-```text
-bottom composer vs natural-language chat distinction
-typed UI command parser vs shell / Proto-BASIC distinction
-pane layout determinism
-small terminal behavior
-transcript/log as local UI state only
-no trace/scenario writes
-how typed /queue maps to existing QueuePerceptPayload
-how typed /step maps to existing STEP_TICK route
-whether new I-UI-* rows are needed
-which row statuses are REQUIRED / STRUCTURAL / OBSERVED
-```
-
-Validate and commit/push.
-
----
-
-# Step 4 — Catalog patch plan
-
-Create:
-
-```text
-OPERATOR_TUI_AGENT_LAYOUT_CATALOG_PATCH_PLAN.md
-```
-
-Continue the `I-UI-*` family unless the plan proves otherwise.
-
-Recommended rows:
-
-```text
-I-UI-16 REQUIRED    Agent-style layout exposes persistent named panes plus bottom composer.
-I-UI-17 REQUIRED    BottomComposer edit model supports type/backspace/enter/history deterministically.
-I-UI-18 REQUIRED    Local command-line parser is finite, typed, and maps only to approved OperatorCommand / QueuePerceptPayload routes.
-I-UI-19 REQUIRED    OperatorTranscript records UI events copy-on-write and remains local UI state only.
-I-UI-20 STRUCTURAL  AgentLayout / PaneSpec / TuiViewModel are terminal-agnostic immutable contracts.
-I-UI-21 STRUCTURAL  Curses wrapper delegates input to composer/router and does not mutate kernel state directly.
-I-UI-22 STRUCTURAL  Responsive pane geometry is deterministic and preserves a visible bottom composer on small terminals.
-I-UI-23 OBSERVED    Scripted agent-style interaction walk is inspectable and non-gating.
-```
-
-Projected count impact from v0.10 if accepted:
-
-```text
-REQUIRED       123 -> 127   (+4)
-STRUCTURAL      41 -> 44    (+3)
-NOT-EXERCISED    4 -> 4     (+0)
-DEFERRED        12 -> 12    (+0)
-OBSERVED         6 -> 7     (+1)
-```
-
-Catalog version should become `v0.11` if rows are added.
-
-Specify row table, statuses, owning modules, fixtures, count impact, catalog patch mechanics, pending registration plan, strict implementation order, open decisions, and stop conditions.
-
-Likely modules:
-
-```text
-brain/ui/layout.py
-brain/ui/composer.py
-brain/ui/command_line.py
-brain/ui/transcript.py
-brain/ui/render.py
-brain/ui/tui.py
-brain/ui/session.py
-```
-
-Likely fixtures:
-
-```text
-brain/ui/fixtures/agent_layout.py
-brain/ui/fixtures/composer_input.py
-brain/ui/fixtures/transcript_log.py
-brain/ui/fixtures/agent_tui_smoke.py
-```
-
-Validate and commit/push.
-
----
-
-# Step 5 — Review gate
-
-Do not proceed to Step 6 unless the catalog patch plan is coherent and no open decision blocks implementation.
-
-Stop and report if the plan requires shell/network/host execution, real LLM calls, direct BrainState mutation, tick() semantic changes, scenario/trace schema changes, external dependencies, or weakening existing I-UI safety rows.
-
-Proceed only when the user says `go` again or explicitly accepts the plan.
-
----
-
-# Step 6 — Apply accepted v0.11 catalog patch
-
-Allowed files:
-
-```text
-INVARIANT_CATALOG.md
-tools/catalog.py
-brain/_catalog_ids.py
-brain/invariants.py
-```
-
-Optional package markers only if needed:
-
-```text
-brain/ui/layout.py
-brain/ui/composer.py
-brain/ui/command_line.py
-brain/ui/transcript.py
-brain/ui/fixtures/__init__.py
-```
-
-Apply only accepted `I-UI-16..I-UI-23` rows, expected count updates, generated IDs, and pending registrations for REQUIRED / STRUCTURAL rows.
-
-Do not implement runtime behavior unless explicitly allowed by the accepted plan.
-
-Run:
-
-```bash
-python3 -m tools.catalog counts
-python3 -m tools.catalog generate-ids
-python3 -m tools.catalog counts
-```
-
-Commit/push.
-
----
-
-# Step 7 — Layout model and pure renderer upgrade
-
-Allowed files:
-
-```text
-brain/ui/layout.py
-brain/ui/render.py
-brain/ui/fixtures/agent_layout.py
-brain/invariants.py
-```
-
-Implement deterministic responsive geometry, persistent panes, bottom composer area, render output for header/panes/transcript/composer/status/footer, and graceful small-terminal degradation.
-
-Drive likely rows:
-
-```text
-I-UI-16
-I-UI-20
-I-UI-22
-```
-
-Run targeted checks and commit/push.
-
----
-
-# Step 8 — Bottom composer and typed command parser
-
-Allowed files:
-
-```text
-brain/ui/composer.py
-brain/ui/command_line.py
-brain/ui/commands.py
-brain/ui/session.py
-brain/ui/fixtures/composer_input.py
-brain/invariants.py
-```
-
-Implement typing, backspace, enter submit, optional deterministic history recall, finite local command parser, and mappings:
-
-```text
-/queue <content_id> <text> -> QueuePerceptPayload -> Command(QUEUE_PERCEPT)
-/step -> Command(STEP_TICK)
-/state /tick /output /worldlet /repl /help /clear /quit -> existing OperatorCommand routes
-invalid commands -> local status/error only
-```
-
-Drive likely rows:
-
-```text
-I-UI-17
-I-UI-18
-```
-
-Run targeted checks and commit/push.
-
----
-
-# Step 9 — Transcript/event log
-
-Allowed files:
-
-```text
-brain/ui/transcript.py
-brain/ui/session.py
-brain/ui/render.py
-brain/ui/fixtures/transcript_log.py
-brain/invariants.py
-```
-
-Implement bounded local transcript/log records for operator command submissions, queue events, step results, validation failures, and view changes. Do not write trace/scenario files and do not enter OutputHistory / WorldletHistory / ProtoBasicHistory.
-
-Drive likely row:
-
-```text
-I-UI-19
-```
-
-Run targeted checks and commit/push.
-
----
-
-# Step 10 — Curses wrapper integration
-
-Allowed files:
-
-```text
-brain/ui/tui.py
-brain/ui/__main__.py
-brain/ui/fixtures/agent_tui_smoke.py
-README.md
-brain/invariants.py
-```
-
-Update the wrapper so normal typing edits the bottom composer, Enter parses/submits, `/queue` queues a percept, `/step` or space steps tick, shortcut keys can remain, screen repaints in agent-style layout, status/transcript stay visible, and the curses wrapper remains thin.
-
-Drive likely rows:
-
-```text
-I-UI-21
-I-UI-23 OBSERVED
-```
-
-README must document the new interface.
-
-Run targeted checks and commit/push.
-
----
-
-# Step 11 — Full gate
-
-Run:
-
-```bash
+python3 -m brain.ui --print-once --width 60 --height 12
+python3 -m brain.invariants run --id I-UI-12
+python3 -m brain.invariants run --id I-UI-17
+python3 -m brain.invariants run --id I-UI-18
+python3 -m brain.invariants run --id I-UI-21
+python3 -m brain.invariants run --id I-UI-23
 python3 -m tools.catalog counts
 python3 -m tools.citations verify
 python3 -m tools.import_audit
@@ -494,67 +170,112 @@ python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-Commit/push final sync docs if needed.
-
----
-
-# Step 12 — Post-completion audit
-
-Create:
+## Current Repair Status
 
 ```text
-OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
+Branch                : codex/operator-tui-input-switch-fixes
+Runtime fixes         : implemented
+Regression fixtures   : implemented
+Docs/mission handoff  : implemented
+Full validation       : pass
+Commit/push           : pending commit
 ```
 
-Verdict must be PASS / PASS WITH PATCHES / BLOCKED.
+## Final Validation Results
 
-Audit agent-style layout usability, bottom composer visibility, typed command parser safety, transcript/local log behavior, pane/window determinism, small terminal behavior, curses wrapper thinness, kernel boundary, full gate, manual test instructions, and remaining limitations.
-
-Commit/push.
-
----
-
-## Manual test target
-
-After completion:
-
-```bash
-python3 -m brain.ui
-```
-
-Expected interaction:
+Validated on branch `codex/operator-tui-input-switch-fixes`:
 
 ```text
-bottom input bar visible immediately
-type /queue beta hello-world
-press Enter
-queue summary appears in transcript/status
-type /step
-press Enter
-tick result appears in transcript
-state/tick panes update
-type /tick or press t
-tick inspector visible
-type /state or press s
-state inspector visible
-type /help
-command help visible
-type /quit or press q
-clean exit
+python3 -m brain.ui --print-once --width 60 --height 12
+  PASS - output includes agent header, transcript pane, bottom composer,
+  mode=local-cmd meta row, and footer.
+
+python3 -m brain.invariants run --id I-UI-12
+  PASS - entrypoint fixture covers agent --print-once output.
+
+python3 -m brain.invariants run --id I-UI-17
+  PASS - composer edit model remains green.
+
+python3 -m brain.invariants run --id I-UI-18
+  PASS - local command parser remains green.
+
+python3 -m brain.invariants run --id I-UI-21
+  PASS - wrapper delegation fixture covers stale-error recovery and
+  Backspace keycode 263.
+
+python3 -m brain.invariants run --id I-UI-23
+  OBS-PASS - scripted agent walk remains inspectable.
+
+python3 -m tools.catalog counts
+  PASS - 127 REQUIRED / 44 STRUCTURAL / 4 NOT-EXERCISED / 12 DEFERRED /
+  7 OBSERVED.
+
+python3 -m tools.citations verify
+  PASS - 100 citations verified.
+
+python3 -m tools.import_audit
+  PASS - I-PCE-05 clean.
+
+python3 -m brain.invariants run
+  PASS - 178 rows checked; REQUIRED 127 green / 0 red; STRUCTURAL
+  44 green / 0 red; OBSERVED 7 pass / 0 fail; gate failures 0.
+
+bash tools/check_all.sh
+  PASS - All checks passed.
 ```
 
-Shortcut keys may remain, but typed commands through the bottom composer are the primary interaction path.
+## Expected Fixed Behavior
 
----
-
-## Campaign complete output
+`python3 -m brain.ui --print-once --width 60 --height 12` should include:
 
 ```text
-Operator TUI agent-style layout campaign complete.
-Catalog: v0.11 if rows accepted, otherwise v0.10
-Counts: <actual>
-Full gate: pass
+toy-brain operator
+[ transcript ]
+> _
+mode=local-cmd
+keys: enter submit
+```
+
+The scripted input sequence:
+
+```text
+/bad
+/queue beta hello-world
+/step
+Backspace keycode 263 over "abc"
+```
+
+should yield:
+
+```text
+ERROR for /bad only
+QUEUED for /queue
+STEP for /step
+empty final error_message
+buffer "ab" after keycode 263
+```
+
+## Stop Conditions
+
+Stop and report if:
+
+```text
+any full-gate command fails after one repair pass
+the fix requires changing guarded files
+the fix requires weakening an I-UI row
+the fix would add shell/network/host execution or a new dependency
+```
+
+## Completion Output
+
+When complete, report:
+
+```text
+Operator TUI input/switch repair complete.
+Branch: codex/operator-tui-input-switch-fixes
 Entrypoint: python3 -m brain.ui
-Interactive flow: bottom composer supports /queue, /step, /state, /tick, /help, /quit
-Remaining deferred work: Phase 3.5 Expression + ReadabilityPredictor
+Fixed: --print-once agent layout, stale error recovery, Backspace 263
+Full gate: <pass/fail>
+Commit: <sha>
+Push: <status>
 ```

@@ -252,17 +252,18 @@ brain/ui/render.py:
   be rewritten").
 
 brain/ui/__main__.py --print-once:
-  Renders one deterministic frame through the legacy single-pane
-  TuiViewModel path (the kickoff section 17 ruling F note allows
-  --print-once to share the entrypoint; the campaign opted to keep
-  --print-once on the legacy frame and switch only the curses live
-  path to the agent layout).
+  Renders one deterministic frame through AgentTuiViewModel plus
+  render_agent. The codex/operator-tui-input-switch-fixes repair
+  branch brought this path back into line with the corrigenda Step 10
+  ruling: the non-interactive snapshot now includes the header,
+  transcript, bottom composer, and footer.
 ```
 
-PASS. The wrapper switched to `AgentTuiViewModel`; the renderer keeps
-both forms available so legacy fixtures still pass. The "legacy
-TuiViewModel retired in the live wrapper but legacy fixtures still
-pass" cross-check is satisfied exactly.
+PASS. The wrapper and `--print-once` path both use
+`AgentTuiViewModel`; the renderer keeps both forms available so legacy
+fixtures still pass. The "legacy TuiViewModel retired in the live
+wrapper but legacy fixtures still pass" cross-check is satisfied
+exactly.
 
 ### Ruling F — single entrypoint `python3 -m brain.ui`
 
@@ -394,7 +395,9 @@ PASS across the full gate.
 
 ```text
 $ python3 -m brain.ui --print-once
-Renders the legacy single-pane frame deterministically and exits 0.
+Renders the agent-layout frame deterministically and exits 0. The
+frame includes the header, state/inspector panes, transcript pane,
+bottom composer, and footer.
 
 $ python3 -m brain.ui --check-terminal
 Reports usable=False with reason "stdout is not attached to a terminal"
@@ -592,10 +595,6 @@ campaigns:
 - No mouse handling, no colour attributes, no Unicode emoji rendering,
   no terminal automation outside the curses UI. The wrapper remains
   thin and uses only `addnstr` + `getstr` style operations.
-- --print-once continues to render the legacy single-pane frame
-  rather than an AgentTuiViewModel snapshot. A future campaign may
-  switch --print-once to the agent layout once a non-interactive
-  composer-state representation is defined.
 - The legacy `TuiViewModel` record is preserved so the existing
   `render_view.py` fixtures still pass. A separate (small) cleanup
   campaign could migrate those fixtures and remove the legacy record;
@@ -618,14 +617,9 @@ mission selection step (updating `CURRENT_MISSION.md` /
 `CURRENT_CAMPAIGN.md` to point at the Phase 3.5 plan) is required
 before any Phase 3.5 work begins.
 
-Two small follow-up UX campaigns are visible (entirely optional):
+One small follow-up UX campaign is visible (entirely optional):
 
 ```text
-- --print-once on the agent layout: define a non-interactive
-  composer-state representation, switch --print-once to render an
-  AgentTuiViewModel frame instead of the legacy frame, and add a
-  fixture under brain/ui/fixtures/ that drives the agent --print-once
-  path.
 - Legacy TuiViewModel retirement: migrate the existing render_view.py
   fixtures onto AgentTuiViewModel via a thin adapter, remove the
   legacy record from brain/ui/render.py.

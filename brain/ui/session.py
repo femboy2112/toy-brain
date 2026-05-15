@@ -358,6 +358,12 @@ class OperatorSession:
                 f"(got {type(command).__name__})"
             )
 
+        # A new valid command attempt supersedes any prior local UI
+        # error. Failure handlers below set a fresh error if this
+        # command is rejected; success paths must not leave a stale error
+        # visible in the transcript/footer.
+        self.error_message = ""
+
         kind = command.kind
         if kind in INSPECT_VIEW_MAP:
             self.set_active_view(INSPECT_VIEW_MAP[kind])

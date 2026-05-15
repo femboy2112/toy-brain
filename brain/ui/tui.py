@@ -858,6 +858,7 @@ _KEY_ENTER: int = 10
 _KEY_RETURN: int = 13
 _KEY_BACKSPACE_ASCII: int = 127
 _KEY_BACKSPACE_BS: int = 8
+_KEY_BACKSPACE_CURSES: int = 263
 
 
 def _agent_accel_kind_for(letter: str) -> Optional[OperatorCommand]:
@@ -904,6 +905,7 @@ def build_agent_keystroke_router() -> dict[int, AgentKeyRoute]:
     table[_KEY_RETURN] = AgentKeyRoute(kind=AgentKeyKind.SUBMIT)
     table[_KEY_BACKSPACE_ASCII] = AgentKeyRoute(kind=AgentKeyKind.BACKSPACE)
     table[_KEY_BACKSPACE_BS] = AgentKeyRoute(kind=AgentKeyKind.BACKSPACE)
+    table[_KEY_BACKSPACE_CURSES] = AgentKeyRoute(kind=AgentKeyKind.BACKSPACE)
     table[_KEY_CTRL_C] = AgentKeyRoute(kind=AgentKeyKind.CLEAR_BUFFER)
     table[_KEY_CTRL_U] = AgentKeyRoute(kind=AgentKeyKind.CLEAR_BUFFER)
     table[_KEY_CTRL_P] = AgentKeyRoute(kind=AgentKeyKind.HISTORY_PREV)
