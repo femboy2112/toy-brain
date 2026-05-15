@@ -15,7 +15,9 @@ Workflow:
 2. Read every source file listed in its "Required source files to read first" section.
 3. Execute only the mission described in `CURRENT_MISSION.md`.
 4. Respect every guardrail and allowed-file rule in `CURRENT_MISSION.md`.
-5. Stop at the stop condition defined in `CURRENT_MISSION.md`.
+5. Run the lightweight validation allowed by `CURRENT_MISSION.md`.
+6. Commit and push the intended mission files, unless there are no changes.
+7. Stop at the stop condition defined in `CURRENT_MISSION.md`.
 
 Current expected mission:
 - Draft `PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md` as a planning artifact.
@@ -27,6 +29,7 @@ Hard boundaries:
 - Do not infer hidden conversation context. The mission artifact must stand on repo-local files.
 - Do not start the Osmotic Chamber, output ladder, worldlet, Proto-BASIC REPL, expression layer, or language harness implementation.
 - Do not run real LLM scenario commands unless the user explicitly asks.
+- Stage only intended mission files. Do not commit accidental changes to guarded files.
 
 Allowed validation by default:
 - `git diff --name-only`
@@ -37,8 +40,15 @@ Avoid unless explicitly requested:
 - `python -m brain.scenario run ...`
 - any command that invokes a real LLM backend
 
+Git persistence:
+- After validation passes, commit and push the mission result.
+- Use a clear commit message.
+- Report the commit SHA and push status.
+- If there are no changes, report that no commit was made and why.
+
 Final response:
 - List created/updated files.
 - Report lightweight validation results.
+- Report commit SHA and push status.
 - State the next planned artifact.
 """
