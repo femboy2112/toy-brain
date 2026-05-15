@@ -24,10 +24,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.5 expected counts — bumped by Phase 2 v1.2 baseline hardening.
+# v0.5 expected counts — bumped by Phase 2 v1.2 baseline hardening
+# and the pre-Phase-3.1 trace reserved-key micro-hardening row.
 EXPECTED_COUNTS: dict[str, int] = {
     "REQUIRED": 84,
-    "STRUCTURAL": 15,
+    "STRUCTURAL": 16,
     "NOT-EXERCISED": 3,
     "DEFERRED": 12,
     "OBSERVED": 1,

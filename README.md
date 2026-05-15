@@ -38,7 +38,7 @@ Implement from the current `INVARIANT_CATALOG.md` exactly; the catalog is canoni
 - **v0.2** — initial Lean-bound catalog (Phase 1 / v0 implementation).
 - **v0.3** — +I-LLM-01/02/03/04, +I-RT-08, +I-BHV-01 (Phase 2 v1 LLM-backed `PtCns`).
 - **v0.4** — +I-TRACE-01 (Phase 2 v1.1 cognition trace).
-- **v0.5** — +I-RT-11, +I-RT-12, +I-TRACE-02, +I-CAT-01 (Phase 2 v1.2 baseline hardening).
+- **v0.5** — +I-RT-11, +I-RT-12, +I-TRACE-02, +I-TRACE-03, +I-CAT-01 (Phase 2 v1.2 baseline hardening plus pre-Phase-3.1 trace boundary hardening).
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
@@ -52,7 +52,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.5**. Confirmation numbers: **84 REQUIRED · 15 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED · 14 fixtures**. Run `python -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.5**. Confirmation numbers: **84 REQUIRED · 16 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED · 14 fixtures**. Run `python -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -151,7 +151,7 @@ reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
 For catalog v0.5, the expected count is:
-**84 REQUIRED · 15 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED**.
+**84 REQUIRED · 16 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage

@@ -2,7 +2,7 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
-> **Catalog version:** v0.5. Patches over v0.4 (Phase 2 v1.2 baseline hardening): +4 STRUCTURAL rows (I-RT-11 single-event tick, I-RT-12 duplicate content_id, I-TRACE-02 trace fail-open, I-CAT-01 catalog↔registry coverage); five correctness patches (P1 SafeTracer, P2 single-event guard, P3 duplicate guard, P4 ambiguous-parse rejection, P5 FutureMSIModel runtime guard); `SourceKind` schema field inferred by `tools/catalog.py`; auto-generated `brain/_catalog_ids.py`; strict `tools.catalog counts` gate; README synced. No new fixtures; existing fixtures gain new rows.
+> **Catalog version:** v0.5. Patches over v0.4 (Phase 2 v1.2 baseline hardening): +5 STRUCTURAL rows (I-RT-11 single-event tick, I-RT-12 duplicate content_id, I-TRACE-02 trace fail-open, I-TRACE-03 trace reserved-key rejection, I-CAT-01 catalog↔registry coverage); six correctness patches (P1 SafeTracer, P2 single-event guard, P3 duplicate guard, P4 ambiguous-parse rejection, P5 FutureMSIModel runtime guard, P6 trace envelope reserved-key protection); `SourceKind` schema field inferred by `tools/catalog.py`; auto-generated `brain/_catalog_ids.py`; strict `tools.catalog counts` gate; README synced. No new fixtures; existing fixtures gain new rows.
 >
 > **Catalog version:** v0.4. Patches over v0.3 (Phase 2 v1.1): togglable `CognitionTracer` Protocol seam in `brain/trace.py`; three backends (`NullTracer`, `MemoryTracer`, `FileTracer`); +1 STRUCTURAL row (I-TRACE-01); +1 fixture (`trace_v1_1.py`). Observation-only — no semantic change to v0.3 invariants.
 >
@@ -292,6 +292,7 @@ This catalog is the spine of the v0 plan. Each row binds a Lean source declarati
 |---|---|---|---|---|---|
 | I-TRACE-01 | Plan convention (Phase 2 v1.1) | The tracer is observation-only. `tick(state, events, client, tracer)` produces identical `(BrainState, TickRecord)` output regardless of which `CognitionTracer` backend is supplied. | Run the first scenario through each of `{NullTracer(), MemoryTracer(), FileTracer(tmp_path)}` with the same MockClient seed; assert all three final `BrainState` values are equal and all three `mode_trace` sequences are identical. | `trace_v1_1.py` | STRUCTURAL |
 | I-TRACE-02 | Plan convention (Phase 2 v1.2 baseline hardening) | Tracer record failures do not propagate. `tick()` output is identical whether `tracer.record` raises or not. `SafeTracer` wraps every factory-built tracer and swallows backend exceptions. | Run the scenario through a `_TracerThatAlwaysRaises` wrapped in `SafeTracer`; assert resulting `BrainState` and `mode_trace` equal the `NullTracer` baseline. | `trace_v1_1.py` | STRUCTURAL |
+| I-TRACE-03 | Plan convention (trace boundary hardening) | Tracer payloads cannot overwrite reserved event-envelope keys. `MemoryTracer` and `FileTracer` reject payloads containing `type`, `timestamp_ns`, or `tick_id`; `SafeTracer` preserves observation-only behavior by swallowing trace-sink validation failures. | Raw `MemoryTracer` and `FileTracer(tmp_path)` raise `ValueError` naming I-TRACE-03 on reserved keys; `SafeTracer(MemoryTracer())` and `SafeTracer(FileTracer(tmp_path))` swallow the same validation failure without recording an invalid event. | `trace_v1_1.py` | STRUCTURAL |
 
 ### Behavioral (Phase 2 v1)
 
@@ -393,7 +394,7 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | `trajectory_step.py` | I-PMAP-02, I-TRJ-01..04, I-TRJ-08, I-TRJ-09, I-AFF-06 |
 | `llm_protocol.py` | I-LLM-01, I-LLM-02 (OBSERVED), I-LLM-03, I-LLM-04 |
 | `scenario_v1.py` | I-RT-08, I-RT-09, I-RT-10, I-RT-11, I-RT-12, I-BHV-01 |
-| `trace_v1_1.py` | I-TRACE-01, I-TRACE-02 |
+| `trace_v1_1.py` | I-TRACE-01, I-TRACE-02, I-TRACE-03 |
 
 14 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`.
 
@@ -415,12 +416,12 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 ## Summary counts
 
 - **REQUIRED v0 invariants:** 84
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 15
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 16
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
 - **OBSERVED row-level:** 1 (Phase 2 v1; recorded in run summary, not gating)
 
-Total tabular entries: 115. v0.5 success is gated by the 84 REQUIRED rows + 15 STRUCTURAL rows (the OBSERVED row is logged but does not gate; the new I-CAT-01 runner audit gates separately at startup).
+Total tabular entries: 116. v0.5 success is gated by the 84 REQUIRED rows + 16 STRUCTURAL rows (the OBSERVED row is logged but does not gate; the new I-CAT-01 runner audit gates separately at startup).
 
 ---
 

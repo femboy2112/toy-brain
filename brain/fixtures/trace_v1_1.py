@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Callable
 
 from brain.fixtures.scenario_v1 import SCENARIO_PATH
 from brain.invariants import register
@@ -55,6 +56,17 @@ def _run_with_tracer(tracer: CognitionTracer):
     spec = load_scenario(SCENARIO_PATH)
     client = MockClient(_fresh_mock_responses())
     return run_scenario(spec, client, tracer=tracer)
+
+
+def _assert_trace_03_value_error(call: Callable[[], None]) -> None:
+    try:
+        call()
+    except ValueError as exc:
+        assert "I-TRACE-03" in str(exc), (
+            f"reserved-key rejection did not name I-TRACE-03: {exc!r}"
+        )
+    else:
+        raise AssertionError("I-TRACE-03 violated: reserved trace key accepted")
 
 
 @register("I-TRACE-01", status="STRUCTURAL")
@@ -161,3 +173,51 @@ def check_I_TRACE_02() -> None:
     assert new_state.profile.values, (
         "I-TRACE-02 corrigenda C2 violated: tick() returned an empty profile"
     )
+
+
+@register("I-TRACE-03", status="STRUCTURAL")
+def check_I_TRACE_03() -> None:
+    """Trace payloads cannot overwrite reserved event-envelope keys."""
+    for key in ("type", "timestamp_ns", "tick_id"):
+        mem_tracer = MemoryTracer()
+        _assert_trace_03_value_error(
+            lambda key=key, mem_tracer=mem_tracer: mem_tracer.record(
+                "reserved-key-test",
+                {key: "payload collision"},
+            )
+        )
+        assert mem_tracer.events == [], (
+            f"I-TRACE-03 violated: MemoryTracer recorded reserved key {key!r}"
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            file_path = Path(tmp) / "trace.jsonl"
+            file_tracer = FileTracer(file_path)
+            try:
+                _assert_trace_03_value_error(
+                    lambda key=key, file_tracer=file_tracer: file_tracer.record(
+                        "reserved-key-test",
+                        {key: "payload collision"},
+                    )
+                )
+            finally:
+                file_tracer.close()
+            assert file_path.read_text(encoding="utf-8") == "", (
+                f"I-TRACE-03 violated: FileTracer wrote reserved key {key!r}"
+            )
+
+    safe_mem = MemoryTracer()
+    SafeTracer(safe_mem).record("reserved-key-test", {"type": "payload collision"})
+    assert safe_mem.events == [], (
+        "I-TRACE-03 violated: SafeTracer(MemoryTracer) propagated reserved-key "
+        "failure or recorded the invalid event"
+    )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        file_path = Path(tmp) / "trace.jsonl"
+        safe_file = SafeTracer(FileTracer(file_path))
+        safe_file.record("reserved-key-test", {"tick_id": 123})
+        safe_file.close()
+        assert file_path.read_text(encoding="utf-8") == "", (
+            "I-TRACE-03 violated: SafeTracer(FileTracer) recorded an invalid event"
+        )

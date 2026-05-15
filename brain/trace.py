@@ -36,6 +36,19 @@ from types import MappingProxyType
 from typing import Any, Protocol, runtime_checkable
 
 
+_RESERVED_TRACE_KEYS = frozenset({"type", "timestamp_ns", "tick_id"})
+
+
+def _reject_reserved_payload_keys(payload: Mapping[str, Any]) -> None:
+    """Reject payload keys that would collide with the trace event envelope."""
+    overlap = _RESERVED_TRACE_KEYS & set(payload)
+    if overlap:
+        raise ValueError(
+            "I-TRACE-03 violated: trace payload contains reserved envelope keys "
+            f"{sorted(overlap)!r}"
+        )
+
+
 @runtime_checkable
 class CognitionTracer(Protocol):
     """Observation-only cognition trace surface.
@@ -99,6 +112,7 @@ class MemoryTracer:
         self._current_tick_id: int | None = None
 
     def record(self, event_type: str, payload: Mapping[str, Any]) -> None:
+        _reject_reserved_payload_keys(payload)
         event: dict[str, Any] = {
             "type": event_type,
             "timestamp_ns": time.time_ns(),
@@ -136,6 +150,7 @@ class FileTracer:
     def record(self, event_type: str, payload: Mapping[str, Any]) -> None:
         if self._closed:
             raise RuntimeError("FileTracer.record called after close()")
+        _reject_reserved_payload_keys(payload)
         event: dict[str, Any] = {
             "type": event_type,
             "timestamp_ns": time.time_ns(),

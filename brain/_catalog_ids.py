@@ -112,4 +112,5 @@ EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({
     "I-RT-12",
     "I-TRACE-01",
     "I-TRACE-02",
+    "I-TRACE-03",
 })
