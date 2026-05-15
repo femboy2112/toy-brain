@@ -36,9 +36,10 @@ Implement from the current `INVARIANT_CATALOG.md` exactly; the catalog is canoni
 
 ## Operator TUI
 
-The Operator TUI is an inspection / bottom-up-injection console for
-`BrainState`, `TickRecord`, and the Phase 3.1–3.4 developmental
-histories. It is an operator surface, not a new cognitive layer.
+The Operator TUI is an agent-style inspection / bottom-up-injection
+console for `BrainState`, `TickRecord`, and the Phase 3.1–3.4
+developmental histories. It is an operator surface, not a new cognitive
+layer.
 
 ```bash
 python3 -m brain.ui --check-terminal   # probe terminal usability
@@ -46,55 +47,127 @@ python3 -m brain.ui --print-once       # render one deterministic frame to stdou
 python3 -m brain.ui                    # launch the curses wrapper (TTY required)
 ```
 
-### Interactive flow
+### Agent-style layout
 
-Once the curses wrapper is running, the operator drives a bottom-up
-`PerceptEvent` through `tick()` with two keystrokes:
-
-1. press `e` to open a bounded in-TUI prompt for a `content_id` and a
-   short text payload;
-2. type the `content_id`, press `Enter`, type the text payload, then
-   press `Enter` again — this builds a `QueuePerceptPayload` through
-   the public `PerceptEvent` constructor (no kernel internals are
-   touched);
-3. press `space` to step `tick()` with the queued event. The session
-   stores the returned `TickRecord` and replaces `BrainState` through
-   the public `tick()` path only.
-
-The keyboard map matches the help pane and is the closed enumeration
-enforced by `I-UI-13`:
+`python3 -m brain.ui` opens a persistent multi-pane terminal interface
+with a bottom typed-command composer. The layout is built from
+`brain.ui.layout.AgentLayout.from_size(width, height)` and is
+deterministic: header / state / inspector / transcript / composer /
+footer panes always exist on terminals at or above the documented floor
+(20 cols × 6 rows), and the composer is never dropped on small
+terminals.
 
 ```text
-e          open the bounded percept prompt (content_id then text;
-           empty input cancels and surfaces a local UI error)
-<text>     printable input for content_id / text payload
-<Enter>    finish the current prompt field
-space      step tick() with the queued PerceptEvent (uses the local
-           OfflineStandInClient that always returns "PRESERVE")
-s / t / o / w / r   switch the active view (state, tick, output,
-           worldlet, repl)
-c          clear the local UI status and error fields
-?          show the help pane (`h` is an alias)
-q          quit the wrapper cleanly
++--------------------------------------------------------------+
+| toy-brain operator · view=state · tick=0 · queue=0           |  header
++--------------------------------+-----------------------------+
+| [ core state ]                 | [ latest tick ]             |
+| profile domain size : 2        | tick index    : -           |  body
+| ...                            | ...                         |  (state + inspector)
++--------------------------------+-----------------------------+
+| [ transcript ]                                               |  transcript
+| [SUBMIT@0] /queue beta hello-world                           |  log
+| [QUEUED@0] queued percept 'beta' (queue size = 1)            |
++--------------------------------------------------------------+
+| > /step_                                                     |  composer
+| mode=local-cmd  cursor=5  history=1                          |  (edit + meta)
++--------------------------------------------------------------+
+| keys: enter submit  ^u clear  ^p prev  ^n next  /help ...    |  footer
++--------------------------------------------------------------+
 ```
+
+### Interactive flow
+
+The primary path is typed commands in the bottom composer. Normal
+typing edits the buffer; `Enter` submits one line through
+`brain.ui.command_line.LocalCommandLine.parse` and dispatches the
+resulting `Command` to `brain.ui.session.OperatorSession.dispatch`:
+
+```text
+> /queue beta hello-world<Enter>     queue a percept candidate
+> /step<Enter>                       advance one tick using the queue head
+> /state<Enter>                      inspect BrainState
+> /tick<Enter>                       inspect the latest TickRecord
+> /help<Enter>                       show the typed-command help
+> /quit<Enter>                       exit the operator session
+```
+
+The closed set of typed verbs (one verb per submission):
+
+```text
+/help                       show typed-command help
+/state                      inspect BrainState
+/tick                       inspect latest TickRecord
+/output                     inspect OutputHistory
+/worldlet                   inspect WorldletHistory
+/repl                       inspect Proto-BASIC REPL history (inspector only;
+                            does NOT execute Python or Proto-BASIC)
+/queue <id> <text>          queue a PerceptEvent candidate through the
+                            public PerceptEvent constructor
+/step                       advance one tick using the queue head
+/clear                      clear local status/error (does NOT clear
+                            the composer buffer; use ^U for that)
+/quit                       exit
+```
+
+Composer-only keys (always handled as edit events, regardless of
+buffer state):
+
+```text
+Enter                      submit the buffer
+Backspace                  delete one character
+^U / ^C                    clear the composer buffer
+^P                         recall previous submitted line
+^N                         recall next submitted line
+```
+
+Single-letter accelerators (fire only when the buffer is empty AND
+the typed key is not `/`):
+
+```text
+space          /step
+s / t / o / w / r   /state, /tick, /output, /worldlet, /repl
+c              /clear
+? / h          /help
+n              open the bounded curses two-field percept prompt
+               (a wrapper concession; the typed /queue path is the
+                primary surface)
+q              /quit
+```
+
+Once any character is in the composer buffer — including a leading
+`/` — every printable keystroke flows through the composer's edit
+model until the buffer is submitted, cleared, or explicitly emptied.
 
 Non-interactive entrypoints (no terminal required):
 
 - `python3 -m brain.ui --print-once` renders one deterministic frame
-  of the default operator view to `stdout` and exits;
+  of the default operator view (legacy single-pane layout) to `stdout`
+  and exits;
 - `python3 -m brain.ui --check-terminal` prints the result of the
   pure terminal-detection probe and exits without touching `curses`.
 
 Behaviour rules (enforced by the `I-UI-*` catalog rows):
 
 - read-only snapshots over kernel state (no mutation paths);
-- pure renderer is deterministic and free of file / network / shell I/O;
-- the only mutation route is `tick(...)` driven from a bounded operator
-  event queue;
-- the live curses entrypoint wires
-  `brain.ui.tui.make_curses_percept_factory` into `run_curses` so the
-  `e` key opens a real prompt instead of surfacing "queue percept:
-  no input prompt configured";
+- pure renderers (`brain.ui.render.render` for the legacy single-pane
+  view, `brain.ui.render.render_agent` for the agent layout) are
+  deterministic and free of file / network / shell I/O;
+- the only mutation route is `tick(...)` driven from a bounded
+  operator event queue, dispatched through
+  `OperatorSession.dispatch(Command(STEP_TICK))`;
+- the curses wrapper imports no `brain.tick`, `brain.tlica`, or
+  `brain.llm` runtime surface and never appends to
+  `OperatorSession.event_queue` directly; every operator action is
+  routed through the bottom composer → typed parser → session
+  dispatcher chain (drives `I-UI-21`);
+- the local transcript / event log lives only on the wrapper's stack,
+  is bounded to 64 entries, and is destroyed when the wrapper exits
+  (no cross-invocation persistence);
+- the bottom composer is a typed local UI command line — not a chat
+  surface and not a shell; the parser performs no shell expansion,
+  no `eval` / `exec` / `compile`, no JSON/YAML parsing, no subprocess
+  spawn, and no network access;
 - no real LLM, no subprocess, no shell, no network, no filesystem
   writes outside an explicit reviewed save / export policy (none in
   this campaign).

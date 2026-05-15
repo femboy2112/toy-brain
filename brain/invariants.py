@@ -81,6 +81,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.agent_layout",
     "brain.ui.fixtures.composer_input",
     "brain.ui.fixtures.transcript_log",
+    "brain.ui.fixtures.agent_tui_smoke",
 ]
 
 
@@ -455,9 +456,11 @@ _OPERATOR_TUI_AGENT_LAYOUT_PENDING_ROWS: dict[str, str] = {
     # and I-UI-18 (REQUIRED) via brain.ui.composer, brain.ui.command_line,
     # and brain.ui.fixtures.composer_input. Step 9 landed I-UI-19
     # (REQUIRED) via brain.ui.transcript and
-    # brain.ui.fixtures.transcript_log. Step 10 (curses wrapper
-    # integration) will remove I-UI-21 and register I-UI-23 (OBSERVED).
-    "I-UI-21": "STRUCTURAL",
+    # brain.ui.fixtures.transcript_log. Step 10 landed I-UI-21
+    # (STRUCTURAL) and I-UI-23 (OBSERVED) via the agent-style curses
+    # wrapper integration in brain.ui.tui and
+    # brain.ui.fixtures.agent_tui_smoke. No Operator TUI Agent-Style
+    # Layout rows remain pending.
 }
 
 
