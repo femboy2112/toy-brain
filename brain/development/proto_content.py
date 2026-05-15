@@ -84,6 +84,7 @@ def maybe_stabilize_proto_content(
     pattern: ProtoPattern | None,
     *,
     salience: Fraction,
+    trace_event_ids: tuple[TraceEventID, ...] = (),
     min_stability: Fraction = Fraction(1, 2),
     min_prediction_gain: Fraction = Fraction(1, 10),
 ) -> tuple[SubstrateHistory, ProtoContent | None]:
@@ -93,6 +94,10 @@ def maybe_stabilize_proto_content(
     require_unit_fraction(salience, field="salience")
     require_unit_fraction(min_stability, field="min_stability")
     require_unit_fraction(min_prediction_gain, field="min_prediction_gain")
+    if not isinstance(trace_event_ids, tuple):
+        raise TypeError("trace_event_ids must be a tuple")
+    for event_id in trace_event_ids:
+        require_printable_id(event_id, field="trace_event_ids item")
     if pattern is None:
         return history, None
     if not isinstance(pattern, ProtoPattern):
@@ -113,6 +118,7 @@ def maybe_stabilize_proto_content(
         provenance=PromotionProvenance(
             pattern_id=pattern.pattern_id,
             source_kinds=pattern.source_kinds,
+            trace_event_ids=trace_event_ids,
         ),
     )
     contents = dict(history.proto_contents)

@@ -61,6 +61,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.salience_is_not_truth",
     "brain.development.fixtures.focus_contact_protocol",
     "brain.development.fixtures.focus_stabilizes_or_dissolves",
+    "brain.development.fixtures.proto_content_promotion",
 ]
 
 
@@ -258,10 +259,7 @@ def check_I_ISO_03() -> None:
 # ---------------------------------------------------------------------------
 
 
-_PHASE3_1_PENDING_ROWS: dict[str, str] = {
-    "I-DEV-05": "REQUIRED",
-    "I-DEV-06": "REQUIRED",
-}
+_PHASE3_1_PENDING_ROWS: dict[str, str] = {}
 
 
 def _make_phase3_1_pending_check(row_id: str) -> Callable[[], None]:
