@@ -6,9 +6,11 @@ the Claude Code prompt files under `.claude/`.
 Source material:
 
 - `.claude/agents/brain-explorer.md`
+- `.claude/agents/brain-current-mission.md`
 - `.claude/agents/brain-row-implementer.md`
 - `.claude/agents/brain-runner-debugger.md`
 - `.claude/agents/brain-spec-refresher.md`
+- `.claude/commands/go.md`
 - `.claude/skills/brain-invariants/SKILL.md`
 
 ## Layout
@@ -24,9 +26,10 @@ Source material:
 This is a tooling/configuration prompt pack. It does not change the TLICA
 kernel, catalog, runtime, scenario, trace, fixture, or Lean snapshot state.
 
-Do not treat any role in this prompt pack as permission to start Phase 3
-implementation work. Phase 3 planning may be discussed only when the user
-explicitly asks for planning.
+Do not treat any role in this prompt pack as permission to start Phase 3.4 or
+later implementation work. Phase planning may be discussed only when the user
+explicitly asks for planning or when `CURRENT_MISSION.md` authorizes the
+current campaign step.
 
 ## Codex Assumptions
 

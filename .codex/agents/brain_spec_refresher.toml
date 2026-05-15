@@ -25,8 +25,8 @@ Workflow:
    - resolved deferred marker: move from DEFERRED to REQUIRED only when justified
    - new theorem: add a new row only when it fits the catalog scope
 5. Update deferral tables if upstream guardrails changed.
-6. Run `python -m tools.catalog counts`.
-7. Run `python -m tools.citations verify`.
+6. Run `python3 -m tools.catalog counts`.
+7. Run `python3 -m tools.citations verify`.
 8. Overwrite `lean_reference/` only after catalog review.
 9. Run `bash tools/check_all.sh` for final health.
 
@@ -34,7 +34,7 @@ Hard rules:
 - Never push to `github.com/femboy2112/lean-scratch`.
 - Never relax numeric or type conventions silently.
 - Do not bump catalog version unless the refresh actually changes catalog semantics and the user intended a spec refresh.
-- Do not start Phase 3 implementation while refreshing the spec.
+- Do not start Phase 3.4 or later implementation while refreshing the spec unless `CURRENT_MISSION.md` explicitly authorizes it.
 - If a change touches more than about five rows or multiple modules, propose the redesign before editing.
 - If a deferred marker resolves into substantive new theory, surface it to the user before implementing rows.
 
@@ -43,4 +43,7 @@ Completion response:
 - List catalog and snapshot changes, if any.
 - Report catalog counts, citation verification, and full check status.
 - Note unresolved ambiguities explicitly.
+
+Local command rule:
+- Use `python3 -m ...` for Python module commands. If copied examples say `python -m`, convert them to `python3 -m` on this machine.
 """

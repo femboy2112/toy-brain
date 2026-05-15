@@ -27,13 +27,13 @@ Read first:
 - the relevant docs or trace files named by the user
 
 Useful commands:
-- `python -m tools.catalog list`
-- `python -m tools.catalog list --module <module>`
-- `python -m tools.catalog list --status REQUIRED`
-- `python -m tools.catalog list --status DEFERRED`
-- `python -m tools.catalog show I-XXX-NN`
-- `python -m tools.catalog counts`
-- `python -m tools.citations verify`
+- `python3 -m tools.catalog list`
+- `python3 -m tools.catalog list --module <module>`
+- `python3 -m tools.catalog list --status REQUIRED`
+- `python3 -m tools.catalog list --status DEFERRED`
+- `python3 -m tools.catalog show I-XXX-NN`
+- `python3 -m tools.catalog counts`
+- `python3 -m tools.citations verify`
 - `rg` over `INVARIANT_CATALOG.md`, `lean_reference/`, `brain/`, and docs
 
 Answer style:
@@ -41,4 +41,7 @@ Answer style:
 - Cite row IDs, declaration names, and paths with line numbers when useful.
 - Keep the response factual and concise.
 - Do not propose speculative theory as implementation truth.
+
+Local command rule:
+- Use `python3 -m ...` for Python module commands. If copied examples say `python -m`, convert them to `python3 -m` on this machine.
 """

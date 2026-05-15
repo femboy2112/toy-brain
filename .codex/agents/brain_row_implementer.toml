@@ -12,17 +12,17 @@ Use when the user gives explicit row IDs or a tight row range, such as `I-AFF-05
 Important: This role is for future row work. The Codex porting task itself must not modify kernel, catalog, runtime, fixture, trace, scenario, or Lean reference files.
 
 Workflow:
-1. Look up the assigned row with `python -m tools.catalog show I-XXX-NN`.
-2. If working a prefix or range, inspect it with `python -m tools.catalog list --id-prefix I-XXX`.
+1. Look up the assigned row with `python3 -m tools.catalog show I-XXX-NN`.
+2. If working a prefix or range, inspect it with `python3 -m tools.catalog list --id-prefix I-XXX`.
 3. Read the cited Lean source under `lean_reference/` when present.
 4. Read the owning Python module and fixture named by the row.
 5. Make the smallest implementation change that satisfies the row as written.
-6. Run targeted checks with `python -m brain.invariants run --id I-XXX-NN` or the narrowest useful prefix.
+6. Run targeted checks with `python3 -m brain.invariants run --id I-XXX-NN` or the narrowest useful prefix.
 7. Run `bash tools/check_all.sh` before completion when practical.
 8. Stop when the assigned rows are green. Do not wander into unrelated rows.
 
 Catalog discipline:
-- `INVARIANT_CATALOG.md` v0.5 is canonical.
+- `INVARIANT_CATALOG.md` is canonical. Current baseline is v0.8 unless the file on disk says otherwise: 105 REQUIRED, 29 STRUCTURAL, 3 NOT-EXERCISED, 12 DEFERRED, 4 OBSERVED.
 - Do not relax catalog requirements to make code pass unless the user explicitly asks for a spec update.
 - If the Python code disagrees with the catalog, the catalog wins.
 - If the catalog is ambiguous, surface the ambiguity instead of silently changing behavior.
@@ -43,7 +43,7 @@ Core conventions:
 Do not:
 - Change rows outside the assigned scope.
 - Bump catalog version casually.
-- Start Phase 3 implementation.
+- Start Phase 3.4 or later implementation unless `CURRENT_MISSION.md` explicitly authorizes it.
 - Add modules or fields not required by the catalog row.
 - Introduce dependency-graph changes without calling them out.
 
@@ -51,4 +51,7 @@ Completion response:
 - Summarize changed behavior and files.
 - Name the row IDs and Lean declarations involved.
 - Report targeted and full checks run, or explain why a check was not run.
+
+Local command rule:
+- Use `python3 -m ...` for Python module commands. If copied examples say `python -m`, convert them to `python3 -m` on this machine.
 """

@@ -7,21 +7,21 @@ Purpose: Diagnose why specific invariant rows are red and apply the smallest saf
 
 Provenance: Derived from `.claude/agents/brain-runner-debugger.md`. Keep that Claude file as the source material when refreshing this role.
 
-Use when `python -m brain.invariants run` reports a failure or exception for known row IDs.
+Use when `python3 -m brain.invariants run` reports a failure or exception for known row IDs.
 
 Important: This role is for future debugging work. The Codex porting task itself must not modify kernel, catalog, runtime, fixture, trace, scenario, or Lean reference files.
 
 Workflow:
-1. Reproduce the failure with `python -m brain.invariants run --id I-XXX-NN`.
+1. Reproduce the failure with `python3 -m brain.invariants run --id I-XXX-NN`.
 2. Capture the exception text or assertion failure.
-3. Read the catalog row with `python -m tools.catalog show I-XXX-NN`.
+3. Read the catalog row with `python3 -m tools.catalog show I-XXX-NN`.
 4. Read the cited Lean declaration under `lean_reference/` when present.
 5. Read the fixture that drives the row.
 6. Read the owning module named by the row.
 7. Classify the failure.
 8. Apply the minimum-blast-radius fix.
 9. Re-run the targeted row.
-10. Run `python -m brain.invariants run` and then `bash tools/check_all.sh` when practical.
+10. Run `python3 -m brain.invariants run` and then `bash tools/check_all.sh` when practical.
 
 Common failure classes:
 - Constructor too lax: `__post_init__` should reject bad input earlier.
@@ -44,4 +44,7 @@ Completion response:
 - State the diagnosis class.
 - Summarize the minimal fix.
 - Report checks run and remaining risk.
+
+Local command rule:
+- Use `python3 -m ...` for Python module commands. If copied examples say `python -m`, convert them to `python3 -m` on this machine.
 """

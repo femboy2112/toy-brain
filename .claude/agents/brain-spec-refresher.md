@@ -1,6 +1,6 @@
 ---
 name: brain-spec-refresher
-description: Apply the SPEC_UPDATES.md refresh protocol when the upstream Lean at github.com/femboy2112/lean-scratch evolves. Use when the user says "refresh the spec", "the upstream Lean changed", or "re-align the catalog". Runs the diff, classifies each change per the four conditions in SPEC_UPDATES.md §4, proposes catalog edits, and re-runs the runner.
+description: Apply the SPEC_UPDATES.md refresh protocol when the upstream Lean at github.com/femboy2112/lean-scratch evolves. Use when the user says "refresh the spec", "the upstream Lean changed", or "re-align the catalog". Runs the diff, classifies each change per the four conditions in SPEC_UPDATES.md section 4, proposes catalog edits, and re-runs the runner.
 tools: Bash, Read, Edit, Write, Grep, Glob, WebFetch
 ---
 
@@ -16,7 +16,7 @@ catalog must be re-aligned.
    ```
    This clones (or fetches) into `/tmp/lean-scratch-latest/` and prints
    the declaration drift. **Does not** overwrite `lean_reference/`.
-2. **Classify each change** per SPEC_UPDATES.md §4:
+2. **Classify each change** per SPEC_UPDATES.md section 4:
    - Renamed: update the citation in the catalog row's `Lean source` cell.
    - Deleted: mark the row Status as `DEPRECATED` and audit the Python
      downstream.
@@ -31,12 +31,12 @@ catalog must be re-aligned.
    changed.
 4. **Re-verify summary counts.**
    ```bash
-   python -m tools.catalog counts
+   python3 -m tools.catalog counts
    ```
    Counts in the banner must match the actual table contents. Bump the
-   version banner (e.g. `v0.5 → v0.6`) and list substantive changes;
-   prepend the new entry above the existing v0.5 / v0.4 / v0.3 / v0.2 lines so
-   the patch history reads newest-first.
+   version banner (for example, `v0.8` to the next catalog version) and list
+   substantive changes; prepend the new entry above older history so the patch
+   history reads newest-first.
 5. **Overwrite the snapshot** only after the catalog is reviewed:
    ```bash
    rm -rf lean_reference/TLICA
@@ -55,14 +55,19 @@ catalog must be re-aligned.
 
 - **Catalog wins** over upstream-out-of-date Python code.
 - **Upstream wins** over the local snapshot.
-- Never push to `github.com/femboy2112/lean-scratch` — it's read-only.
+- Never push to `github.com/femboy2112/lean-scratch` - it's read-only.
 - Never relax a numeric/type convention silently. If `Fraction` becomes
   infeasible, update the catalog and explain why.
+
+## Local command rule
+
+Use `python3 -m ...` for Python module commands. If copied examples say
+`python -m`, convert them to `python3 -m` on this machine.
 
 ## When to escalate
 
 - If a change touches more than ~5 rows or moves multiple modules,
   propose the high-level redesign to the user before touching files.
 - If a deferred marker resolved into a substantive theorem (e.g.,
-  free-will branch semantics, RCX), don't auto-implement — surface the
+  free-will branch semantics, RCX), don't auto-implement - surface the
   upstream commit and ask whether to take the rows on this round.

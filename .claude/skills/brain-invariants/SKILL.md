@@ -1,170 +1,192 @@
 ---
 name: brain-invariants
-description: Orchestrate the TLICA invariant catalog and runner for toy-brain. Use when working on brain/ implementation, debugging a red invariant row, looking up a row by ID, verifying Lean citations, auditing the agency→pce import rule, or applying the SPEC_UPDATES protocol after upstream Lean evolves.
+description: Orchestrate the TLICA invariant catalog and runner for toy-brain. Use when working on brain/ implementation, debugging a red invariant row, looking up a row by ID, verifying Lean citations, auditing the agency->pce import rule, executing the current mission/campaign, or applying SPEC_UPDATES after upstream Lean evolves.
 ---
 
 # brain-invariants skill
 
 The `brain/` package is a theorem-constrained Python state machine.
-`INVARIANT_CATALOG.md` (v0.5) binds each Lean theorem — plus engineering-
-hypothesis rows added by Phase 2 — to a Python runtime check; success is
-`python -m brain.invariants run` reporting all 84 REQUIRED rows green plus
-15 STRUCTURAL rows green (1 OBSERVED logged). This skill bundles every
-helper that supports that loop.
+`INVARIANT_CATALOG.md` is the canonical runtime assertion catalog. It binds
+Lean theorems plus Phase 2 and Phase 3 engineering-hypothesis rows to Python
+checks, owning modules, and fixtures.
 
-## When to use this skill
+Current baseline is catalog v0.8:
 
-- Implementing a new fixture or module — look up the rows it owns.
-- A row is red — find its Lean citation, fixture path, and module.
-- Checking catalog hygiene — banner counts, citation resolution,
-  `_catalog_ids.py` freshness (regenerate via `python -m tools.catalog
-  generate-ids`).
-- The Lean upstream changed — run the refresh protocol.
-- Auditing the I-PCE-05 import rule (`agency.py` ⊄ `pce.py`).
-- Auditing catalog↔registry coverage (I-CAT-01).
-- Wiring the LLM seam (`brain/llm/`, `PtCns.eval`), the cognition
-  tracer (`brain/trace.py`, `SafeTracer`), or the tick guards
-  (I-RT-11 single-event, I-RT-12 duplicate content_id).
+- 105 REQUIRED
+- 29 STRUCTURAL
+- 3 NOT-EXERCISED
+- 12 DEFERRED
+- 4 OBSERVED
 
-## Helpers
+`python3 -m tools.catalog counts` is the strict gate for banner, actual, and
+expected count agreement. `python3 -m brain.invariants run` must report every
+REQUIRED and STRUCTURAL row green; OBSERVED rows are logged but do not gate.
 
-### `tools.catalog` — parse and query INVARIANT_CATALOG.md
+## When To Use
 
-```bash
-python -m tools.catalog list                       # all rows
-python -m tools.catalog list --status REQUIRED     # filter by status
-python -m tools.catalog list --module modes        # filter by owning module
-python -m tools.catalog list --fixture cogito      # filter by fixture
-python -m tools.catalog list --id-prefix I-AFF     # filter by ID prefix
-python -m tools.catalog list --source-kind LEAN    # filter by inferred source kind
-python -m tools.catalog show I-AGN-03              # full row detail
-python -m tools.catalog counts                     # strict banner vs actual vs expected gate
-python -m tools.catalog counts --by-source-kind    # counts grouped by SourceKind
-python -m tools.catalog generate-ids               # regen brain/_catalog_ids.py
-```
+- Implementing a new fixture or module by catalog row.
+- Debugging a red row from the invariant runner.
+- Checking catalog hygiene, generated ID freshness, citations, and source-kind
+  counts.
+- Auditing the I-PCE-05 import rule (`agency.py` must not import `pce.py`).
+- Auditing catalog-to-registry coverage (I-CAT-01).
+- Working on Phase 3.1 Osmotic Chamber, Phase 3.2 Output Ladder, or Phase 3.3
+  Minimal Worldlet rows already present in the catalog.
+- Executing `CURRENT_MISSION.md` / `CURRENT_CAMPAIGN.md` when the user says
+  `go` or an equivalent mission trigger.
+- Applying `SPEC_UPDATES.md` when upstream Lean evolves.
 
-The `counts` command must report `84 / 15 / 3 / 12 / 1` for REQUIRED /
-STRUCTURAL / NOT-EXERCISED / DEFERRED / OBSERVED. The v0.5 strict gate
-exits non-zero on any banner ≠ actual ≠ expected drift. (OBSERVED rows
-are recorded in the run summary but do not fail the runner; they were
-added in v0.3 for the LLM seam. SourceKind is inferred from each row's
-Source/Status by `tools.catalog.infer_source_kind`.)
+Do not use this skill as permission to start Phase 3.4 or later work. Later
+phase planning or implementation requires an explicit mission.
 
-### `tools.citations` — verify Lean citations
+## Mission Entry
 
-```bash
-python -m tools.citations verify
-```
+When the user says `go`, `run current mission`, `execute current mission`, or
+`do the current task`, use `.claude/agents/brain-current-mission.md` and read
+`CURRENT_MISSION.md` first. If it references `CURRENT_CAMPAIGN.md`, run the
+campaign preflight, detect the next eligible step from repo state, obey that
+step's allowed file scope, validate as specified, commit and push successful
+step results, and stop at explicit review gates or campaign completion.
 
-Walks every `<file>::<decl>` citation in the catalog and confirms the
-declaration exists in `lean_reference/`. Exit 0 = all resolve.
+Treat references in mission and campaign files to Codex as applying to Claude
+Code too.
 
-### `tools.import_audit` — I-PCE-05 enforcement
+## Core Commands
+
+Catalog queries:
 
 ```bash
-python -m tools.import_audit
+python3 -m tools.catalog counts
+python3 -m tools.catalog list
+python3 -m tools.catalog list --status REQUIRED
+python3 -m tools.catalog list --status DEFERRED
+python3 -m tools.catalog list --module <module>
+python3 -m tools.catalog list --fixture <fixture>
+python3 -m tools.catalog list --id-prefix I-XXX
+python3 -m tools.catalog list --source-kind LEAN
+python3 -m tools.catalog show I-XXX-NN
+python3 -m tools.catalog generate-ids
 ```
 
-Thin CLI around `brain._import_audit.audit_agency_no_pce_import()`. The
-runner re-runs the same audit inside `python -m brain.invariants run`, so
-this command exists primarily for fast local checks.
-
-### `tools.snapshot_diff` — local vs upstream Lean drift
+Verification and audits:
 
 ```bash
-python -m tools.snapshot_diff /tmp/lean-scratch-latest
+python3 -m tools.citations verify
+python3 -m tools.import_audit
+python3 -m brain.invariants run
+python3 -m brain.invariants run --id I-XXX-NN
+bash tools/check_all.sh
 ```
 
-Reports added files, removed files, and per-file declaration drift. Use
-inside the refresh protocol below.
-
-### `tools.decl_index` — extract declarations from a Lean tree
-
-```bash
-python -m tools.decl_index lean_reference        # local
-python -m tools.decl_index /tmp/lean-scratch-latest  # upstream
-```
-
-### `tools/refresh_snapshot.sh` — clone upstream + diff
+Refresh support:
 
 ```bash
 tools/refresh_snapshot.sh
+python3 -m tools.snapshot_diff /tmp/lean-scratch-latest
+python3 -m tools.decl_index lean_reference
+python3 -m tools.decl_index /tmp/lean-scratch-latest
 ```
 
-Clones (or fetches) `github.com/femboy2112/lean-scratch` into
-`/tmp/lean-scratch-latest/`, then runs `snapshot_diff` and `citations
-verify`. **Does NOT overwrite `lean_reference/`** — that is a deliberate
-manual step gated on catalog review per `SPEC_UPDATES.md` §8.
+Do not run real traced scenarios or real LLM-backed scenario commands unless
+the user explicitly asks.
 
-### `tools/run_invariants.sh` — wrap the runner
+## Hard Rules
 
-```bash
-tools/run_invariants.sh                # default
-tools/run_invariants.sh --json         # machine-readable
-tools/run_invariants.sh --module modes # filter
-tools/run_invariants.sh --id I-AGN     # filter by ID prefix
-```
+- Use `python3 -m ...` for Python module commands. Convert copied
+  `python -m ...` examples to `python3 -m ...` on this machine.
+- Use `fractions.Fraction` in `brain/tlica/`, `brain/fixtures/`, and
+  `brain/invariants.py`.
+- `math.inf` is only for Lean top in `dInfShared` empty-shared-domain cases.
+- `rho(value)` normalizes I/O boundary values and raises outside `[0, 1]`;
+  it never clamps silently.
+- `Act` is `enum.Enum`, not `typing.Literal`.
+- `ModeOp` and `Act` are disjoint namespaces.
+- `agency.py` must never import `pce.py`.
+- Foundation PCE is action-constant.
+- Action selection uses `feasibleProjectedPCE`.
+- `COGITO_ID` is reserved and never user-created.
+- `tick()` is single-event in v1 semantics.
+- Trace is observation-only and SafeTracer-wrapped.
+- Catalog/registry coverage is enforced by I-CAT-01.
+- Do not change catalog status or version to make code pass unless the user
+  explicitly requested a spec update.
+- Do not implement deferred phase surfaces from this skill.
 
-### `tools/check_all.sh` — full health check
+## Phase 3 Boundaries
 
-```bash
-tools/check_all.sh
-```
+- Phase 3.1 Osmotic Chamber records deterministic developmental substrate
+  behavior without bypassing promotion gates.
+- Phase 3.2 Output Ladder remains below language, reflective agency, Mode B,
+  worldlet semantics, and runtime mutation.
+- Phase 3.3 Minimal Worldlet is a deterministic local harness only. It can
+  record bounded consequence evidence and not-I pushback in local history, but
+  it does not claim external reality, language, reflective agency, Mode B, real
+  host execution, or `PerceptEvent` / `tick()` promotion.
+- Phase 3.4 Proto-BASIC REPL and later surfaces are not authorized unless a new
+  mission explicitly says so.
 
-Runs, in order: generated-ids freshness → catalog counts (strict) →
-citation verification → import audit → invariant runner (with I-CAT-01
-coverage audit at startup). Exits non-zero on the first failure. Use
-this for the "is everything green?" gate.
+## Row Implementation Workflow
 
-## Conventions (canonical from the catalog)
+1. Read the row with `python3 -m tools.catalog show I-XXX-NN`.
+2. Read nearby rows when needed with
+   `python3 -m tools.catalog list --id-prefix I-XXX`.
+3. Read the cited Lean source under `lean_reference/`.
+4. Read the owning module and fixture.
+5. Implement the smallest behavior that satisfies the row.
+6. Run the targeted invariant check.
+7. Run `bash tools/check_all.sh` when practical.
+8. Summarize rows changed, commands run, and remaining risks.
 
-- All numeric values in `brain/tlica/`, `brain/fixtures/`,
-  `brain/invariants.py` are `fractions.Fraction`. `math.inf` is the only
-  permitted float (encodes Lean's `⊤` for empty-shared-domain
-  `dInfShared`).
-- `rho(value)` normalizes input at the I/O boundary and raises on
-  out-of-`[0,1]`; never clamps silently. For float input, normalize via
-  `Fraction(str(v))` to avoid binary drift.
-- `Act` is an `enum.Enum`, not `typing.Literal`. `proj.no_action is
-  Act.NOOP`.
-- `ModeOp.from_eval` is a lookup dict, never returns `MODE_B`.
-- `PreservationRanking.rank` is cogito-gated.
-  `GlobalPreservationRanking.rank` is not.
-- Every projected profile from v0 `ProjectMap` stubs preserves
-  `COGITO_ID` at value `1` (I-RT-07).
-- `agency.py` never imports `pce.py` (I-PCE-05, audited).
-- `AffectKernelWitness.__post_init__` raises when its baseline/action
-  pair has equal branch profiles AND equal projected PCE (I-AFF-05).
-- Every dataclass `__post_init__` raises on invariant violation;
-  builders also raise and add axiom-tagged messages.
-- The `CognitionTracer` Protocol (`brain/trace.py`) is observation-only:
-  swapping `NullTracer` / `MemoryTracer` / `FileTracer` must not change
-  `(BrainState, TickRecord)` output for a given seed (I-TRACE-01).
-  Backend failures are swallowed by `SafeTracer` (I-TRACE-02).
-- `tick()` rejects multi-event lists (I-RT-11) and duplicate
-  `content_id` re-promotion (I-RT-12); both raise `ValueError` with the
-  row name in the message.
-- Every catalog REQUIRED/STRUCTURAL row must have a `@register` entry;
-  the I-CAT-01 audit runs at runner startup and fails fast if any are
-  missing.
+## Red Row Debug Workflow
 
-## Refresh protocol (when upstream Lean evolves)
+1. Reproduce the row failure.
+2. Read the catalog row, cited Lean declaration, fixture, and owning module.
+3. Classify the failure as constructor strictness, fixture invalidity, domain
+   mismatch, `Fraction`/float leakage, catalog drift, or import/dependency
+   violation.
+4. Fix with minimum blast radius.
+5. Re-run targeted and full checks.
 
-Per `SPEC_UPDATES.md`:
+If the problem is catalog drift, do not silently change code. Surface the drift
+and apply `SPEC_UPDATES.md` only when the user asks for a spec refresh.
 
-```bash
-tools/refresh_snapshot.sh                       # 1. fetch + diff
-python -m tools.catalog counts                  # 2. baseline counts
-python -m tools.catalog list --status DEFERRED  # 3. look for resolved deferreds
-# ... edit INVARIANT_CATALOG.md per SPEC_UPDATES.md §4 ...
-python -m tools.citations verify                # 4. re-verify
-# ... overwrite lean_reference/ per SPEC_UPDATES.md §8 ...
-tools/check_all.sh                              # 5. full health check
-```
+## SPEC_UPDATES Refresh Protocol
 
-## Subagents that pair with this skill
+When upstream Lean evolves:
 
-- `brain-row-implementer` — implements one or a small range of rows.
-- `brain-runner-debugger` — diagnoses a red row.
-- `brain-spec-refresher` — drives the refresh protocol.
-- `brain-explorer` — read-only navigator for Lean + catalog.
+1. Run `tools/refresh_snapshot.sh`.
+2. Classify declaration drift.
+3. Treat upstream Lean as newer than local `lean_reference/`.
+4. Treat local `lean_reference/` as newer than the catalog.
+5. Treat the catalog as newer than Python implementation code.
+6. Update catalog rows only when justified.
+7. Refresh `lean_reference/` only after catalog review.
+8. Run `python3 -m tools.catalog counts`.
+9. Run `python3 -m tools.citations verify`.
+10. Run `bash tools/check_all.sh`.
+
+Never push to the upstream Lean repository.
+
+## Common Failure Modes
+
+- Stale row count expectations from older catalog baselines.
+- Raw float arithmetic leaking into TLICA modules or fixtures.
+- `Act` modeled as `typing.Literal` instead of `enum.Enum`.
+- Mode operations treated as actions.
+- `agency.py` importing foundation PCE.
+- Fixture inputs weakened to bypass constructor checks.
+- Catalog edited to match Python behavior instead of treating the catalog as
+  canonical.
+- Trace backends changing semantic `(BrainState, TickRecord)` output.
+- Output or worldlet surfaces accidentally claiming language, agency,
+  external reality, Mode B, or runtime mutation.
+- Real scenario commands run during prompt/config work.
+
+## Paired Agent Roles
+
+- `brain-current-mission`: executes `CURRENT_MISSION.md` when the user says
+  `go` or uses an equivalent mission trigger.
+- `brain-explorer`: read-only navigator.
+- `brain-row-implementer`: bounded row implementation.
+- `brain-runner-debugger`: red-row diagnosis and minimal fix.
+- `brain-spec-refresher`: SPEC_UPDATES and upstream Lean drift workflow.
