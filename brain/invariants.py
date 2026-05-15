@@ -499,6 +499,59 @@ for _row_id, _status in _OPERATOR_TUI_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_operator_tui_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.5 Expression + ReadabilityPredictor: pending row registrations.
+#
+# Step 6 of the Phase 3.5 campaign applies the accepted v0.12 catalog patch
+# (I-EXP-01..I-EXP-18) before the expression runtime layer
+# (brain/development/expression.py) and its fixtures exist. These pending
+# registrations keep I-CAT-01 coverage coherent while making any attempted
+# row execution fail explicitly. Step 7 (expression core) replaces the
+# I-EXP-01, I-EXP-02, I-EXP-03, I-EXP-07, I-EXP-08, I-EXP-13, I-EXP-14, and
+# I-EXP-15 entries with real fixture-backed checks. Step 8
+# (ReadabilityPredictor) replaces I-EXP-04, I-EXP-05, I-EXP-09, I-EXP-10,
+# I-EXP-11, I-EXP-12, and I-EXP-16. Step 9 (ExpressionHistory + summary)
+# replaces I-EXP-06 and documents the OBSERVED I-EXP-17 in the audit.
+# I-EXP-17 (OBSERVED) and I-EXP-18 (NOT-EXERCISED) do not participate in
+# I-CAT-01 coverage and are not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_5_PENDING_ROWS: dict[str, str] = {
+    "I-EXP-01": "REQUIRED",
+    "I-EXP-02": "REQUIRED",
+    "I-EXP-03": "REQUIRED",
+    "I-EXP-04": "REQUIRED",
+    "I-EXP-05": "REQUIRED",
+    "I-EXP-06": "REQUIRED",
+    "I-EXP-07": "REQUIRED",
+    "I-EXP-08": "REQUIRED",
+    "I-EXP-09": "REQUIRED",
+    "I-EXP-10": "REQUIRED",
+    "I-EXP-11": "REQUIRED",
+    "I-EXP-12": "REQUIRED",
+    "I-EXP-13": "STRUCTURAL",
+    "I-EXP-14": "STRUCTURAL",
+    "I-EXP-15": "STRUCTURAL",
+    "I-EXP-16": "STRUCTURAL",
+}
+
+
+def _make_phase3_5_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.5 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_5_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_5_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
