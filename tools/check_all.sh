@@ -16,23 +16,23 @@ cd "${REPO_ROOT}"
 step() { printf "\n=== %s ===\n" "$*"; }
 
 step "0/5 generated catalog IDs freshness"
-python -m tools.catalog generate-ids
+python3 -m tools.catalog generate-ids
 if ! git diff --quiet brain/_catalog_ids.py; then
   printf "\nERROR: brain/_catalog_ids.py is stale.\n"
-  printf "Run 'python -m tools.catalog generate-ids' and commit the result.\n"
+  printf "Run 'python3 -m tools.catalog generate-ids' and commit the result.\n"
   exit 1
 fi
 
 step "1/5 catalog counts (strict)"
-python -m tools.catalog counts
+python3 -m tools.catalog counts
 
 step "2/5 citation verification"
-python -m tools.citations verify
+python3 -m tools.citations verify
 
 step "3/5 import audit (I-PCE-05)"
-python -m tools.import_audit
+python3 -m tools.import_audit
 
 step "4/5 invariant runner (includes I-CAT-01)"
-python -m brain.invariants run
+python3 -m brain.invariants run
 
 printf "\nAll checks passed.\n"

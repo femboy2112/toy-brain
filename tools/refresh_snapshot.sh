@@ -26,11 +26,11 @@ fi
 echo
 echo ">>> Catalog vs. upstream declaration diff"
 cd "${REPO_ROOT}"
-python -m tools.snapshot_diff "${SCRATCH}" || true
+python3 -m tools.snapshot_diff "${SCRATCH}" || true
 
 echo
 echo ">>> Catalog citations still resolving against the LOCAL snapshot"
-python -m tools.citations verify || true
+python3 -m tools.citations verify || true
 
 echo
 echo "To accept the upstream snapshot, follow SPEC_UPDATES.md §8 manually:"

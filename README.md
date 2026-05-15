@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.5)
+# brain — TLICA-constrained Python kernel (catalog v0.6)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -39,6 +39,7 @@ Implement from the current `INVARIANT_CATALOG.md` exactly; the catalog is canoni
 - **v0.3** — +I-LLM-01/02/03/04, +I-RT-08, +I-BHV-01 (Phase 2 v1 LLM-backed `PtCns`).
 - **v0.4** — +I-TRACE-01 (Phase 2 v1.1 cognition trace).
 - **v0.5** — +I-RT-11, +I-RT-12, +I-TRACE-02, +I-TRACE-03, +I-CAT-01 (Phase 2 v1.2 baseline hardening plus pre-Phase-3.1 trace boundary hardening).
+- **v0.6** — +I-FRAME-01/02/03/04, +I-DEV-01/02/03/04/05/06/07, +I-SBX-01/02 (Phase 3.1 Osmotic Chamber deterministic developmental substrate expansion).
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
@@ -52,7 +53,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.5**. Confirmation numbers: **84 REQUIRED · 16 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED · 14 fixtures**. Run `python -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.6**. Confirmation numbers: **92 REQUIRED · 20 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 2 OBSERVED · 21 fixtures**. Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
