@@ -571,7 +571,9 @@ Step 8  Operator command router and bottom-up event path
 Step 9  Curses-style wrapper and CLI entrypoint
         - Land brain/ui/tui.py, brain/ui/__main__.py.
         - Land brain/ui/fixtures/tui_smoke.py covering I-UI-07, I-UI-11,
-          I-UI-12, I-UI-14 (OBSERVED).
+          I-UI-12, I-UI-14 (OBSERVED). The UI-specific static AST import
+          audit (per D3 corrigendum) lands inside this fixture; the
+          existing tools/import_audit.py is not modified by this plan.
         - Replace pending registrations for I-UI-07, I-UI-11, I-UI-12 with
           real fixture-backed checks. Register I-UI-14 as OBSERVED. Leave
           I-UI-15 NOT-EXERCISED.
@@ -601,11 +603,23 @@ D2  Renderer determinism scope.
     equality would over-constrain the implementation.
 
 D3  Import audit surface for I-UI-07.
-    Default: the existing tools/import_audit.py walks brain/ui/ and
-    rejects forbidden imports (subprocess, socket, urllib, http, requests,
-    brain.llm, brain.tlica beyond public surfaces).
-    Alternative: a dedicated UI-only audit module. The default is simpler
-    and reuses existing coverage.
+    Correction (review-gate corrigendum): the existing tools/import_audit.py
+    is a thin CLI wrapper around brain._import_audit.audit_agency_no_pce_import()
+    and does NOT walk brain/ui/. The plan must not assume that wrapper covers
+    the Operator TUI surface.
+    Default: I-UI-07's brain/ui/fixtures/tui_smoke.py fixture performs a
+    UI-specific static AST audit over brain/ui/ that rejects forbidden
+    imports (subprocess, socket, urllib, http, requests, brain.llm,
+    brain.tlica beyond public surfaces) and forbidden host-execution
+    surfaces (os.system, ctypes, multiprocessing, signal-based process
+    control, asyncio.subprocess, and other process / file / network
+    mutation entrypoints listed in Section 8). The UI import audit lands
+    with the I-UI-07 fixture in Step 9; tools/import_audit.py is not
+    modified by this plan.
+    Alternative: extend tools/import_audit.py (or brain/_import_audit.py)
+    in a follow-up to also cover brain/ui/. The default keeps the UI audit
+    self-contained inside the I-UI-07 fixture and reflects the actual
+    current state of tools/import_audit.py.
 
 D4  Snapshot field representation for Fractions.
     Default: render exact Fractions as canonical strings on snapshot
