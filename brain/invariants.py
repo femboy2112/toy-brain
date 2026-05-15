@@ -58,6 +58,9 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.source_tag_audit",
     "brain.development.fixtures.recurrence_detection",
     "brain.development.fixtures.unstable_noise_rejection",
+    "brain.development.fixtures.salience_is_not_truth",
+    "brain.development.fixtures.focus_contact_protocol",
+    "brain.development.fixtures.focus_stabilizes_or_dissolves",
 ]
 
 
@@ -256,13 +259,8 @@ def check_I_ISO_03() -> None:
 
 
 _PHASE3_1_PENDING_ROWS: dict[str, str] = {
-    "I-DEV-03": "REQUIRED",
-    "I-DEV-04": "REQUIRED",
     "I-DEV-05": "REQUIRED",
     "I-DEV-06": "REQUIRED",
-    "I-DEV-07": "OBSERVED",
-    "I-SBX-01": "STRUCTURAL",
-    "I-SBX-02": "REQUIRED",
 }
 
 
