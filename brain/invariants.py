@@ -611,6 +611,56 @@ for _row_id, _status in _PHASE3_6_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_6_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.7 Text Stream Ingress: pending row registrations.
+#
+# Step 14 of the Phase 3.7 campaign applies the accepted v0.14 catalog patch
+# (I-STRM-01..I-STRM-17) before the text-stream runtime layer
+# (brain/development/text_stream.py) and its fixtures exist. These pending
+# registrations keep I-CAT-01 coverage coherent while making any attempted
+# row execution fail explicitly. Step 15 (text-stream core + fixtures)
+# replaces I-STRM-01..04, I-STRM-08..15 with real fixture-backed checks, and
+# Step 16 (segment / pattern / promotion-candidate layer) replaces
+# I-STRM-05, I-STRM-06, and I-STRM-07. I-STRM-16 (OBSERVED) and I-STRM-17
+# (NOT-EXERCISED) do not participate in I-CAT-01 coverage and are not
+# pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_7_PENDING_ROWS: dict[str, str] = {
+    "I-STRM-01": "REQUIRED",
+    "I-STRM-02": "REQUIRED",
+    "I-STRM-03": "REQUIRED",
+    "I-STRM-04": "REQUIRED",
+    "I-STRM-05": "REQUIRED",
+    "I-STRM-06": "REQUIRED",
+    "I-STRM-07": "REQUIRED",
+    "I-STRM-08": "REQUIRED",
+    "I-STRM-09": "REQUIRED",
+    "I-STRM-10": "REQUIRED",
+    "I-STRM-11": "REQUIRED",
+    "I-STRM-12": "STRUCTURAL",
+    "I-STRM-13": "STRUCTURAL",
+    "I-STRM-14": "STRUCTURAL",
+    "I-STRM-15": "STRUCTURAL",
+}
+
+
+def _make_phase3_7_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.7 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_7_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_7_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
