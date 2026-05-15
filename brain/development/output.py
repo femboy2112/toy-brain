@@ -322,6 +322,43 @@ class LearnedOutputToken:
 
 
 @dataclass(frozen=True, slots=True)
+class ProtoOutputActionReadiness:
+    """Local observation that output history is mature enough to inspect."""
+
+    token_id: OutputTokenID
+    pattern_id: OutputPatternID
+    support_count: int
+    echo_count: int
+    source_kinds: frozenset[FrameSourceKind]
+    ready: bool
+    reason: str
+
+    def __post_init__(self) -> None:
+        require_printable_id(self.token_id, field="ProtoOutputActionReadiness.token_id")
+        require_printable_id(self.pattern_id, field="ProtoOutputActionReadiness.pattern_id")
+        if self.token_id == COGITO_ID or self.pattern_id == COGITO_ID:
+            raise ValueError(
+                "I-OUT-11 violated: proto-output-action readiness cannot use COGITO_ID"
+            )
+        if not isinstance(self.support_count, int) or self.support_count < 0:
+            raise ValueError(
+                "I-OUT-11 violated: support_count must be a non-negative integer"
+            )
+        if not isinstance(self.echo_count, int) or self.echo_count < 0:
+            raise ValueError(
+                "I-OUT-11 violated: echo_count must be a non-negative integer"
+            )
+        _require_source_kinds(
+            self.source_kinds,
+            field="ProtoOutputActionReadiness.source_kinds",
+            row_id="I-OUT-11",
+        )
+        if not isinstance(self.ready, bool):
+            raise TypeError("ProtoOutputActionReadiness.ready must be bool")
+        require_printable_id(self.reason, field="ProtoOutputActionReadiness.reason")
+
+
+@dataclass(frozen=True, slots=True)
 class OutputHistory:
     """Immutable output-ladder store below the tick boundary."""
 
@@ -579,4 +616,42 @@ def learn_output_token(
         output_patterns=history.output_patterns,
         token_candidates=history.token_candidates,
         learned_tokens=learned,
+    )
+
+
+def observe_proto_output_action_readiness(
+    history: OutputHistory,
+    candidate: OutputTokenCandidate,
+) -> ProtoOutputActionReadiness:
+    """Observe local readiness without constructing agency or world semantics."""
+    if not isinstance(history, OutputHistory):
+        raise TypeError(
+            f"history must be OutputHistory (got {type(history).__name__})"
+        )
+    if not isinstance(candidate, OutputTokenCandidate):
+        raise TypeError(
+            f"candidate must be OutputTokenCandidate (got {type(candidate).__name__})"
+        )
+
+    registered_candidate = history.token_candidates.get(candidate.token_id)
+    learned_token = history.learned_tokens.get(candidate.token_id)
+    has_recurrence = candidate.support_count >= 2
+    has_echo_support = len(candidate.echo_ids) >= candidate.support_count
+    ready = (
+        registered_candidate is candidate
+        and isinstance(learned_token, LearnedOutputToken)
+        and learned_token.candidate is candidate
+        and has_recurrence
+        and has_echo_support
+    )
+    reason = "local-history-ready" if ready else "local-history-incomplete"
+
+    return ProtoOutputActionReadiness(
+        token_id=candidate.token_id,
+        pattern_id=candidate.pattern_id,
+        support_count=candidate.support_count,
+        echo_count=len(candidate.echo_ids),
+        source_kinds=candidate.source_kinds,
+        ready=ready,
+        reason=reason,
     )

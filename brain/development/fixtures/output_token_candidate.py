@@ -11,9 +11,11 @@ from brain.development.output import (
     OutputPattern,
     OutputProvenance,
     OutputTokenCandidate,
+    ProtoOutputActionReadiness,
     echo_output_impulse,
     learn_output_token,
     maybe_create_output_token_candidate,
+    observe_proto_output_action_readiness,
     token_id_for_output_pattern,
     update_output_pattern,
 )
@@ -231,3 +233,47 @@ def check_learned_output_token_requires_candidate_and_no_runtime_mutation() -> N
     assert state.registry is before_registry
     assert token.token_id not in state.profile.domain
     assert token.token_id not in state.registry.texts
+
+
+@register("I-OUT-11", status="OBSERVED")
+def observe_proto_output_action_readiness_is_local_only() -> None:
+    history, candidate = _history_with_candidate()
+    incomplete = observe_proto_output_action_readiness(history, candidate)
+    assert isinstance(incomplete, ProtoOutputActionReadiness)
+    assert incomplete.ready is False
+    assert incomplete.reason == "local-history-incomplete"
+
+    learned_history = learn_output_token(history, candidate)
+    readiness = observe_proto_output_action_readiness(learned_history, candidate)
+    assert isinstance(readiness, ProtoOutputActionReadiness)
+    assert readiness.ready is True
+    assert readiness.reason == "local-history-ready"
+    assert readiness.token_id == candidate.token_id
+    assert readiness.pattern_id == candidate.pattern_id
+    assert readiness.support_count == candidate.support_count
+    assert readiness.echo_count == len(candidate.echo_ids)
+    assert readiness.source_kinds == candidate.source_kinds
+
+    forbidden = {
+        "act",
+        "action",
+        "selected_action",
+        "agency",
+        "agency_witness",
+        "worldlet",
+        "consequence",
+        "command_syntax",
+        "grammar",
+        "teacher_correction",
+        "language",
+        "percept_event",
+        "tick",
+    }
+    names = {field.name for field in fields(readiness)}
+    assert not (names & forbidden), (
+        f"I-OUT-11 violated: readiness exposes {names & forbidden}"
+    )
+    for name in forbidden:
+        assert not hasattr(readiness, name), (
+            f"I-OUT-11 violated: readiness exposes {name}"
+        )
