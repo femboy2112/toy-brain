@@ -16,7 +16,7 @@ Execute the next eligible step in:
 CURRENT_CAMPAIGN.md
 ```
 
-`CURRENT_CAMPAIGN.md` is currently the Phase 3.4 Proto-BASIC REPL campaign.
+`CURRENT_CAMPAIGN.md` is currently the Operator TUI campaign.
 
 The active agent must use campaign state detection, prerequisites, test results, and stop conditions to decide which step to run next.
 
@@ -58,7 +58,7 @@ Do not rely on unstated conversation context. The campaign must run from repo-lo
 5. Commit and push after each successful step.
 6. Stop at explicit approval gates, failing tests requiring user judgment, or campaign completion.
 
-Do not skip ahead to later post-Phase-3.4 work.
+Do not skip ahead to Phase 3.5 Expression + ReadabilityPredictor or later cognitive campaigns.
 
 ---
 
