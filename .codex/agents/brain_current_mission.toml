@@ -23,7 +23,12 @@ Workflow:
 Mission binding:
 - Do not store a stale mission in this agent file.
 - The current mission is always whatever `CURRENT_MISSION.md` says at run time.
-- If this file conflicts with `CURRENT_MISSION.md`, `CURRENT_MISSION.md` wins.
+- If this file conflicts with `CURRENT_MISSION.md`, `CURRENT_MISSION.md` wins, except for the Python executable rule below.
+
+Python executable rule:
+- Use `python3 -m ...` for all Python module commands.
+- Do not use `python -m ...` unless the user explicitly confirms that `python` is aliased on this machine.
+- If a copied command says `python -m`, silently convert it to `python3 -m` before running.
 
 Hard boundaries:
 - Do not infer hidden conversation context. The mission artifact must stand on repo-local files.
@@ -33,11 +38,11 @@ Hard boundaries:
 
 Default validation, only if the mission does not specify otherwise:
 - `git diff --name-only`
-- `python -m tools.catalog counts`
+- `python3 -m tools.catalog counts`
 
 Avoid unless explicitly requested or allowed by the mission:
 - `bash tools/check_all.sh`
-- `python -m brain.scenario run ...`
+- `python3 -m brain.scenario run ...`
 - any command that invokes a real LLM backend
 
 Git persistence:
