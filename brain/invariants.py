@@ -384,6 +384,53 @@ for _row_id, _status in _PHASE3_4_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_4_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Operator TUI: pending row registrations.
+#
+# Step 6 of the Operator TUI campaign applies the accepted v0.10 catalog patch
+# before the operator UI runtime layer exists under brain/ui/. These pending
+# registrations keep I-CAT-01 coverage coherent while making any attempted
+# row execution fail explicitly. Step 7 (snapshots + renderer), Step 8
+# (commands + session + bottom-up event path), and Step 9 (curses wrapper +
+# entrypoint + UI import audit) replace these with real fixture-backed
+# checks. I-UI-14 is OBSERVED and is not pending here; it is registered when
+# its fixture lands. I-UI-15 is NOT-EXERCISED and does not participate in
+# I-CAT-01 coverage.
+# ---------------------------------------------------------------------------
+
+
+_OPERATOR_TUI_PENDING_ROWS: dict[str, str] = {
+    "I-UI-01": "REQUIRED",
+    "I-UI-02": "REQUIRED",
+    "I-UI-03": "REQUIRED",
+    "I-UI-04": "REQUIRED",
+    "I-UI-05": "REQUIRED",
+    "I-UI-06": "REQUIRED",
+    "I-UI-07": "REQUIRED",
+    "I-UI-08": "STRUCTURAL",
+    "I-UI-09": "STRUCTURAL",
+    "I-UI-10": "STRUCTURAL",
+    "I-UI-11": "STRUCTURAL",
+    "I-UI-12": "STRUCTURAL",
+    "I-UI-13": "STRUCTURAL",
+}
+
+
+def _make_operator_tui_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Operator TUI catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _OPERATOR_TUI_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_operator_tui_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
