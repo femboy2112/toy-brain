@@ -75,6 +75,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.repl_history",
     "brain.ui.fixtures.snapshot_view",
     "brain.ui.fixtures.render_view",
+    "brain.ui.fixtures.command_router",
+    "brain.ui.fixtures.bottom_up_tick",
 ]
 
 
@@ -406,18 +408,16 @@ for _row_id, _status in _PHASE3_4_PENDING_ROWS.items():
 _OPERATOR_TUI_PENDING_ROWS: dict[str, str] = {
     # Step 7 landed I-UI-01, I-UI-02 (REQUIRED) and I-UI-08, I-UI-09
     # (STRUCTURAL) via brain.ui.fixtures.snapshot_view and
-    # brain.ui.fixtures.render_view. The remaining rows below stay pending
-    # until Step 8 (router/session/commands) and Step 9 (curses wrapper +
-    # entrypoint + tui_smoke) replace them with real fixture-backed checks.
-    "I-UI-03": "REQUIRED",
-    "I-UI-04": "REQUIRED",
-    "I-UI-05": "REQUIRED",
-    "I-UI-06": "REQUIRED",
+    # brain.ui.fixtures.render_view. Step 8 landed I-UI-03, I-UI-04
+    # (REQUIRED), I-UI-05 (REQUIRED bottom-up tick path), I-UI-06
+    # (REQUIRED failure-isolation), I-UI-10 (STRUCTURAL resource-free
+    # session), and I-UI-13 (STRUCTURAL bounded UI status text) via
+    # brain.ui.fixtures.command_router and brain.ui.fixtures.bottom_up_tick.
+    # The remaining rows below stay pending until Step 9 (curses wrapper +
+    # entrypoint + tui_smoke) replaces them with real fixture-backed checks.
     "I-UI-07": "REQUIRED",
-    "I-UI-10": "STRUCTURAL",
     "I-UI-11": "STRUCTURAL",
     "I-UI-12": "STRUCTURAL",
-    "I-UI-13": "STRUCTURAL",
 }
 
 
