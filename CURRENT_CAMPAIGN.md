@@ -303,6 +303,29 @@ Commit/push.
 
 Stop unless `OPERATOR_TUI_CATALOG_PATCH_PLAN.md` is coherent and no open decision blocks implementation. If coherent, proceed only when the user says `go` again or explicitly accepts the plan.
 
+## Mandatory review-gate corrigendum before Step 6
+
+The Step 5 review found one concrete issue in `OPERATOR_TUI_CATALOG_PATCH_PLAN.md`:
+
+```text
+D3 currently claims the existing tools/import_audit.py walks brain/ui/.
+That is false: tools/import_audit.py currently only wraps audit_agency_no_pce_import().
+```
+
+Before Step 6, the active agent must patch **only** `OPERATOR_TUI_CATALOG_PATCH_PLAN.md`:
+
+```text
+Patch D3 so it no longer claims existing tools.import_audit walks brain/ui/.
+Replace it with the rule that I-UI-07's tui_smoke.py fixture performs a UI-specific static AST audit over brain/ui/ for forbidden imports and forbidden host-execution surfaces.
+Do not modify row IDs.
+Do not modify counts.
+Do not modify statuses.
+Do not modify implementation order except to clarify that the UI import audit lands with the I-UI-07 fixture.
+Commit and push the plan-only corrigendum.
+```
+
+After that plan-only corrigendum lands, Step 6 may proceed on the next `go`.
+
 ---
 
 # Step 6 — Apply accepted UI catalog patch
