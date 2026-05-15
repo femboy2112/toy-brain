@@ -24,14 +24,15 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.10 expected counts — bumped by the Operator TUI catalog patch
-# (I-UI-01..15): +7 REQUIRED, +6 STRUCTURAL, +1 NOT-EXERCISED, +1 OBSERVED.
+# v0.11 expected counts — bumped by the Operator TUI Agent-Style
+# Layout catalog patch (I-UI-16..23): +4 REQUIRED, +3 STRUCTURAL,
+# +1 OBSERVED.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 123,
-    "STRUCTURAL": 41,
+    "REQUIRED": 127,
+    "STRUCTURAL": 44,
     "NOT-EXERCISED": 4,
     "DEFERRED": 12,
-    "OBSERVED": 6,
+    "OBSERVED": 7,
 }
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."

@@ -418,8 +418,61 @@ _OPERATOR_TUI_PENDING_ROWS: dict[str, str] = {
     # I-UI-11 (STRUCTURAL curses-wrapper thinness), I-UI-12 (STRUCTURAL
     # fail-closed entrypoint), and I-UI-14 (OBSERVED aggregate session
     # walk) via brain.ui.tui, brain.ui.__main__, and
-    # brain.ui.fixtures.tui_smoke. No pending Operator TUI rows remain.
+    # brain.ui.fixtures.tui_smoke. No pending v0.10 Operator TUI rows
+    # remain.
 }
+
+
+# ---------------------------------------------------------------------------
+# Operator TUI Agent-Style Layout (v0.11): pending row registrations.
+#
+# Step 6 of the Operator TUI Agent-Style Layout campaign applies the accepted
+# v0.11 catalog patch (I-UI-16..I-UI-23) before the agent-layout runtime
+# modules (brain/ui/layout.py, brain/ui/composer.py,
+# brain/ui/command_line.py, brain/ui/transcript.py) and their fixtures exist.
+# These pending registrations keep I-CAT-01 coverage coherent while making
+# any attempted row execution fail explicitly. Step 7 (layout module + pure
+# renderer upgrade) drives I-UI-16, I-UI-20, I-UI-22 via
+# brain.ui.fixtures.agent_layout. Step 8 (bottom composer + typed local
+# command parser) drives I-UI-17 and I-UI-18 via
+# brain.ui.fixtures.composer_input. Step 9 (transcript + session
+# integration) drives I-UI-19 via brain.ui.fixtures.transcript_log.
+# Step 10 (curses wrapper integration + README sync) drives I-UI-21
+# (STRUCTURAL) and registers I-UI-23 (OBSERVED) via
+# brain.ui.fixtures.agent_tui_smoke. I-UI-23 is OBSERVED and is not pending
+# here; it is registered when its fixture lands.
+# ---------------------------------------------------------------------------
+
+
+_OPERATOR_TUI_AGENT_LAYOUT_PENDING_ROWS: dict[str, str] = {
+    "I-UI-16": "REQUIRED",
+    "I-UI-17": "REQUIRED",
+    "I-UI-18": "REQUIRED",
+    "I-UI-19": "REQUIRED",
+    "I-UI-20": "STRUCTURAL",
+    "I-UI-21": "STRUCTURAL",
+    "I-UI-22": "STRUCTURAL",
+}
+
+
+def _make_operator_tui_agent_layout_pending_check(
+    row_id: str,
+) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Operator TUI Agent-Style Layout "
+            "catalog coverage but its runtime implementation has not "
+            "landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _OPERATOR_TUI_AGENT_LAYOUT_PENDING_ROWS.items():
+    register(_row_id, status=_status)(
+        _make_operator_tui_agent_layout_pending_check(_row_id)
+    )
 
 
 def _make_operator_tui_pending_check(row_id: str) -> Callable[[], None]:
