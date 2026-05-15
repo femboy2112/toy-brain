@@ -88,6 +88,12 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.expression_no_brainstate_mutation",
     "brain.development.fixtures.expression_no_source_history_mutation",
     "brain.development.fixtures.expression_static_audit",
+    "brain.development.fixtures.readability_score_fraction_bounded",
+    "brain.development.fixtures.readability_prediction_tagged",
+    "brain.development.fixtures.readability_predictor_empty_item",
+    "brain.development.fixtures.readability_predictor_repetition_only",
+    "brain.development.fixtures.readability_predictor_length_cap",
+    "brain.development.fixtures.readability_predictor_determinism",
 ]
 
 
@@ -527,14 +533,16 @@ _PHASE3_5_PENDING_ROWS: dict[str, str] = {
     # Step 7 landed I-EXP-01, I-EXP-02, I-EXP-03, I-EXP-07, I-EXP-08,
     # I-EXP-13, I-EXP-14, I-EXP-15, and I-EXP-16 (the static audit
     # fixture covers all three structural audit rows together per the
-    # catalog patch plan's optional bundling allowance).
-    "I-EXP-04": "REQUIRED",
-    "I-EXP-05": "REQUIRED",
+    # catalog patch plan's optional bundling allowance). Step 8 landed
+    # I-EXP-04, I-EXP-05, I-EXP-09, I-EXP-10, I-EXP-11, and I-EXP-12
+    # via the readability_score_fraction_bounded,
+    # readability_prediction_tagged, readability_predictor_empty_item,
+    # readability_predictor_repetition_only,
+    # readability_predictor_length_cap, and
+    # readability_predictor_determinism fixtures. I-EXP-06 remains
+    # pending until Step 9 lands the expression_history_cow_bounded
+    # fixture.
     "I-EXP-06": "REQUIRED",
-    "I-EXP-09": "REQUIRED",
-    "I-EXP-10": "REQUIRED",
-    "I-EXP-11": "REQUIRED",
-    "I-EXP-12": "REQUIRED",
 }
 
 
