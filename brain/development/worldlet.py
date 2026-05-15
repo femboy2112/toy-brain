@@ -29,6 +29,23 @@ WorldletObjectID = str
 WorldletResponseID = str
 WorldletStateID = str
 
+WORLDLET_LOCAL_EVIDENCE_SCOPE = "local-harness"
+WORLDLET_RESPONSE_REASONS = frozenset(
+    {
+        "accepted",
+        "missing-target",
+        "rejected",
+        "target-unavailable",
+    }
+)
+WORLDLET_PUSHBACK_REASONS = frozenset(
+    {
+        "missing-target",
+        "rejected",
+        "target-unavailable",
+    }
+)
+
 
 def require_worldlet_valence(value: Fraction, *, field: str) -> Fraction:
     """Validate an exact bounded worldlet valence without clamping."""
@@ -336,6 +353,68 @@ class WorldletHistory:
                 )
 
 
+@dataclass(frozen=True, slots=True)
+class WorldletConsequenceSummary:
+    """Inspectable local response evidence below external-reality claims."""
+
+    response_id: WorldletResponseID
+    attempt_id: WorldletAttemptID
+    accepted: bool
+    reason: str
+    valence: Fraction
+    source_kind: FrameSourceKind
+    confidence: Fraction
+    evidence_scope: str = WORLDLET_LOCAL_EVIDENCE_SCOPE
+
+    def __post_init__(self) -> None:
+        _require_non_reserved_id(
+            self.response_id,
+            field="WorldletConsequenceSummary.response_id",
+            row_id="I-WLD-12",
+        )
+        _require_non_reserved_id(
+            self.attempt_id,
+            field="WorldletConsequenceSummary.attempt_id",
+            row_id="I-WLD-12",
+        )
+        if not isinstance(self.accepted, bool):
+            raise TypeError("WorldletConsequenceSummary.accepted must be bool")
+        require_printable_id(self.reason, field="WorldletConsequenceSummary.reason")
+        if self.reason not in WORLDLET_RESPONSE_REASONS:
+            raise ValueError(
+                "I-WLD-11 violated: worldlet consequence reason must be "
+                "local harness evidence"
+            )
+        require_worldlet_valence(
+            self.valence,
+            field="WorldletConsequenceSummary.valence",
+        )
+        if not isinstance(self.source_kind, FrameSourceKind):
+            raise TypeError(
+                "WorldletConsequenceSummary.source_kind must be FrameSourceKind"
+            )
+        require_unit_fraction(
+            self.confidence,
+            field="WorldletConsequenceSummary.confidence",
+        )
+        if self.evidence_scope != WORLDLET_LOCAL_EVIDENCE_SCOPE:
+            raise ValueError(
+                "I-WLD-11 violated: worldlet consequence evidence must remain local"
+            )
+        if self.accepted and self.reason in WORLDLET_PUSHBACK_REASONS:
+            raise ValueError(
+                "I-WLD-11 violated: accepted response cannot be pushback evidence"
+            )
+        if not self.accepted and self.reason == "accepted":
+            raise ValueError(
+                "I-WLD-11 violated: rejected response cannot use accepted reason"
+            )
+
+    @property
+    def is_pushback(self) -> bool:
+        return (not self.accepted) and self.reason in WORLDLET_PUSHBACK_REASONS
+
+
 def append_worldlet_attempt(
     history: WorldletHistory,
     attempt: WorldletAttempt,
@@ -383,6 +462,28 @@ def append_worldlet_response(
         latest_state=next_state,
         attempts=history.attempts,
         responses=history.responses + (response,),
+    )
+
+
+def summarize_worldlet_consequences(
+    history: WorldletHistory,
+) -> tuple[WorldletConsequenceSummary, ...]:
+    """Expose local consequence history without promoting it into runtime state."""
+    if not isinstance(history, WorldletHistory):
+        raise TypeError(
+            f"history must be WorldletHistory (got {type(history).__name__})"
+        )
+    return tuple(
+        WorldletConsequenceSummary(
+            response_id=response.response_id,
+            attempt_id=response.attempt_id,
+            accepted=response.accepted,
+            reason=response.reason,
+            valence=response.valence.value,
+            source_kind=response.provenance.source_kind,
+            confidence=response.provenance.confidence,
+        )
+        for response in history.responses
     )
 
 

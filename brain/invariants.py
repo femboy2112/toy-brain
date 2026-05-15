@@ -322,9 +322,7 @@ for _row_id, _status in _PHASE3_2_PENDING_ROWS.items():
 # ---------------------------------------------------------------------------
 
 
-_PHASE3_3_PENDING_ROWS: dict[str, str] = {
-    "I-WLD-11": "STRUCTURAL",
-}
+_PHASE3_3_PENDING_ROWS: dict[str, str] = {}
 
 
 def _make_phase3_3_pending_check(row_id: str) -> Callable[[], None]:
