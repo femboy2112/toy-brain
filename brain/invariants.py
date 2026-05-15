@@ -65,6 +65,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.output_echo",
     "brain.development.fixtures.output_pattern",
     "brain.development.fixtures.output_token_candidate",
+    "brain.development.fixtures.worldlet_state",
+    "brain.development.fixtures.worldlet_response",
 ]
 
 
@@ -319,12 +321,6 @@ for _row_id, _status in _PHASE3_2_PENDING_ROWS.items():
 
 
 _PHASE3_3_PENDING_ROWS: dict[str, str] = {
-    "I-WLD-01": "STRUCTURAL",
-    "I-WLD-02": "REQUIRED",
-    "I-WLD-03": "STRUCTURAL",
-    "I-WLD-04": "REQUIRED",
-    "I-WLD-05": "STRUCTURAL",
-    "I-WLD-06": "REQUIRED",
     "I-WLD-07": "REQUIRED",
     "I-WLD-08": "STRUCTURAL",
     "I-WLD-09": "REQUIRED",
