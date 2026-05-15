@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.6)
+# brain — TLICA-constrained Python kernel (catalog v0.12)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -180,12 +180,20 @@ Behaviour rules (enforced by the `I-UI-*` catalog rows):
 - **v0.4** — +I-TRACE-01 (Phase 2 v1.1 cognition trace).
 - **v0.5** — +I-RT-11, +I-RT-12, +I-TRACE-02, +I-TRACE-03, +I-CAT-01 (Phase 2 v1.2 baseline hardening plus pre-Phase-3.1 trace boundary hardening).
 - **v0.6** — +I-FRAME-01/02/03/04, +I-DEV-01/02/03/04/05/06/07, +I-SBX-01/02 (Phase 3.1 Osmotic Chamber deterministic developmental substrate expansion).
+- **v0.7** — +I-OUT-01..12 (Phase 3.2 Output Ladder deterministic developmental output rows).
+- **v0.8** — +I-WLD-01..12 (Phase 3.3 Minimal Worldlet deterministic developmental worldlet rows).
+- **v0.9** — +I-REPL-01..18 (Phase 3.4 Proto-BASIC REPL deterministic developmental REPL rows).
+- **v0.10** — +I-UI-01..15 (Operator TUI deterministic operator-facing surface).
+- **v0.11** — +I-UI-16..23 (Operator TUI Agent-Style Layout expansion).
+- **v0.12** — +I-EXP-01..18 (Phase 3.5 Expression + ReadabilityPredictor bounded local layer).
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
 - `PHASE2_v1_KICKOFF.md` / `PHASE2_v1_CORRIGENDA.md` (LLM-backed `PtCns`).
 - `PHASE2_v1_1_TRACE_KICKOFF.md` (cognition trace).
-- `BASELINE_HARDENING_KICKOFF.md` (Phase 2 v1.2, this round).
+- `BASELINE_HARDENING_KICKOFF.md` (Phase 2 v1.2 baseline hardening).
+- `PHASE3_5_EXPRESSION_READABILITY_AUDIT.md` (Phase 3.5 complete; PASS).
+- `CURRENT_CAMPAIGN.md` (Fast Safe Text Interaction — Phase 3.6 next).
 
 ## Constraints (pre-coding rules — these are pulled from the catalog)
 
@@ -193,7 +201,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.6**. Confirmation numbers: **92 REQUIRED · 20 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 2 OBSERVED · 21 fixtures**. Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.12**. Confirmation numbers: **139 REQUIRED · 48 STRUCTURAL · 5 NOT-EXERCISED · 12 DEFERRED · 8 OBSERVED · 50 fixtures**. Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -291,8 +299,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.5, the expected count is:
-**84 REQUIRED · 16 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED**.
+For catalog v0.12, the expected count is:
+**139 REQUIRED · 48 STRUCTURAL · 5 NOT-EXERCISED · 12 DEFERRED · 8 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage
