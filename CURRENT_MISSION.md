@@ -16,7 +16,7 @@ Execute the next eligible step in:
 CURRENT_CAMPAIGN.md
 ```
 
-`CURRENT_CAMPAIGN.md` is currently the Operator TUI campaign.
+`CURRENT_CAMPAIGN.md` is currently the Operator TUI Live Input Patch campaign.
 
 The active agent must use campaign state detection, prerequisites, test results, and stop conditions to decide which step to run next.
 
@@ -74,6 +74,9 @@ traces/RUN_SUMMARY.md
 scenarios/
 brain/tick.py
 brain/llm/
+INVARIANT_CATALOG.md
+tools/catalog.py
+brain/_catalog_ids.py
 ```
 
 Do not run real LLM scenario commands unless the user explicitly asks.
