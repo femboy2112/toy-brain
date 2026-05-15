@@ -22,6 +22,16 @@ Do **not** create `brain/development/` yet.
 
 ---
 
+## Important local command rule
+
+Use `python3 -m ...` for all Python module commands.
+
+Do **not** use `python -m ...` on this machine unless the user explicitly says a `python` alias exists.
+
+If any copied command says `python -m`, convert it to `python3 -m` before running.
+
+---
+
 ## Important persistence clarification
 
 Creating the artifact locally is not sufficient.
@@ -251,7 +261,7 @@ INVARIANT_CATALOG.md banner/history
 INVARIANT_CATALOG.md row table(s)
 summary counts
 tools/catalog.py EXPECTED_COUNTS
-brain/_catalog_ids.py via python -m tools.catalog generate-ids
+brain/_catalog_ids.py via python3 -m tools.catalog generate-ids
 brain/invariants.py FIXTURE_MODULES once fixtures exist
 ```
 
@@ -352,14 +362,14 @@ Run lightweight checks only:
 
 ```bash
 git diff --name-only
-python -m tools.catalog counts
+python3 -m tools.catalog counts
 ```
 
 Do not run:
 
 ```bash
 bash tools/check_all.sh
-python -m brain.scenario run ...
+python3 -m brain.scenario run ...
 ```
 
 unless the user explicitly asks.
@@ -398,7 +408,7 @@ Created/updated:
 
 Validation:
 - git diff --name-only: ...
-- python -m tools.catalog counts: pass / not run with reason
+- python3 -m tools.catalog counts: pass / not run with reason
 
 Git:
 - commit: <sha or none>
