@@ -8,311 +8,251 @@ When the user tells Codex **`go`** in this repository, Codex should read this fi
 
 ## Current mission
 
-Review the Phase 3.1 kickoff and draft its corrigenda document:
+Implement the trace reserved-key micro-hardening mission before Phase 3.1 implementation.
 
-```text
-PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
-```
+This is a **boundary-hardening implementation task**, not Phase 3 runtime development.
 
-This is a **planning/corrigenda artifact only**.
-
-Do **not** implement Phase 3 code.
+Do **not** implement the Osmotic Chamber or any Phase 3 developmental subsystem.
 
 ---
 
 ## Why this mission exists
 
-`PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md` is now drafted and pushed. It is good enough to enter a corrigenda pass, but review identified several issues to tighten before any Phase 3.1 implementation begins.
+`PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md` decided that trace reserved-key protection must happen before Phase 3.1 implementation.
 
-The corrigenda should turn the kickoff into an implementation-ready plan while preserving the project discipline:
+Reason:
 
 ```text
-plan → corrigenda → code
+trace reserved-key protection is a trace-envelope boundary issue, not a developmental feature
+it predates Phase 3.1
+it should be fixed before developmental trace volume increases
 ```
 
-This mission drafts the corrigenda only. It does not authorize runtime implementation.
+Current tracer payloads can overwrite reserved envelope fields such as:
+
+```text
+type
+timestamp_ns
+tick_id
+```
+
+Phase 3.1 will introduce richer source-tagged developmental trace payloads. The trace seam must reject or protect reserved keys before that happens.
 
 ---
 
 ## Required source files to read first
 
-Read these before writing the corrigenda:
+Read these before editing:
 
 ```text
 CURRENT_MISSION.md
 README.md
 INVARIANT_CATALOG.md
-PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
 PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
-traces/RUN_SUMMARY.md
-BASELINE_HARDENING_KICKOFF.md
-PHASE2_v1_2_CORRIGENDA.md
-```
-
-Do not rely on unstated conversation context. The corrigenda must stand on repo-local files.
-
----
-
-## Required output file
-
-Create:
-
-```text
 PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
+PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
+brain/trace.py
+brain/fixtures/trace_v1_1.py
+brain/invariants.py
+tools/catalog.py
 ```
 
-Do not edit any other file unless absolutely necessary and explicitly justified.
+Do not rely on unstated conversation context. The patch must stand on repo-local files.
 
 ---
 
-## Required review stance
+## Required behavior decision
 
-Treat `PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md` as a strong draft, not as final.
+Use **reject-on-reserved-key** behavior.
 
-The corrigenda should preserve what is sound:
+When a tracer receives a payload containing reserved envelope keys, it should reject that payload rather than silently allowing overwrite.
 
-```text
-PRESERVE should be earned, not labeled.
-Phase 3.1 is planning-only until kickoff + corrigenda are accepted.
-Osmotic Chamber only; no output ladder/worldlet/REPL/expression/social-language implementation.
-SubstrateHistory is in scope from day one.
-Existing tick() and PerceptEvent remain the only path into TLICA runtime state.
-```
-
-The corrigenda should tighten what is underspecified or risky.
-
----
-
-## Required issues to address
-
-The corrigenda must address at least these issues.
-
-### C1 — FrameSourceKind granularity
-
-The kickoff currently proposes:
+Reserved keys:
 
 ```text
-EXTERNAL
-INTERNAL
-PROBE
-GENERATED
+type
+timestamp_ns
+tick_id
 ```
 
-This is probably too coarse.
-
-Corrigenda should recommend a Phase 3.1-appropriate source enum that distinguishes at least:
+Preferred semantics:
 
 ```text
-ENDOGENOUS
-OPERATOR_INJECTION
-PROBE_ECHO
-EXTERNAL
-GENERATED
-```
-
-It should explicitly defer later-only source kinds like:
-
-```text
-WORLDLET_RESPONSE
-OUTPUT_ECHO
-REPL_FEEDBACK
-TEACHER_SIGNAL
-```
-
-unless the corrigenda has a strong reason to include them as reserved-but-unused values.
-
-Explain why source granularity matters:
-
-```text
-operator-injected content must not be confused with endogenous patterning
-probe echo must not be confused with external contact
-source confusion would undermine salience/stability/prediction histories
-```
-
-### C2 — Avoid `ContentID = str` shadowing
-
-The kickoff sketch currently aliases:
-
-```python
-ContentID = str
-```
-
-This risks confusion with `brain.tlica.profile.ContentID`.
-
-Corrigenda should recommend one of:
-
-```text
-DevContentID = str
-```
-
-or:
-
-```text
-use existing ContentID only at the promotion boundary
-```
-
-The preferred rule:
-
-```text
-developmental proto-content IDs are developmental IDs until promotion;
-existing TLICA ContentID is used only when producing a PerceptEvent.
-```
-
-### C3 — Revisit `prediction_gain_v1`
-
-The kickoff formula uses:
-
-```python
-prediction_gain_v1 = clamp_unit(raw_gain - baseline + Fraction(1, 2))
-```
-
-This may artificially lift weak/non-predictive patterns to about `1/2`, which is also the proposed promotion threshold.
-
-Corrigenda should recommend a stricter formula, such as:
-
-```python
-prediction_gain_v1 = clamp_unit(raw_gain - baseline)
-```
-
-or another normalized positive-delta formula that keeps non-predictive patterns low.
-
-Explain why:
-
-```text
-promotion should not become easy just because the metric is offset upward
-PRESERVE should be earned by real recurrence/stability/predictive structure
-```
-
-### C4 — Clarify status of focus behavior row
-
-The kickoff proposes `focus_stabilizes_or_dissolves.py`, but the suggested row `I-DEV-04` is OBSERVED.
-
-Corrigenda should decide:
-
-```text
-If the fixture is deterministic and has a crisp pass/fail behavior, make it REQUIRED.
-If it is qualitative or trend-like, keep it OBSERVED and rename/scope it accordingly.
-```
-
-The recommended path:
-
-```text
-make the first focus fixture deterministic and REQUIRED for the narrow claim that FOCUS_CONTACT updates ProbeUse history and does not promote by itself;
-leave broader stabilize/dissolve dynamics as OBSERVED.
-```
-
-### C5 — Trace reserved-key protection
-
-The kickoff recommends trace reserved-key protection as a pre-Phase-3.1 micro-hardening patch.
-
-Corrigenda should convert that recommendation into a specific decision:
-
-```text
-trace reserved-key protection should be the next mission before Phase 3.1 implementation
-```
-
-or
-
-```text
-trace reserved-key protection should be the first Phase 3.1 catalog row
-```
-
-Preferred recommendation:
-
-```text
-next mission before Phase 3.1 implementation
+MemoryTracer.record(...) raises ValueError on reserved payload keys.
+FileTracer.record(...) raises ValueError on reserved payload keys.
+SafeTracer swallows those failures when wrapping a tracer, preserving observation-only semantics.
+NullTracer may ignore all payloads without validation.
 ```
 
 Rationale:
 
 ```text
-it is a trace-envelope boundary issue, not a developmental feature
-it should be fixed before developmental trace volume increases
-```
-
-### C6 — Data model validation details
-
-Corrigenda should sharpen constructor validation expectations for:
-
-```text
-Fraction normalized fields in [0, 1]
-non-empty printable IDs
-source-map exact coverage
-non-empty provenance for promotion
-COGITO_ID rejection at developmental ID and promotion boundary
-```
-
-### C7 — Catalog versioning and row family plan
-
-Corrigenda should recommend whether Phase 3.1 rows bump the catalog from v0.5 directly to v0.6, or whether trace reserved-key protection creates a v0.5.x / v0.6-pre hardening step first.
-
-Preferred recommendation:
-
-```text
-trace reserved-key protection gets its own micro-hardening mission without changing Phase 3 semantics;
-Phase 3.1 Osmotic Chamber catalog patch should then bump to v0.6.
-```
-
-### C8 — Build-order correction
-
-Corrigenda should reaffirm:
-
-```text
-no code before accepted catalog patch
-no runtime behavior before data model/source-tag constructors
-no promotion before source-tag and metric fixtures are green
+MemoryTracer and FileTracer are concrete trace sinks and should protect their event envelope.
+SafeTracer is the observation-only boundary and should prevent trace-sink failures from affecting the kernel.
+NullTracer discards everything and need not validate.
 ```
 
 ---
 
-## Guardrails
+## Required catalog policy
 
-Do not modify these files during this mission:
+Add one new STRUCTURAL trace row to `INVARIANT_CATALOG.md`.
+
+Recommended ID:
 
 ```text
-brain/
+I-TRACE-03
+```
+
+Recommended row meaning:
+
+```text
+Tracer payloads cannot overwrite reserved event-envelope keys. MemoryTracer and FileTracer reject payloads containing `type`, `timestamp_ns`, or `tick_id`; SafeTracer preserves observation-only behavior by swallowing trace-sink validation failures.
+```
+
+Catalog versioning:
+
+```text
+Do not start Phase 3 catalog rows yet.
+Keep this as a v0.5 micro-hardening completion unless the existing catalog tooling requires a banner/count update.
+If adding I-TRACE-03 changes STRUCTURAL count, update the catalog banner and tools EXPECTED_COUNTS consistently.
+Do not label this as Phase 3.1 developmental work.
+```
+
+Important: keep source kind as `PLAN_CONVENTION` or equivalent plan-convention wording, not `ENGINEERING_HYPOTHESIS`, because this is a trace boundary rule, not a developmental hypothesis.
+
+---
+
+## Required implementation scope
+
+Allowed files for this mission:
+
+```text
+brain/trace.py
+brain/fixtures/trace_v1_1.py
 INVARIANT_CATALOG.md
+tools/catalog.py
+brain/_catalog_ids.py
+CURRENT_MISSION.md only if absolutely necessary
+```
+
+Optional if needed:
+
+```text
+brain/invariants.py
+README.md
+```
+
+But avoid README unless the catalog version/count change requires documentation sync.
+
+Do not modify:
+
+```text
+brain/development/
+brain/tlica/
+brain/tick.py
+brain/llm/
 lean_reference/
 traces/
 scenarios/
 PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
-```
-
-Allowed file for this mission:
-
-```text
 PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 ```
 
-Optional only if needed:
+---
 
-```text
-CURRENT_MISSION.md
+## Required implementation details
+
+### 1. Add reserved-key helper
+
+In `brain/trace.py`, define a small helper or constant:
+
+```python
+_RESERVED_TRACE_KEYS = frozenset({"type", "timestamp_ns", "tick_id"})
 ```
 
-But do not update `CURRENT_MISSION.md` again unless the user asks.
+Add a validator such as:
+
+```python
+def _reject_reserved_payload_keys(payload: Mapping[str, Any]) -> None:
+    overlap = _RESERVED_TRACE_KEYS & set(payload)
+    if overlap:
+        raise ValueError(
+            "I-TRACE-03 violated: trace payload contains reserved envelope keys "
+            f"{sorted(overlap)!r}"
+        )
+```
+
+### 2. Apply to MemoryTracer and FileTracer
+
+In `MemoryTracer.record(...)` and `FileTracer.record(...)`, call the validator before building/updating the event envelope.
+
+The implementation should ensure payload keys cannot overwrite:
+
+```text
+type
+timestamp_ns
+tick_id
+```
+
+### 3. Keep SafeTracer fail-open behavior
+
+`SafeTracer` should continue swallowing exceptions from the wrapped tracer.
+
+A reserved-key failure inside a raw MemoryTracer/FileTracer should raise.
+
+A reserved-key failure inside `SafeTracer(MemoryTracer(...))` or `SafeTracer(FileTracer(...))` should be swallowed and not affect kernel behavior.
+
+### 4. Add fixture coverage
+
+Extend `brain/fixtures/trace_v1_1.py` with a registered check for the new row.
+
+Recommended check:
+
+```python
+@register("I-TRACE-03", status="STRUCTURAL")
+def check_I_TRACE_03() -> None:
+    # raw MemoryTracer rejects reserved keys
+    # raw FileTracer rejects reserved keys
+    # SafeTracer(raw MemoryTracer) swallows reserved-key failure
+    # SafeTracer(raw FileTracer) swallows reserved-key failure
+```
+
+Use `tempfile.TemporaryDirectory()` for FileTracer.
+
+Make sure the raised error message contains `I-TRACE-03`.
+
+### 5. Update generated catalog IDs
+
+After catalog row addition:
+
+```bash
+python -m tools.catalog generate-ids
+```
+
+Commit the generated `brain/_catalog_ids.py` if it changes.
 
 ---
 
 ## Validation
 
-After drafting the corrigenda:
-
-Run lightweight checks only:
+Run:
 
 ```bash
-git diff --name-only
 python -m tools.catalog counts
+python -m brain.invariants run --id I-TRACE
+bash tools/check_all.sh
 ```
 
-Do not run:
+If the runner does not support prefix `--id I-TRACE`, use the exact relevant row IDs individually.
+
+Do **not** run:
 
 ```bash
-bash tools/check_all.sh
 python -m brain.scenario run ...
 ```
 
-unless the user explicitly asks.
+unless explicitly asked.
 
 ---
 
@@ -323,7 +263,7 @@ After validation passes, Codex must commit and push its result.
 Rules:
 
 ```text
-stage only PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
+stage only intended mission files
 commit with a clear message
 push to the current branch / main as appropriate
 report the commit SHA
@@ -341,25 +281,30 @@ When done, report:
 
 ```text
 Created/updated:
-- PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
+- brain/trace.py
+- brain/fixtures/trace_v1_1.py
+- INVARIANT_CATALOG.md
+- tools/catalog.py if count changed
+- brain/_catalog_ids.py if regenerated
 
 Validation:
-- git diff --name-only: ...
-- python -m tools.catalog counts: pass / not run with reason
+- python -m tools.catalog counts: ...
+- python -m brain.invariants run --id I-TRACE: ...
+- bash tools/check_all.sh: ...
 
 Git:
 - commit: <sha or none>
 - push: success / not run with reason
 
 Next:
-- review corrigenda
-- then decide trace reserved-key micro-hardening vs Phase 3.1 implementation planning
+- review trace reserved-key hardening
+- then update mission for Phase 3.1 catalog patch / implementation planning
 ```
 
 ---
 
 ## Stop condition
 
-Stop after drafting `PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md`, validating, committing, pushing, and reporting the result.
+Stop after implementing trace reserved-key protection, validating, committing, pushing, and reporting the result.
 
-Do not proceed into Phase 3.1 code unless the user gives a new explicit instruction.
+Do not proceed into Phase 3.1 Osmotic Chamber implementation unless the user gives a new explicit instruction.
