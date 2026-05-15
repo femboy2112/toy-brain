@@ -8,7 +8,7 @@ When the user tells Codex **`go`** in this repository, Codex should read this fi
 
 ## Current mission
 
-Draft the Phase 3.1 Osmotic Chamber catalog-patch plan:
+Draft, validate, commit, and push the Phase 3.1 Osmotic Chamber catalog-patch plan:
 
 ```text
 PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
@@ -19,6 +19,22 @@ This is a **planning artifact only**.
 Do **not** edit `INVARIANT_CATALOG.md` yet.
 Do **not** implement Phase 3 runtime code.
 Do **not** create `brain/development/` yet.
+
+---
+
+## Important persistence clarification
+
+Creating the artifact locally is not sufficient.
+
+Committing and pushing the artifact is part of the mission and does **not** count as an unauthorized edit.
+
+Required final state:
+
+```text
+PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md exists on the pushed branch / main.
+```
+
+If the file already exists locally but is uncommitted, do not recreate it. Inspect it, validate it, stage only that file, commit it, push it, and report the commit SHA.
 
 ---
 
@@ -37,7 +53,7 @@ The next safe step is to design the exact catalog patch that will later bump the
 
 Because `I-CAT-01` enforces catalog↔registry coverage, do not edit `INVARIANT_CATALOG.md` until the full row set, fixture names, owning modules, and implementation order are accepted.
 
-This mission drafts the catalog-patch plan only.
+This mission drafts and persists the catalog-patch plan only.
 
 ---
 
@@ -64,7 +80,7 @@ Do not rely on unstated conversation context. The plan must stand on repo-local 
 
 ## Required output file
 
-Create:
+Create or update exactly this artifact:
 
 ```text
 PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
@@ -316,6 +332,8 @@ Allowed file for this mission:
 PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
 ```
 
+Git operations are required and are not considered edits to guarded files.
+
 Optional only if needed:
 
 ```text
@@ -360,6 +378,9 @@ commit with a clear message
 push to the current branch / main as appropriate
 report the commit SHA
 ```
+
+Committing and pushing the artifact is mandatory if the artifact was created or changed.
+This persistence step is part of the mission, not an optional extra.
 
 Do not commit accidental changes to guarded files.
 
