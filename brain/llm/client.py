@@ -19,6 +19,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -216,4 +218,84 @@ class CachedClient:
         return response
 
 
-__all__ = ["LLMClient", "AnthropicAPIClient", "MockClient", "CachedClient"]
+# ---------------------------------------------------------------------------
+# ClaudeCLIClient — subprocess wrapper for the local `claude -p` CLI.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(slots=True)
+class ClaudeCLIClient:
+    """``LLMClient`` that delegates to the local Claude Code CLI in
+    non-interactive mode (``claude -p <prompt>``).
+
+    This is the ``SubprocessClient`` pattern explicitly anticipated by
+    ``PHASE2_v1_KICKOFF.md``'s "Future backends" section, shipped here
+    as a small additive backend so a real-LLM trace can be produced
+    against a Max/Pro subscription without provisioning an
+    ``ANTHROPIC_API_KEY``. Authentication is whatever the local CLI
+    already has — no env var management, no token plumbing.
+
+    Honors the ``LLMClient`` Protocol (I-LLM-04); a stored ``tracer``
+    field exists for symmetry with the other backends but the retry
+    shell (``LLMBackedPtCns``) owns the ``llm.request`` / ``llm.response``
+    events because it has the content_id / attempt context.
+    """
+
+    # `-p` runs non-interactively; `--no-session-persistence` keeps each
+    # call stateless so the parent Claude Code session's permissions or
+    # memory cannot leak into the child; `--permission-mode default`
+    # keeps the call from inheriting an elevated mode from the parent.
+    command: tuple[str, ...] = (
+        "claude",
+        "-p",
+        "--no-session-persistence",
+        "--permission-mode",
+        "default",
+    )
+    timeout_seconds: float = 60.0
+    tracer: CognitionTracer = field(default_factory=NullTracer)
+    # When invoking the nested CLI, drop into a neutral cwd so the child
+    # session does not auto-discover this repo's CLAUDE.md / hooks.
+    cwd: str = "/tmp"
+
+    def __post_init__(self) -> None:
+        # Resolve the command's executable once so a missing binary
+        # surfaces immediately rather than at the first call.
+        exe = self.command[0] if self.command else ""
+        if not exe or shutil.which(exe) is None:
+            raise RuntimeError(
+                f"ClaudeCLIClient: executable {exe!r} not found on PATH. "
+                "Install the Claude Code CLI or override `command` with a "
+                "callable subprocess (e.g. ('codex', '-p'))."
+            )
+
+    def eval_consistency(self, prompt: str) -> str:
+        try:
+            completed = subprocess.run(
+                [*self.command, prompt],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout_seconds,
+                check=False,
+                cwd=self.cwd,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"ClaudeCLIClient: `{' '.join(self.command)}` timed out after "
+                f"{self.timeout_seconds}s"
+            ) from exc
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"ClaudeCLIClient: subprocess returned non-zero exit "
+                f"{completed.returncode}. stderr: {completed.stderr[:500]!r}"
+            )
+        return completed.stdout
+
+
+__all__ = [
+    "LLMClient",
+    "AnthropicAPIClient",
+    "MockClient",
+    "CachedClient",
+    "ClaudeCLIClient",
+]

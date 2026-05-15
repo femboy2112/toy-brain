@@ -15,7 +15,6 @@ deterministic runner output.
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import json
 import sys
 from dataclasses import dataclass
@@ -23,7 +22,12 @@ from fractions import Fraction
 from pathlib import Path
 
 from brain.io_types import PerceptEvent, TickRecord
-from brain.llm.client import AnthropicAPIClient, CachedClient, LLMClient
+from brain.llm.client import (
+    AnthropicAPIClient,
+    CachedClient,
+    ClaudeCLIClient,
+    LLMClient,
+)
 from brain.tick import BrainState, initial_state, tick
 from brain.tlica.modes import ModeOp
 from brain.tlica.profile import ContentID
@@ -129,7 +133,9 @@ def run_scenario(
                 tracer=tracer,
                 tick_id=idx + 1,
             )
-            record = dataclasses.replace(record, tick_index=idx)
+            # P2: tick() propagates tick_id to TickRecord.tick_index
+            # directly; no override needed (scenario was previously
+            # stamping 0-based, which was brittle).
             records.append(record)
             actual_evals.append(record.eval_map[scenario_tick.percept.content_id])
             if record.triggered_mode is None:
@@ -158,10 +164,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
         tracer = make_tracer_from_env()
     # Share the tracer with the cached LLM stack so cache_hit /
     # cache_miss events thread through the same JSONL.
-    client: LLMClient = CachedClient(
-        AnthropicAPIClient(tracer=tracer),
-        tracer=tracer,
-    )
+    inner: LLMClient
+    if args.client == "claude-cli":
+        inner = ClaudeCLIClient(tracer=tracer)
+    else:
+        inner = AnthropicAPIClient(tracer=tracer)
+    client: LLMClient = CachedClient(inner, tracer=tracer)
     result = run_scenario(spec, client, tracer=tracer)
 
     matched = sum(
@@ -194,6 +202,17 @@ def main(argv: list[str] | None = None) -> int:
         "--trace",
         metavar="PATH",
         help="Write a JSONL cognition trace to PATH. Overrides BRAIN_TRACE_PATH env var.",
+    )
+    p_run.add_argument(
+        "--client",
+        choices=("anthropic-api", "claude-cli"),
+        default="anthropic-api",
+        help=(
+            "LLM backend. 'anthropic-api' uses AnthropicAPIClient (requires "
+            "ANTHROPIC_API_KEY). 'claude-cli' delegates to the local Claude "
+            "Code CLI via `claude -p` (uses the parent session's auth, no "
+            "env var required)."
+        ),
     )
     p_run.set_defaults(func=_cmd_run)
     args = parser.parse_args(argv)

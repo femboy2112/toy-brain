@@ -1,10 +1,10 @@
-# brain v0 kickoff package
+# brain — TLICA-constrained Python kernel (catalog v0.5)
 
-This package is everything Claude Code needs to implement the v0 TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then start coding from the build order at the bottom of this file.
+This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
 ## What this is
 
-A theorem-constrained Python state machine. The TLICA Lean formalization (snapshot in `lean_reference/`) is the *spec*, not the runtime. `INVARIANT_CATALOG.md` v0.2 binds each Lean theorem we honor to a Python runtime assertion, names the owning module, and assigns it to a fixture. v0 is complete when every REQUIRED row in the catalog asserts green.
+A theorem-constrained Python state machine. The TLICA Lean formalization (snapshot in `lean_reference/`) is the *spec*, not the runtime. `INVARIANT_CATALOG.md` (canonical at the version on disk) binds each Lean theorem we honor — plus the engineering-hypothesis rows added by Phase 2 and beyond — to a Python runtime assertion, names the owning module, and assigns it to a fixture. The kernel is healthy when every REQUIRED row reports green.
 
 This is not a brain in any philosophical sense. It is a runtime object that satisfies the structural prerequisites the TLICA theory says a "conscious I" must have — the constraints the Lean is good at enforcing. Whether the theory is right that those structural features are consciousness is untouched.
 
@@ -12,23 +12,39 @@ This is not a brain in any philosophical sense. It is a runtime object that sati
 
 1. Read `INVARIANT_CATALOG.md`. That is canonical.
 2. Read this README's "Constraints" section below for the pre-coding rules.
-3. Build the eight files in the "Build order" section below, in order.
-4. Run `python -m brain.invariants run`.
-5. v0 is done when every REQUIRED row in the catalog reports green.
+3. Build (or modify) according to the current kickoff document's build order.
+4. Run `bash tools/check_all.sh` (catalog freshness → counts → citations → import audit → runner).
+5. The kernel is healthy when every REQUIRED row reports green and all auxiliary gates pass.
 
-Do **not** review the plan or re-audit the catalog. The catalog was already audited twice. Implement from v0.2 exactly.
+Implement from the current `INVARIANT_CATALOG.md` exactly; the catalog is canonical.
 
 ## Package contents
 
 | Path | What it is |
 |---|---|
 | `README.md` | This file. Read first. |
-| `INVARIANT_CATALOG.md` | The v0.2 spec. 80 REQUIRED rows · 7 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED. The spine. |
+| `INVARIANT_CATALOG.md` | The current catalog spec (see version banner). The spine. |
 | `SPEC_UPDATES.md` | How to consult `github.com/femboy2112/lean-scratch` for future spec evolution. |
 | `lean_reference/` | Snapshot of the Lean source the catalog cites. Read-only reference. |
 | `lean_reference/TLICA.lean` | Top-level Lean aggregator (lists every module imported). |
 | `lean_reference/TLICA/` | Every TLICA module the catalog cites. |
 | `lean_reference/TOCE_Core.lean` | The TOCE Boolean classifier layer (separate from TLICA proper). |
+| `brain/` | The Python kernel: TLICA layer, LLM seam, trace seam, tick orchestration, fixtures. |
+| `scenarios/` | Locked scenario JSON files (e.g. `first_scenario_v1.json`). |
+| `tools/` | Catalog parser, citation verifier, import audit, snapshot diff, runner wrappers. |
+
+## Catalog history
+
+- **v0.2** — initial Lean-bound catalog (Phase 1 / v0 implementation).
+- **v0.3** — +I-LLM-01/02/03/04, +I-RT-08, +I-BHV-01 (Phase 2 v1 LLM-backed `PtCns`).
+- **v0.4** — +I-TRACE-01 (Phase 2 v1.1 cognition trace).
+- **v0.5** — +I-RT-11, +I-RT-12, +I-TRACE-02, +I-CAT-01 (Phase 2 v1.2 baseline hardening).
+
+Companion docs (consult the relevant one when editing the catalog):
+- `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
+- `PHASE2_v1_KICKOFF.md` / `PHASE2_v1_CORRIGENDA.md` (LLM-backed `PtCns`).
+- `PHASE2_v1_1_TRACE_KICKOFF.md` (cognition trace).
+- `BASELINE_HARDENING_KICKOFF.md` (Phase 2 v1.2, this round).
 
 ## Constraints (pre-coding rules — these are pulled from the catalog)
 
@@ -36,7 +52,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.2**. Confirmation numbers: **80 REQUIRED · 7 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 11 fixtures**. If you see anything that looks like 74 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is the older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.5**. Confirmation numbers: **84 REQUIRED · 15 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED · 14 fixtures**. Run `python -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -115,48 +131,42 @@ Dependency graph: `builders → validation`; `invariants → fixtures + validati
 
 ## Build order
 
-Do **not** start with `tick.py`. Build in this order:
+The kernel is already past every v0/v1/v1.1/v1.2 checkpoint. New work
+follows the build order in the current kickoff document (see "Catalog
+history" above for which is in flight); each kickoff specifies its own
+ordering of catalog patch → tooling → modules → fixtures →
+verification.
 
-1. `brain/tlica/profile.py`
-2. `brain/tlica/msi.py`
-3. `brain/tlica/ptcns.py`
-4. `brain/tlica/builders.py`
-5. `brain/validation.py`
-6. `brain/invariants.py` (catalog registry + runner shell)
-7. `brain/fixtures/minimal.py`
-8. `brain/fixtures/cogito_invariants.py`
-
-At this point run `python -m brain.invariants run`. The runner should report green on every REQUIRED row owned by those eight files (these fixtures cover I-PROF-01..02, I-MSI-01..06, I-PTC-01..05, I-MOD-04, I-IBND-02, I-PRES-01..05).
-
-Once that gate is green, expand to the remaining modules in the dependency order implied by the import graph:
-
-- `preservation.py` → `project_map.py` → `pce.py` → `action_projection.py` → `agency.py` → `trajectory.py` → `affect.py`
-- `comparison/pointwise.py` can be built in parallel with the above
-- `iboundary.py` after `ptcns.py`
-- `toce_core.py` is independent of `brain/tlica/`
-
-Then add the remaining fixtures: `content_classification.py`, `profile_distance.py`, `mode_a_dispatch.py`, `mode_c_dispatch.py`, `neutral_encapsulation.py`, `action_selection.py`, `projected_pce.py`, `affect_kernel_collapse.py`, `trajectory_step.py`.
-
-Only after every REQUIRED row is green should you implement `brain/tick.py` and `brain/io_types.py`.
+The original v0 eight-file checkpoint and its successor sequencing are
+preserved in `ARCHIVE.md` as historical context. Do not use them as
+instructions for new work.
 
 ## Success criterion
 
 ```
-python -m brain.invariants run
+bash tools/check_all.sh
 ```
 
-reports every REQUIRED row green (80 of them, distributed across 11 fixtures). The runner also performs an import-graph audit (I-PCE-05) and refuses to start if any STRUCTURAL builder check fails on construction.
+reports every REQUIRED row green, every STRUCTURAL row green, all
+auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-## After v0 lands
+For catalog v0.5, the expected count is:
+**84 REQUIRED · 15 STRUCTURAL · 3 NOT-EXERCISED · 12 DEFERRED · 1 OBSERVED**.
+
+The runner also performs the I-PCE-05 import-graph audit (`agency.py`
+never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage
+audit (every REQUIRED/STRUCTURAL row has a registered check); both must
+pass for the runner to claim "all green".
+
+## Spec evolution
 
 The Lean spec on `github.com/femboy2112/lean-scratch` is canonical and will evolve. When it does, the catalog needs to be re-aligned and the code re-validated against the new theorems. See `SPEC_UPDATES.md` for the refresh protocol.
 
 ## Things to not do
 
-- Don't review the plan. Implement v0.2 exactly.
+- Do not implement from stale draft counts or earlier catalog versions. Use the current `INVARIANT_CATALOG.md` exactly.
 - Don't introduce modules outside the catalog's module map.
 - Don't re-enable a deferred item (RCX, named affect taxonomy, love-as-constitutive-extension, substrate affect pathways, source-opacity affect, stochastic projection, phenomenological duration, temporal continuity metric, contestable-boundary refinement, free-will branch semantics, φ-coordinate / non-Archimedean δ) without an explicit upstream change.
 - Don't use `typing.Literal` for `Act`.
 - Don't use raw float arithmetic in `brain/tlica/`. Use `Fraction`.
-- Don't write `brain/tick.py` until the eight-file checkpoint is green.
 - Don't push to `femboy2112/lean-scratch` — it is read-only from this package's perspective.

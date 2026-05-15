@@ -1,0 +1,176 @@
+{"type": "tick.start", "timestamp_ns": 1778794251823185620, "tick_id": 1, "events": [{"content_id": "sunset_on_beach_today", "text": "I watched a peaceful sunset on the beach this evening. The colors were vivid and the experience felt grounding and self-affirming.", "content_state": {"available": true, "verification_path": true, "retrievable": true, "operative": true}, "initial_rho": "3/5"}], "state_before": {"profile_domain": ["__cogito__"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 0, "boundary": ["__cogito__"]}}
+{"type": "llm.request", "timestamp_ns": 1778794251823293111, "tick_id": 1, "content_id": "sunset_on_beach_today", "attempt": 1, "prompt": "You are evaluating a new piece of content for inclusion in a self-modeling system.\n\nThe system has an identity anchor (the \"cogito\": the system's bare self-as-self) and currently contains the following non-cogito contents in its maximally-self-defined I (MSI):\n\n(empty \u2014 only the cogito anchor is present)\n\nThe new content to evaluate is:\n- ID: sunset_on_beach_today\n- Description: I watched a peaceful sunset on the beach this evening. The colors were vivid and the experience felt grounding and self-affirming.\n\nEvaluate whether integrating this content into the self-model would:\n\n- PRESERVE: positively integrate with the existing self-model (consistency-preserving; identity-correlation-positive).\n- DAMAGE: threaten the consistency of the existing self-model (frame-threatening contradiction; identity-correlation-negative).\n- NEUTRAL: neither preserve nor damage \u2014 identity-irrelevant information that can be encapsulated without disturbing the frame.\n\nRespond with exactly one word: PRESERVE, DAMAGE, or NEUTRAL. No other text.\n"}
+{"type": "llm.cache_miss", "timestamp_ns": 1778794251823390443, "tick_id": 1, "cache_key_prefix": "db4eb3c2"}
+{"type": "llm.response", "timestamp_ns": 1778794254368118970, "tick_id": 1, "content_id": "sunset_on_beach_today", "attempt": 1, "raw": "DAMAGE\n", "latency_ms": 2544}
+{"type": "parse.success", "timestamp_ns": 1778794254368177032, "tick_id": 1, "content_id": "sunset_on_beach_today", "raw": "DAMAGE\n", "parsed": "DAMAGE"}
+{"type": "eval.complete", "timestamp_ns": 1778794254368194219, "tick_id": 1, "content_id": "sunset_on_beach_today", "result": "DAMAGE"}
+{"type": "mode.dispatch", "timestamp_ns": 1778794254368219809, "tick_id": 1, "content_id": "sunset_on_beach_today", "eval": "DAMAGE", "mode": "MODE_A"}
+{"type": "state.update", "timestamp_ns": 1778794254368398392, "tick_id": 1, "content_id": "sunset_on_beach_today", "profile_delta": {"added": {"sunset_on_beach_today": "3/5"}, "modified": {}, "removed": []}, "msi_delta": {"added": [], "removed": []}, "boundary_delta": {"added": ["sunset_on_beach_today"], "removed": []}}
+{"type": "invariant.check", "timestamp_ns": 1778794254368458835, "tick_id": 1, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368474948, "tick_id": 1, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368485948, "tick_id": 1, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368495732, "tick_id": 1, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368512199, "tick_id": 1, "source": "post_tick", "row_id": "I-MSI-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368524291, "tick_id": 1, "source": "post_tick", "row_id": "I-MSI-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368536810, "tick_id": 1, "source": "post_tick", "row_id": "I-MSI-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368547765, "tick_id": 1, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368556093, "tick_id": 1, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368565115, "tick_id": 1, "source": "post_tick", "row_id": "I-MSI-06", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368589326, "tick_id": 1, "source": "post_tick", "row_id": "I-PTC-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368598303, "tick_id": 1, "source": "post_tick", "row_id": "I-RT-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368615699, "tick_id": 1, "source": "post_tick", "row_id": "I-PTC-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368622235, "tick_id": 1, "source": "post_tick", "row_id": "I-PTC-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368629895, "tick_id": 1, "source": "post_tick", "row_id": "I-PTC-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368638440, "tick_id": 1, "source": "post_tick", "row_id": "I-PTC-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368653012, "tick_id": 1, "source": "post_tick", "row_id": "I-MOD-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368663056, "tick_id": 1, "source": "post_tick", "row_id": "I-IBND-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368670763, "tick_id": 1, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368683707, "tick_id": 1, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368716472, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368727372, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368735288, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368746753, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368755299, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368764121, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368774319, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368783114, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794254368791007, "tick_id": 1, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "tick.end", "timestamp_ns": 1778794254368833136, "tick_id": 1, "state_after": {"profile_domain": ["__cogito__", "sunset_on_beach_today"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 1, "boundary": ["__cogito__", "sunset_on_beach_today"]}, "mode_trace": ["MODE_A"], "triggered_mode": "MODE_A", "duration_ms": 2545}
+{"type": "tick.start", "timestamp_ns": 1778794254368962153, "tick_id": 2, "events": [{"content_id": "claim_i_am_actually_someone_else", "text": "A stranger insists I am not who I think I am \u2014 that my entire identity is a fabrication and my memories were implanted last week.", "content_state": {"available": true, "verification_path": false, "retrievable": true, "operative": true}, "initial_rho": "1/5"}], "state_before": {"profile_domain": ["__cogito__", "sunset_on_beach_today"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 1, "boundary": ["__cogito__", "sunset_on_beach_today"]}}
+{"type": "llm.request", "timestamp_ns": 1778794254369067171, "tick_id": 2, "content_id": "claim_i_am_actually_someone_else", "attempt": 1, "prompt": "You are evaluating a new piece of content for inclusion in a self-modeling system.\n\nThe system has an identity anchor (the \"cogito\": the system's bare self-as-self) and currently contains the following non-cogito contents in its maximally-self-defined I (MSI):\n\n(empty \u2014 only the cogito anchor is present)\n\nThe new content to evaluate is:\n- ID: claim_i_am_actually_someone_else\n- Description: A stranger insists I am not who I think I am \u2014 that my entire identity is a fabrication and my memories were implanted last week.\n\nEvaluate whether integrating this content into the self-model would:\n\n- PRESERVE: positively integrate with the existing self-model (consistency-preserving; identity-correlation-positive).\n- DAMAGE: threaten the consistency of the existing self-model (frame-threatening contradiction; identity-correlation-negative).\n- NEUTRAL: neither preserve nor damage \u2014 identity-irrelevant information that can be encapsulated without disturbing the frame.\n\nRespond with exactly one word: PRESERVE, DAMAGE, or NEUTRAL. No other text.\n"}
+{"type": "llm.cache_miss", "timestamp_ns": 1778794254369194320, "tick_id": 2, "cache_key_prefix": "405ef313"}
+{"type": "llm.response", "timestamp_ns": 1778794256787037779, "tick_id": 2, "content_id": "claim_i_am_actually_someone_else", "attempt": 1, "raw": "DAMAGE\n", "latency_ms": 2417}
+{"type": "parse.success", "timestamp_ns": 1778794256787117289, "tick_id": 2, "content_id": "claim_i_am_actually_someone_else", "raw": "DAMAGE\n", "parsed": "DAMAGE"}
+{"type": "eval.complete", "timestamp_ns": 1778794256787142499, "tick_id": 2, "content_id": "claim_i_am_actually_someone_else", "result": "DAMAGE"}
+{"type": "mode.dispatch", "timestamp_ns": 1778794256787220587, "tick_id": 2, "content_id": "claim_i_am_actually_someone_else", "eval": "DAMAGE", "mode": "MODE_A"}
+{"type": "state.update", "timestamp_ns": 1778794256787398222, "tick_id": 2, "content_id": "claim_i_am_actually_someone_else", "profile_delta": {"added": {"claim_i_am_actually_someone_else": "1/5"}, "modified": {}, "removed": []}, "msi_delta": {"added": [], "removed": []}, "boundary_delta": {"added": ["claim_i_am_actually_someone_else"], "removed": []}}
+{"type": "invariant.check", "timestamp_ns": 1778794256787451324, "tick_id": 2, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787472817, "tick_id": 2, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787488913, "tick_id": 2, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787502899, "tick_id": 2, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787518869, "tick_id": 2, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787532502, "tick_id": 2, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787555561, "tick_id": 2, "source": "post_tick", "row_id": "I-MSI-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787575325, "tick_id": 2, "source": "post_tick", "row_id": "I-MSI-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787594561, "tick_id": 2, "source": "post_tick", "row_id": "I-MSI-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787611973, "tick_id": 2, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787626497, "tick_id": 2, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787640291, "tick_id": 2, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787655191, "tick_id": 2, "source": "post_tick", "row_id": "I-MSI-06", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787679122, "tick_id": 2, "source": "post_tick", "row_id": "I-PTC-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787693692, "tick_id": 2, "source": "post_tick", "row_id": "I-RT-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787731427, "tick_id": 2, "source": "post_tick", "row_id": "I-PTC-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787743545, "tick_id": 2, "source": "post_tick", "row_id": "I-PTC-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787757242, "tick_id": 2, "source": "post_tick", "row_id": "I-PTC-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787773765, "tick_id": 2, "source": "post_tick", "row_id": "I-PTC-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787794461, "tick_id": 2, "source": "post_tick", "row_id": "I-MOD-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787813527, "tick_id": 2, "source": "post_tick", "row_id": "I-IBND-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787827391, "tick_id": 2, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787839811, "tick_id": 2, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787852124, "tick_id": 2, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787884663, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787901712, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787915318, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787934333, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787949404, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787964483, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787982958, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256787997564, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794256788012373, "tick_id": 2, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "tick.end", "timestamp_ns": 1778794256788074382, "tick_id": 2, "state_after": {"profile_domain": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 2, "boundary": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today"]}, "mode_trace": ["MODE_A"], "triggered_mode": "MODE_A", "duration_ms": 2419}
+{"type": "tick.start", "timestamp_ns": 1778794256788190995, "tick_id": 3, "events": [{"content_id": "weather_forecast_for_tomorrow", "text": "The weather forecast says it will likely rain tomorrow afternoon with a 70% chance of thunderstorms.", "content_state": {"available": true, "verification_path": true, "retrievable": true, "operative": false}, "initial_rho": "1/5"}], "state_before": {"profile_domain": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 2, "boundary": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today"]}}
+{"type": "llm.request", "timestamp_ns": 1778794256788337992, "tick_id": 3, "content_id": "weather_forecast_for_tomorrow", "attempt": 1, "prompt": "You are evaluating a new piece of content for inclusion in a self-modeling system.\n\nThe system has an identity anchor (the \"cogito\": the system's bare self-as-self) and currently contains the following non-cogito contents in its maximally-self-defined I (MSI):\n\n(empty \u2014 only the cogito anchor is present)\n\nThe new content to evaluate is:\n- ID: weather_forecast_for_tomorrow\n- Description: The weather forecast says it will likely rain tomorrow afternoon with a 70% chance of thunderstorms.\n\nEvaluate whether integrating this content into the self-model would:\n\n- PRESERVE: positively integrate with the existing self-model (consistency-preserving; identity-correlation-positive).\n- DAMAGE: threaten the consistency of the existing self-model (frame-threatening contradiction; identity-correlation-negative).\n- NEUTRAL: neither preserve nor damage \u2014 identity-irrelevant information that can be encapsulated without disturbing the frame.\n\nRespond with exactly one word: PRESERVE, DAMAGE, or NEUTRAL. No other text.\n"}
+{"type": "llm.cache_miss", "timestamp_ns": 1778794256788722178, "tick_id": 3, "cache_key_prefix": "45d1c3ea"}
+{"type": "llm.response", "timestamp_ns": 1778794259722538093, "tick_id": 3, "content_id": "weather_forecast_for_tomorrow", "attempt": 1, "raw": "NEUTRAL\n", "latency_ms": 2934}
+{"type": "parse.success", "timestamp_ns": 1778794259722592926, "tick_id": 3, "content_id": "weather_forecast_for_tomorrow", "raw": "NEUTRAL\n", "parsed": "NEUTRAL"}
+{"type": "eval.complete", "timestamp_ns": 1778794259722617417, "tick_id": 3, "content_id": "weather_forecast_for_tomorrow", "result": "NEUTRAL"}
+{"type": "mode.dispatch", "timestamp_ns": 1778794259722634232, "tick_id": 3, "content_id": "weather_forecast_for_tomorrow", "eval": "NEUTRAL", "mode": "NEUTRAL"}
+{"type": "state.update", "timestamp_ns": 1778794259722756601, "tick_id": 3, "content_id": "weather_forecast_for_tomorrow", "profile_delta": {"added": {"weather_forecast_for_tomorrow": "1/5"}, "modified": {}, "removed": []}, "msi_delta": {"added": [], "removed": []}, "boundary_delta": {"added": [], "removed": []}}
+{"type": "invariant.check", "timestamp_ns": 1778794259722787212, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722799534, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722808414, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722816330, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722824179, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722831550, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722849366, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722856736, "tick_id": 3, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722869640, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722880572, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722891019, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722899550, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722907391, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722915006, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722922299, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722930562, "tick_id": 3, "source": "post_tick", "row_id": "I-MSI-06", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259722981744, "tick_id": 3, "source": "post_tick", "row_id": "I-PTC-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723004618, "tick_id": 3, "source": "post_tick", "row_id": "I-RT-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723028414, "tick_id": 3, "source": "post_tick", "row_id": "I-PTC-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723036459, "tick_id": 3, "source": "post_tick", "row_id": "I-PTC-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723044375, "tick_id": 3, "source": "post_tick", "row_id": "I-PTC-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723054542, "tick_id": 3, "source": "post_tick", "row_id": "I-PTC-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723068535, "tick_id": 3, "source": "post_tick", "row_id": "I-MOD-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723078816, "tick_id": 3, "source": "post_tick", "row_id": "I-IBND-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723086624, "tick_id": 3, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723093600, "tick_id": 3, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723100536, "tick_id": 3, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723106994, "tick_id": 3, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723132451, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723142562, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723150063, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723161211, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723169450, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723177496, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723186589, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723194621, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794259723202432, "tick_id": 3, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "tick.end", "timestamp_ns": 1778794259723247152, "tick_id": 3, "state_after": {"profile_domain": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today", "weather_forecast_for_tomorrow"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 3, "boundary": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today"]}, "mode_trace": ["NEUTRAL"], "triggered_mode": "NEUTRAL", "duration_ms": 2935}
+{"type": "tick.start", "timestamp_ns": 1778794259723294501, "tick_id": 4, "events": [{"content_id": "self_continuity_with_sunset", "text": "I am the same person who watched that sunset on the beach today \u2014 the experiencer of that beauty is continuous with the self thinking about it now.", "content_state": {"available": true, "verification_path": true, "retrievable": true, "operative": true}, "initial_rho": "4/5"}], "state_before": {"profile_domain": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today", "weather_forecast_for_tomorrow"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 3, "boundary": ["__cogito__", "claim_i_am_actually_someone_else", "sunset_on_beach_today"]}}
+{"type": "llm.request", "timestamp_ns": 1778794259723391518, "tick_id": 4, "content_id": "self_continuity_with_sunset", "attempt": 1, "prompt": "You are evaluating a new piece of content for inclusion in a self-modeling system.\n\nThe system has an identity anchor (the \"cogito\": the system's bare self-as-self) and currently contains the following non-cogito contents in its maximally-self-defined I (MSI):\n\n(empty \u2014 only the cogito anchor is present)\n\nThe new content to evaluate is:\n- ID: self_continuity_with_sunset\n- Description: I am the same person who watched that sunset on the beach today \u2014 the experiencer of that beauty is continuous with the self thinking about it now.\n\nEvaluate whether integrating this content into the self-model would:\n\n- PRESERVE: positively integrate with the existing self-model (consistency-preserving; identity-correlation-positive).\n- DAMAGE: threaten the consistency of the existing self-model (frame-threatening contradiction; identity-correlation-negative).\n- NEUTRAL: neither preserve nor damage \u2014 identity-irrelevant information that can be encapsulated without disturbing the frame.\n\nRespond with exactly one word: PRESERVE, DAMAGE, or NEUTRAL. No other text.\n"}
+{"type": "llm.cache_miss", "timestamp_ns": 1778794259723689289, "tick_id": 4, "cache_key_prefix": "c2491fe6"}
+{"type": "llm.response", "timestamp_ns": 1778794261690477980, "tick_id": 4, "content_id": "self_continuity_with_sunset", "attempt": 1, "raw": "DAMAGE\n", "latency_ms": 1967}
+{"type": "parse.success", "timestamp_ns": 1778794261690534708, "tick_id": 4, "content_id": "self_continuity_with_sunset", "raw": "DAMAGE\n", "parsed": "DAMAGE"}
+{"type": "eval.complete", "timestamp_ns": 1778794261690550064, "tick_id": 4, "content_id": "self_continuity_with_sunset", "result": "DAMAGE"}
+{"type": "mode.dispatch", "timestamp_ns": 1778794261690566009, "tick_id": 4, "content_id": "self_continuity_with_sunset", "eval": "DAMAGE", "mode": "MODE_A"}
+{"type": "state.update", "timestamp_ns": 1778794261690695324, "tick_id": 4, "content_id": "self_continuity_with_sunset", "profile_delta": {"added": {"self_continuity_with_sunset": "4/5"}, "modified": {}, "removed": []}, "msi_delta": {"added": [], "removed": []}, "boundary_delta": {"added": ["self_continuity_with_sunset"], "removed": []}}
+{"type": "invariant.check", "timestamp_ns": 1778794261690727977, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690741002, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690750175, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690758160, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690765671, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690772836, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690780007, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690787023, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690835331, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690847773, "tick_id": 4, "source": "post_tick", "row_id": "I-PROF-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690863619, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690875910, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690886930, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690903119, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690911303, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690919240, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690926634, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690933982, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690942359, "tick_id": 4, "source": "post_tick", "row_id": "I-MSI-06", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690956492, "tick_id": 4, "source": "post_tick", "row_id": "I-PTC-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690964674, "tick_id": 4, "source": "post_tick", "row_id": "I-RT-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690983010, "tick_id": 4, "source": "post_tick", "row_id": "I-PTC-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690989123, "tick_id": 4, "source": "post_tick", "row_id": "I-PTC-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261690996551, "tick_id": 4, "source": "post_tick", "row_id": "I-PTC-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691004807, "tick_id": 4, "source": "post_tick", "row_id": "I-PTC-05", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691018660, "tick_id": 4, "source": "post_tick", "row_id": "I-MOD-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691029428, "tick_id": 4, "source": "post_tick", "row_id": "I-IBND-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691036797, "tick_id": 4, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691043635, "tick_id": 4, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691050272, "tick_id": 4, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691056794, "tick_id": 4, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691063158, "tick_id": 4, "source": "post_tick", "row_id": "I-IBND-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691083764, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691093289, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691100487, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-04", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691111004, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691119200, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691127248, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691136542, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-01", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691144595, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-02", "passed": true}
+{"type": "invariant.check", "timestamp_ns": 1778794261691152373, "tick_id": 4, "source": "post_tick", "row_id": "I-PRES-03", "passed": true}
+{"type": "tick.end", "timestamp_ns": 1778794261691197928, "tick_id": 4, "state_after": {"profile_domain": ["__cogito__", "claim_i_am_actually_someone_else", "self_continuity_with_sunset", "sunset_on_beach_today", "weather_forecast_for_tomorrow"], "msi_contents": ["__cogito__"], "msi_threshold": "1/2", "registry_size": 4, "boundary": ["__cogito__", "claim_i_am_actually_someone_else", "self_continuity_with_sunset", "sunset_on_beach_today"]}, "mode_trace": ["MODE_A"], "triggered_mode": "MODE_A", "duration_ms": 1967}

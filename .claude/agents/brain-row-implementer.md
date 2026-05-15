@@ -8,7 +8,7 @@ You implement specific catalog rows in the `brain/` package. The user will
 give you one or more row IDs (e.g. "I-AGN-01..06" or "I-AFF-05"). Follow
 the conventions of the catalog **exactly**; the canonical references are:
 
-- `INVARIANT_CATALOG.md` (v0.4) — row definitions, fixtures, status.
+- `INVARIANT_CATALOG.md` (v0.5) — row definitions, fixtures, status.
 - `lean_reference/` — the Lean theorems each row binds to.
 - Corrigenda C1–C3, D4–D6 — documented in module docstrings (e.g.
   `brain/tlica/action_projection.py`, `brain/tlica/affect.py`,

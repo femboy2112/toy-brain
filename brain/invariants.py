@@ -29,7 +29,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from brain._catalog_ids import EXPECTED_REQUIRED_IDS, EXPECTED_STRUCTURAL_IDS
 from brain._import_audit import audit_agency_no_pce_import
+
+# Catalog rows whose ``Fixture`` column is ``_meta`` are enforced by the
+# runner itself rather than by a fixture function alone. They are still
+# registered (so they appear in the summary) but their @register entries
+# live in this module rather than under ``brain/fixtures/``.
+_META_ROWS: frozenset[str] = frozenset({"I-CAT-01"})
 
 # v0 fixture modules. Importing each one populates ``REGISTRY`` via the
 # @register decorator. The list mirrors the catalog's fixture roster.
@@ -116,6 +123,125 @@ class RunReport:
         return out
 
 
+def _audit_coverage() -> list[str]:
+    """I-CAT-01: every REQUIRED / STRUCTURAL catalog row has a registered check.
+
+    Returns a list of error messages; empty means coverage is complete.
+    Called at runner entry (after all fixture imports) and again from the
+    registered I-CAT-01 check so the row appears in the run summary.
+    """
+    registered = frozenset(s.id for s in REGISTRY)
+    missing_required = EXPECTED_REQUIRED_IDS - registered
+    missing_structural = EXPECTED_STRUCTURAL_IDS - registered
+    errors: list[str] = []
+    if missing_required:
+        errors.append(
+            "REQUIRED catalog rows missing registration: "
+            f"{sorted(missing_required)}"
+        )
+    if missing_structural:
+        errors.append(
+            "STRUCTURAL catalog rows missing registration: "
+            f"{sorted(missing_structural)}"
+        )
+    return errors
+
+
+@register("I-CAT-01", status="STRUCTURAL")
+def check_I_CAT_01() -> None:
+    """Re-run the coverage audit. The hard fail at runner entry has
+    already run; this registered check makes I-CAT-01 visible in the
+    standard pass/fail summary.
+    """
+    errors = _audit_coverage()
+    if errors:
+        raise AssertionError("I-CAT-01 violated: " + "; ".join(errors))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 v1.2: explicit registrations for previously fixture-less STRUCTURAL
+# rows. The I-CAT-01 audit caught these; making them registered checks brings
+# the catalog into full coverage compliance.
+# ---------------------------------------------------------------------------
+
+
+@register("I-PCE-05", status="STRUCTURAL")
+def check_I_PCE_05() -> None:
+    """Action selection never reads foundation PCE.
+
+    Positive case: the canonical ``agency.py`` audits clean. The runner
+    already runs ``audit_agency_no_pce_import`` at startup; this
+    registered check re-asserts it so the row appears in the pass/fail
+    summary like every other STRUCTURAL row.
+
+    Negative case (Phase 2 v1.2 corrigenda C1): the audit must catch
+    ``from brain.tlica import pce`` — a form that previously slipped
+    through because the walker only inspected ``node.module``.
+    """
+    ok, msg = audit_agency_no_pce_import()
+    if not ok:
+        raise AssertionError(f"I-PCE-05 violated: {msg}")
+
+    import ast
+    from brain._import_audit import _audit_pce_imports
+
+    bad_tree = ast.parse(
+        "from brain.tlica import pce\n"
+        "def f():\n"
+        "    return pce\n"
+    )
+    bad_ok, bad_msg = _audit_pce_imports(bad_tree, "synthetic_agency.py")
+    assert not bad_ok, (
+        "I-PCE-05 audit failed to reject `from brain.tlica import pce` "
+        "(C1 regression check)"
+    )
+    assert "I-PCE-05" in bad_msg, (
+        f"I-PCE-05 negative-case message lacks the row tag: {bad_msg!r}"
+    )
+
+
+@register("I-ISO-01", status="STRUCTURAL")
+def check_I_ISO_01() -> None:
+    """ProfileIso.refl(P) constructs successfully and reflects P."""
+    from fractions import Fraction
+    from brain.tlica.builders import make_profile_with_cogito
+    from brain.tlica.profile import COGITO_ID
+    from brain.tlica.profile_iso import ProfileIso
+
+    P = make_profile_with_cogito({COGITO_ID: 1, "a": Fraction(1, 2)})
+    iso = ProfileIso.refl(P)
+    assert iso.lhs is P and iso.rhs is P, "ProfileIso.refl drift"
+
+
+@register("I-ISO-02", status="STRUCTURAL")
+def check_I_ISO_02() -> None:
+    """ProfileIso.symm(h) flips lhs and rhs."""
+    from fractions import Fraction
+    from brain.tlica.builders import make_profile_with_cogito
+    from brain.tlica.profile import COGITO_ID
+    from brain.tlica.profile_iso import ProfileIso
+
+    P = make_profile_with_cogito({COGITO_ID: 1, "a": Fraction(1, 2)})
+    iso = ProfileIso.refl(P)
+    flipped = iso.symm()
+    assert flipped.lhs is iso.rhs and flipped.rhs is iso.lhs
+
+
+@register("I-ISO-03", status="STRUCTURAL")
+def check_I_ISO_03() -> None:
+    """ProfileIso.trans(h1, h2) chains compatible isos."""
+    from fractions import Fraction
+    from brain.tlica.builders import make_profile_with_cogito
+    from brain.tlica.profile import COGITO_ID
+    from brain.tlica.profile_iso import ProfileIso
+
+    P = make_profile_with_cogito({COGITO_ID: 1, "a": Fraction(1, 2)})
+    h1 = ProfileIso.refl(P)
+    h2 = ProfileIso.refl(P)
+    chained = ProfileIso.trans(h1, h2)
+    assert chained.lhs is P and chained.rhs is P
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
@@ -144,6 +270,16 @@ def run(
     report.audit_passed = ok
 
     _import_fixtures(report)
+
+    # I-CAT-01 entry audit: refuse to run if any catalog REQUIRED /
+    # STRUCTURAL row lacks a registered check. This is a hard fail —
+    # it precedes every per-row check below.
+    coverage_errors = _audit_coverage()
+    if coverage_errors:
+        raise RuntimeError(
+            "I-CAT-01 violated. Catalog rows without registered checks:\n  - "
+            + "\n  - ".join(coverage_errors)
+        )
 
     for spec in sorted(REGISTRY, key=lambda s: s.id):
         if module_filter and module_filter not in spec.fixture_module:

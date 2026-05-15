@@ -58,6 +58,19 @@ def check_I_PMAP_01() -> None:
     assert proj.no_action is Act.NOOP
 
 
+@register("I-PMAP-03", status="STRUCTURAL")
+def check_I_PMAP_03() -> None:
+    """ProjectMap.project is total: project(no_action, P) returns a profile."""
+    _, P = _make_world()
+    proj = IdentityProjectMap()
+    result = proj.project(proj.no_action, P)
+    # Total-function semantics: the call returns; the result is a profile.
+    assert result.domain == P.domain, (
+        f"I-PMAP-03 violated: project(no_action, P) returned a profile with "
+        f"a different domain ({sorted(result.domain)} vs {sorted(P.domain)})"
+    )
+
+
 @register("I-AGN-01")
 def check_I_AGN_01() -> None:
     """noAction_feasible: proj.no_action in ctx.feasible(P)."""

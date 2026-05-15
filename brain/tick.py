@@ -44,7 +44,7 @@ from brain.tlica.msi import MSI
 from brain.tlica.preservation import PreservationRanking
 from brain.tlica.profile import COGITO_ID, ContentID, ScalarProfile
 from brain.tlica.ptcns import ConsistencyEval, PtCns, PtCnsLike
-from brain.trace import CognitionTracer, NullTracer
+from brain.trace import CognitionTracer, NullTracer, SafeTracer
 from brain.validation import assert_partition
 
 
@@ -111,7 +111,38 @@ def tick(
     backend is used. ``tick_id`` is auto-tagged on every event recorded
     during this call (cleared in a ``finally``).
     """
-    tracer = tracer if tracer is not None else NullTracer()
+    # I-TRACE-02 (Phase 2 v1.2 corrigenda C2): make SafeTracer unavoidable
+    # at the kernel boundary. Callers may still pass a raw tracer
+    # (e.g. ``FileTracer(path)`` from a CLI ``--trace`` flag); we wrap it
+    # here so trace-sink failures cannot propagate into tick(). The
+    # ``isinstance`` check prevents redundant double-wrapping when the
+    # tracer already arrived from ``make_tracer_from_env`` (which
+    # SafeTracer-wraps by default).
+    if tracer is None:
+        tracer = SafeTracer(NullTracer())
+    elif not isinstance(tracer, SafeTracer):
+        tracer = SafeTracer(tracer)
+    # I-RT-11 (P2): v1 semantics handle at most one PerceptEvent per tick.
+    # Multi-event mode aggregation is deferred (see PHASE2_v1_KICKOFF.md
+    # "Still deferred"). Raise before any state mutation.
+    if len(events) > 1:
+        raise ValueError(
+            f"I-RT-11 violated: v1 tick() accepts at most one PerceptEvent; "
+            f"got {len(events)}. Multi-event mode aggregation is deferred "
+            f"to a future kickoff. See INVARIANT_CATALOG.md."
+        )
+    # I-RT-12 (P3): v1 promotion is one-shot per content. Re-promoting
+    # an existing content has no defined semantics; reject explicitly.
+    if events:
+        event = events[0]
+        if event.content_id in state.profile.domain:
+            raise ValueError(
+                f"I-RT-12 violated: PerceptEvent.content_id "
+                f"{event.content_id!r} is already in state.profile.domain. "
+                f"v1 promotion is one-shot per content; update semantics "
+                f"for existing content are deferred."
+            )
+
     tracer.set_tick(tick_id)
     try:
         start_ns = time.time_ns()
@@ -261,7 +292,7 @@ def tick(
 
         triggered = mode_trace[0] if mode_trace else None
         record = TickRecord(
-            tick_index=0,  # caller may override; the scenario runner stamps it
+            tick_index=tick_id,  # P2: propagate explicitly; no later stamping needed
             profile_values=MappingProxyType(dict(new_profile.values)),
             msi_contents=final_msi.contents,
             eval_map=MappingProxyType(dict(final_ptcns.eval_map)),
