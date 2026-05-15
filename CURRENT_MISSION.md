@@ -332,6 +332,31 @@ unless the user explicitly asks.
 
 ---
 
+## Git persistence requirement
+
+After validation passes, Codex must commit and push its result.
+
+Rules:
+
+```text
+stage only the intended mission file(s)
+commit with a clear message
+push to the current branch / main as appropriate
+report the commit SHA
+```
+
+For the current mission, the intended file is:
+
+```text
+PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
+```
+
+Do not commit accidental changes to guarded files.
+
+If there are no changes, Codex should report that no commit was made and explain why.
+
+---
+
 ## Final report
 
 When done, report:
@@ -344,6 +369,10 @@ Validation:
 - git diff --name-only: ...
 - python -m tools.catalog counts: pass / not run with reason
 
+Git:
+- commit: <sha or none>
+- push: success / not run with reason
+
 Next:
 - review synthesis
 - then draft PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
@@ -353,6 +382,6 @@ Next:
 
 ## Stop condition
 
-Stop after drafting `PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md` and reporting validation.
+Stop after drafting `PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md`, validating, committing, pushing, and reporting the result.
 
 Do not proceed into Phase 3.1 kickoff or code unless the user gives a new explicit instruction.
