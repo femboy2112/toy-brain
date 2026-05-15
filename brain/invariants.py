@@ -277,6 +277,46 @@ for _row_id, _status in _PHASE3_1_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_1_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.2 Output Ladder: pending row registrations.
+#
+# Step 6 applies the accepted v0.7 catalog patch before the output runtime
+# layer exists. These registrations keep I-CAT-01 coverage coherent while
+# making any attempted row execution fail explicitly. Later campaign steps
+# replace these with real fixture-backed checks.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_2_PENDING_ROWS: dict[str, str] = {
+    "I-OUT-01": "STRUCTURAL",
+    "I-OUT-02": "STRUCTURAL",
+    "I-OUT-03": "REQUIRED",
+    "I-OUT-04": "REQUIRED",
+    "I-OUT-05": "STRUCTURAL",
+    "I-OUT-06": "REQUIRED",
+    "I-OUT-07": "REQUIRED",
+    "I-OUT-08": "REQUIRED",
+    "I-OUT-09": "STRUCTURAL",
+    "I-OUT-10": "REQUIRED",
+    "I-OUT-12": "REQUIRED",
+}
+
+
+def _make_phase3_2_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.2 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_2_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_2_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:

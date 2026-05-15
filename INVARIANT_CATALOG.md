@@ -2,6 +2,8 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
+> **Catalog version:** v0.7. Patches over v0.6 (Phase 3.2 Output Ladder catalog expansion): +7 REQUIRED rows, +4 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for source-tagged output impulses, output echo, recurrence-backed output patterns, token candidates, learned output tokens below language, and local proto-output-action readiness observation. These rows are engineering hypotheses, not Lean theorem claims.
+>
 > **Catalog version:** v0.6. Patches over v0.5 (Phase 3.1 Osmotic Chamber catalog expansion): +8 REQUIRED rows, +4 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for source-tagged phenomenal frames, recurrence/proto-content behavior, salience/probe boundary discipline, and promotion through the existing `tick()` boundary. These rows are engineering hypotheses, not Lean theorem claims.
 >
 > **Catalog version:** v0.5. Patches over v0.4 (Phase 2 v1.2 baseline hardening): +5 STRUCTURAL rows (I-RT-11 single-event tick, I-RT-12 duplicate content_id, I-TRACE-02 trace fail-open, I-TRACE-03 trace reserved-key rejection, I-CAT-01 catalog↔registry coverage); six correctness patches (P1 SafeTracer, P2 single-event guard, P3 duplicate guard, P4 ambiguous-parse rejection, P5 FutureMSIModel runtime guard, P6 trace envelope reserved-key protection); `SourceKind` schema field inferred by `tools/catalog.py`; auto-generated `brain/_catalog_ids.py`; strict `tools.catalog counts` gate; README synced. No new fixtures; existing fixtures gain new rows.
@@ -371,6 +373,28 @@ choices; the family of constraints is the commitment.
 | I-SBX-01 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Probe output is not knowledge by itself. | Probe echo can update substrate history but cannot mark content preserved or promoted without the other deterministic gates. | `brain/development/probes.py` | `salience_is_not_truth.py` | STRUCTURAL |
 | I-SBX-02 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Salience drive is not truth and cannot bypass stability or prediction gain. | Promotion remains false when salience is high but stability or positive prediction gain is absent. | `brain/development/promotion.py` | `salience_is_not_truth.py` | REQUIRED |
 
+### Phase 3.2 Output Ladder developmental invariants
+
+These rows are Phase 3.2 engineering hypotheses. They bind deterministic
+output-ladder behavior to runtime checks without claiming new Lean theorems.
+Output remains below language, below reflective agency, below Mode B, and below
+Phase 3.3 worldlet semantics.
+
+| ID | Source | Proposition | Python assertion | Owning module | Fixture | Status |
+|---|---|---|---|---|---|---|
+| I-OUT-01 | Engineering hypothesis (Phase 3.2 Output Ladder) | `OutputImpulse` is a bounded printable output event below language and agency. | Construction requires non-empty printable output text, a printable impulse ID, and no reserved `COGITO_ID` target. | `brain/development/output.py` | `output_echo.py` | STRUCTURAL |
+| I-OUT-02 | Engineering hypothesis (Phase 3.2 Output Ladder) | Output provenance reuses existing Phase 3.1 source kinds and exact confidence discipline. | Output provenance uses `FrameSourceKind` values from the existing enum and `Fraction` confidence in `[0, 1]`; no `OUTPUT_ECHO` enum member is introduced in v0.7. | `brain/development/output.py` | `output_echo.py` | STRUCTURAL |
+| I-OUT-03 | Engineering hypothesis (Phase 3.2 Output Ladder) | Source-tagged output impulses can be recorded deterministically. | Appending an `OutputImpulse` to `OutputHistory` is copy-on-write / append-only and preserves source/provenance metadata exactly. | `brain/development/output.py` | `output_echo.py` | REQUIRED |
+| I-OUT-04 | Engineering hypothesis (Phase 3.2 Output Ladder) | Output echo enters output history but is not agency. | Creating an output echo records the impulse and echo provenance without selecting an `Act`, constructing an `AgencyWitness`, claiming `PRESERVE`, or calling `tick()`. | `brain/development/output.py` | `output_echo.py` | REQUIRED |
+| I-OUT-05 | Engineering hypothesis (Phase 3.2 Output Ladder) | Output echo objects carry no direct agency or runtime mutation handles. | `OutputEcho` / `OutputHistory` objects expose no `Act`, `ModeOp`, `AgencyWitness`, `PerceptEvent`, direct state-mutation callback, or feasible-PCE field. | `brain/development/output.py` | `output_echo.py` | STRUCTURAL |
+| I-OUT-06 | Engineering hypothesis (Phase 3.2 Output Ladder) | One-off output noise does not become an output pattern. | A single output impulse leaves no `OutputPattern`, `OutputTokenCandidate`, or `LearnedOutputToken` in history. | `brain/development/output.py` | `output_pattern.py` | REQUIRED |
+| I-OUT-07 | Engineering hypothesis (Phase 3.2 Output Ladder) | Repeated matching output impulses create or update an `OutputPattern`. | Two matching source-tagged output impulses deterministically create or update the same pattern ID with recurrence evidence. | `brain/development/output.py` | `output_pattern.py` | REQUIRED |
+| I-OUT-08 | Engineering hypothesis (Phase 3.2 Output Ladder) | Token candidates require recurrence plus echo provenance. | `OutputTokenCandidate` construction rejects recurrent-only support, echo-only support, one-off support, missing provenance, and reserved identifiers. | `brain/development/output.py` | `output_token_candidate.py` | REQUIRED |
+| I-OUT-09 | Engineering hypothesis (Phase 3.2 Output Ladder) | Learned output tokens remain below language. | `LearnedOutputToken` exposes stable token bookkeeping but no grammar, teacher-correction, world-reference, readability, social-meaning, or command-syntax fields. | `brain/development/output.py` | `output_token_candidate.py` | STRUCTURAL |
+| I-OUT-10 | Engineering hypothesis (Phase 3.2 Output Ladder) | Learned output token construction requires token-candidate support and remains below runtime mutation. | A learned token can be created only from a valid `OutputTokenCandidate`; construction does not emit a `PerceptEvent`, call `tick()`, or mutate TLICA state. | `brain/development/output.py` | `output_token_candidate.py` | REQUIRED |
+| I-OUT-11 | Engineering hypothesis (Phase 3.2 Output Ladder) | Proto-output-action readiness is inspectable but non-gating in v0.7. | The fixture records whether local output-history support would make a below-agency proto-output-action candidate plausible; the row is OBSERVED and cannot fail the runner. | `brain/development/output.py` | `output_token_candidate.py` | OBSERVED |
+| I-OUT-12 | Engineering hypothesis (Phase 3.2 Output Ladder) | Output history cannot bypass the `PerceptEvent` / `tick()` boundary. | Before and after output impulse, echo, pattern, candidate, and learned-token construction, profile/MSI/PtCns/registry identities are unchanged. | `brain/development/output.py` | `output_echo.py` | REQUIRED |
+
 ### Meta / runner integrity (Phase 2 v1.2)
 
 > *I-CAT-01 has fixture `_meta` because the check is enforced at runner entry rather than by a fixture function alone. A stub `@register` entry inside `brain/invariants.py` re-runs the audit so the row also satisfies its own registration requirement. See "Validation procedure" below.*
@@ -427,14 +451,17 @@ choices; the family of constraints is the commitment.
 | `focus_contact_protocol.py` | I-DEV-04 |
 | `focus_stabilizes_or_dissolves.py` | I-DEV-07 (OBSERVED) |
 | `proto_content_promotion.py` | I-DEV-05, I-DEV-06 |
+| `output_echo.py` | I-OUT-01, I-OUT-02, I-OUT-03, I-OUT-04, I-OUT-05, I-OUT-12 |
+| `output_pattern.py` | I-OUT-06, I-OUT-07 |
+| `output_token_candidate.py` | I-OUT-08, I-OUT-09, I-OUT-10, I-OUT-11 (OBSERVED) |
 
-21 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1 fixture files are introduced incrementally by the Osmotic Chamber campaign; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green.
+24 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1 and Phase 3.2 fixture files are introduced incrementally by their campaigns; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green.
 
 ---
 
 ## Validation procedure
 
-`python3 -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0.6 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
+`python3 -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0.7 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
 
 ---
 
@@ -447,13 +474,13 @@ choices; the family of constraints is the commitment.
 
 ## Summary counts
 
-- **REQUIRED v0.6 invariants:** 92
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 20
+- **REQUIRED v0.7 invariants:** 99
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 24
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
-- **OBSERVED row-level:** 2 (recorded in run summary, not gating)
+- **OBSERVED row-level:** 3 (recorded in run summary, not gating)
 
-Total tabular entries: 129. v0.6 success is gated by the 92 REQUIRED rows + 20 STRUCTURAL rows (OBSERVED rows are logged but do not gate; the I-CAT-01 runner audit gates separately at startup).
+Total tabular entries: 141. v0.7 success is gated by the 99 REQUIRED rows + 24 STRUCTURAL rows (OBSERVED rows are logged but do not gate; the I-CAT-01 runner audit gates separately at startup).
 
 ---
 

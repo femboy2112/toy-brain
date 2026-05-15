@@ -1,2 +1,1 @@
-"""Phase 3.1 deterministic developmental fixture package."""
-
+"""Phase 3 deterministic developmental fixture package."""

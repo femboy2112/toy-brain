@@ -24,13 +24,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.6 expected counts — bumped by Phase 3.1 Osmotic Chamber catalog rows.
+# v0.7 expected counts — bumped by Phase 3.2 Output Ladder catalog rows.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 92,
-    "STRUCTURAL": 20,
+    "REQUIRED": 99,
+    "STRUCTURAL": 24,
     "NOT-EXERCISED": 3,
     "DEFERRED": 12,
-    "OBSERVED": 2,
+    "OBSERVED": 3,
 }
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."
