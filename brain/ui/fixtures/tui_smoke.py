@@ -847,6 +847,54 @@ class _FakePromptStdscr:
         return (self._max_y, self._max_x)
 
 
+class _FakeRunStdscr:
+    """Minimal stand-in for the live ``stdscr`` used inside
+    :func:`brain.ui.tui.run_curses`.
+
+    Exposes the subset of ``curses.window`` methods the run-loop body
+    consults: ``getmaxyx``, ``clear``, ``refresh``, ``addnstr``, and
+    ``getch`` (returns ``-1`` so the loop hits the empty-keystroke
+    continue branch and immediately re-checks ``session.quit_flag``).
+    The fake is intentionally never asked to drive ``getstr`` — the
+    Step 2 wrapper-default test exits the loop before any keystroke is
+    consumed.
+    """
+
+    def __init__(self, *, max_y: int = 24, max_x: int = 80) -> None:
+        self._max_y = int(max_y)
+        self._max_x = int(max_x)
+        self.paint_calls: int = 0
+        self.cleared: int = 0
+        self.refreshed: int = 0
+        self.getch_calls: int = 0
+
+    def getmaxyx(self) -> tuple[int, int]:
+        return (self._max_y, self._max_x)
+
+    def clear(self) -> None:
+        self.cleared += 1
+
+    def refresh(self) -> None:
+        self.refreshed += 1
+
+    def addnstr(self, row: int, col: int, text: str, n: int) -> None:
+        if not isinstance(text, str):
+            raise TypeError(
+                f"_FakeRunStdscr.addnstr text must be str (got {type(text).__name__})"
+            )
+        if n < 0:
+            raise ValueError("_FakeRunStdscr.addnstr n must be non-negative")
+        self.paint_calls += 1
+
+    def getch(self) -> int:
+        self.getch_calls += 1
+        # Return -1 so :func:`_read_keystroke` yields "" and the run loop
+        # repaints. The body re-checks ``session.quit_flag`` at the top
+        # of the next iteration; the smoke test pre-flips that flag so
+        # control exits cleanly.
+        return -1
+
+
 @register("I-UI-12", status="STRUCTURAL")
 def check_I_UI_12_entrypoint_fails_closed_without_terminal() -> None:
     # --- Branch 1: --check-terminal with no-TTY stdout -----------------
@@ -984,6 +1032,96 @@ def check_I_UI_12_entrypoint_fails_closed_without_terminal() -> None:
         assert exc.code == 0, f"I-UI-12: --help exited with code {exc.code}"
     else:
         raise AssertionError("I-UI-12: --help did not exit")
+
+    # --- Branch 9: usable-terminal default path wires the curses prompt
+    # factory builder into run_curses(). The live entrypoint must call
+    # run_curses() with a ``percept_factory_builder`` so the ``e`` key
+    # opens a real input prompt; without this wiring the QUEUE_PERCEPT
+    # path surfaces "queue percept: no input prompt configured". The
+    # smoke test monkeypatches ``brain.ui.tui.run_curses`` so it can
+    # capture the kwargs without actually starting curses, then asserts
+    # the builder is ``make_curses_percept_factory``.
+    captured_kwargs: dict[str, object] = {}
+
+    def _fake_run_curses(session: object, **kwargs: object) -> None:
+        captured_kwargs.update(kwargs)
+        captured_kwargs["session"] = session
+
+    original_run_curses = ui_tui.run_curses
+    ui_tui.run_curses = _fake_run_curses  # type: ignore[assignment]
+    try:
+        code = ui_main.main(
+            [],
+            stdin=_FakeStream(isatty=True),
+            stdout=_FakeStream(isatty=True),
+            stderr=_FakeStream(isatty=True),
+            env={"TERM": "xterm"},
+        )
+    finally:
+        ui_tui.run_curses = original_run_curses  # type: ignore[assignment]
+    assert code == 0, (
+        f"I-UI-12: usable-terminal entrypoint expected exit 0 (got {code})"
+    )
+    assert "percept_factory_builder" in captured_kwargs, (
+        "I-UI-12: usable-terminal entrypoint did not pass "
+        "percept_factory_builder into run_curses()"
+    )
+    assert captured_kwargs["percept_factory_builder"] is ui_tui.make_curses_percept_factory, (
+        "I-UI-12: usable-terminal entrypoint passed a builder other than "
+        "make_curses_percept_factory"
+    )
+    # The entrypoint must not pass a pre-built ``percept_factory``;
+    # ``run_curses`` rejects passing both, and the builder path is the
+    # contract the live entrypoint declares.
+    assert captured_kwargs.get("percept_factory") is None, (
+        "I-UI-12: usable-terminal entrypoint passed a pre-built "
+        "percept_factory; expected only percept_factory_builder"
+    )
+    # The session and offline client must also be wired through.
+    assert isinstance(captured_kwargs["session"], OperatorSession), (
+        "I-UI-12: usable-terminal entrypoint did not pass an "
+        "OperatorSession into run_curses()"
+    )
+    client_arg = captured_kwargs.get("client")
+    assert isinstance(client_arg, ui_main.OfflineStandInClient), (
+        "I-UI-12: usable-terminal entrypoint did not pass an "
+        "OfflineStandInClient into run_curses()"
+    )
+
+    # --- Branch 10: run_curses() with no factory still defaults to the
+    # curses prompt factory builder. The integration covers the case
+    # where a caller (test or future entrypoint) constructs run_curses
+    # without specifying either factory kwarg; the wrapper's documented
+    # default of ``make_curses_percept_factory`` keeps the live ``e``
+    # path interactive. We exercise this by patching ``curses.wrapper``
+    # so the body executes against a fake stdscr that immediately
+    # surfaces a QUIT keystroke.
+    import curses as _curses
+
+    fake_stdscr = _FakeRunStdscr()
+
+    def _fake_curses_wrapper(body: object) -> None:
+        # mypy-noqa: callable
+        body(fake_stdscr)  # type: ignore[operator]
+
+    original_wrapper = _curses.wrapper
+    original_curs_set = getattr(_curses, "curs_set", None)
+    _curses.wrapper = _fake_curses_wrapper  # type: ignore[assignment]
+    # ``run_curses`` calls curses.curs_set(0) inside the body; the fake
+    # stdscr does not provide a real terminal, so route the call into a
+    # noop to keep the smoke test deterministic.
+    _curses.curs_set = lambda _n: None  # type: ignore[assignment]
+    try:
+        run_session = OperatorSession(state=_make_state())
+        # Pre-flip the quit flag so the loop exits after one paint cycle
+        # without consuming any scripted keystroke; this exercises the
+        # wrapper's defaulting logic without invoking the prompt itself.
+        run_session.quit_flag = True
+        ui_tui.run_curses(run_session, client=_PreserveClient())
+    finally:
+        _curses.wrapper = original_wrapper  # type: ignore[assignment]
+        if original_curs_set is not None:
+            _curses.curs_set = original_curs_set  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------

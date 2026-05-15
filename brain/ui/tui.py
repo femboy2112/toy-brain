@@ -613,6 +613,9 @@ def run_curses(
     *,
     client: Optional["LLMClient"] = None,
     percept_factory: Optional[Callable[[OperatorSession], Command]] = None,
+    percept_factory_builder: Optional[
+        Callable[..., Callable[[OperatorSession], Command]]
+    ] = None,
 ) -> None:
     """Open a curses screen and run the operator session until ``QUIT``.
 
@@ -626,11 +629,46 @@ def run_curses(
     LLM client used for ``STEP_TICK`` dispatches. The wrapper never
     constructs an LLM client itself; that decision belongs to the
     entrypoint (:mod:`brain.ui.__main__`).
+
+    There are two ways to supply a ``QUEUE_PERCEPT`` factory:
+
+    * ``percept_factory`` — a pre-built callable. Useful when the caller
+      already owns a curses window stand-in (for tests). The wrapper
+      passes this object straight through to :func:`step_loop`.
+    * ``percept_factory_builder`` — a callable that is handed the live
+      ``stdscr`` (plus the current ``(width, height)`` geometry) inside
+      :func:`curses.wrapper` and returns the per-iteration factory. This
+      is the path the live entrypoint uses, because the curses window
+      does not exist until :func:`curses.wrapper` runs.
+
+    If neither is supplied, the wrapper defaults to
+    :func:`make_curses_percept_factory` against the live ``stdscr`` so the
+    live entrypoint always has a working interactive prompt without
+    re-importing or re-wiring the helper at every call site.
+
+    Passing both ``percept_factory`` and ``percept_factory_builder`` is a
+    configuration error: the wrapper accepts only one factory source per
+    invocation.
     """
     if not isinstance(session, OperatorSession):
         raise TypeError(
             "run_curses requires an OperatorSession "
             f"(got {type(session).__name__})"
+        )
+    if percept_factory is not None and percept_factory_builder is not None:
+        raise TypeError(
+            "run_curses accepts at most one of percept_factory / "
+            "percept_factory_builder, not both"
+        )
+    if percept_factory is not None and not callable(percept_factory):
+        raise TypeError(
+            "run_curses percept_factory must be callable "
+            f"(got {type(percept_factory).__name__})"
+        )
+    if percept_factory_builder is not None and not callable(percept_factory_builder):
+        raise TypeError(
+            "run_curses percept_factory_builder must be callable "
+            f"(got {type(percept_factory_builder).__name__})"
         )
 
     def _body(stdscr: object) -> None:
@@ -643,29 +681,53 @@ def run_curses(
             pass
         while not session.quit_flag:
             height, width = stdscr.getmaxyx()  # type: ignore[attr-defined]
+            bounded_width = max(int(width), MIN_WIDTH)
+            bounded_height = max(int(height), MIN_HEIGHT)
             view = build_view_for_session(
                 session,
-                width=max(int(width), MIN_WIDTH),
-                height=max(int(height), MIN_HEIGHT),
+                width=bounded_width,
+                height=bounded_height,
             )
             rows = render(view)
             paint_rows(
                 stdscr,
                 rows,
-                width=max(int(width), MIN_WIDTH),
-                height=max(int(height), MIN_HEIGHT),
+                width=bounded_width,
+                height=bounded_height,
             )
             keystroke = _read_keystroke(stdscr)
             if keystroke == "":
                 # No mapped keystroke; loop and repaint.
                 continue
+            # Resolve the effective percept factory for this iteration.
+            # When the caller supplied a pre-built ``percept_factory`` it is
+            # passed straight through. Otherwise the builder (defaulting to
+            # :func:`make_curses_percept_factory`) is called with the live
+            # ``stdscr`` so the QUEUE_PERCEPT prompt can read from the
+            # active terminal. The builder is invoked per iteration so a
+            # terminal resize is picked up by the next prompt.
+            if percept_factory is not None:
+                effective_factory = percept_factory
+            else:
+                builder = (
+                    percept_factory_builder
+                    if percept_factory_builder is not None
+                    else make_curses_percept_factory
+                )
+                # The builder is invoked with keyword geometry so a
+                # builder written against :func:`make_curses_percept_factory`
+                # (which declares ``width`` / ``height`` keyword-only) and
+                # a more permissive ``Callable`` shape both work.
+                effective_factory = builder(
+                    stdscr, width=bounded_width, height=bounded_height
+                )
             step_loop(
                 session,
                 keystroke,
-                width=max(int(width), MIN_WIDTH),
-                height=max(int(height), MIN_HEIGHT),
+                width=bounded_width,
+                height=bounded_height,
                 client=client,
-                percept_factory=percept_factory,
+                percept_factory=effective_factory,
             )
 
     curses.wrapper(_body)
