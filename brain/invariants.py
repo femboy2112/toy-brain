@@ -82,6 +82,12 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.composer_input",
     "brain.ui.fixtures.transcript_log",
     "brain.ui.fixtures.agent_tui_smoke",
+    "brain.development.fixtures.expression_source_enum_closed",
+    "brain.development.fixtures.expression_item_bounded",
+    "brain.development.fixtures.expression_feature_vector_exact",
+    "brain.development.fixtures.expression_no_brainstate_mutation",
+    "brain.development.fixtures.expression_no_source_history_mutation",
+    "brain.development.fixtures.expression_static_audit",
 ]
 
 
@@ -518,22 +524,17 @@ for _row_id, _status in _OPERATOR_TUI_PENDING_ROWS.items():
 
 
 _PHASE3_5_PENDING_ROWS: dict[str, str] = {
-    "I-EXP-01": "REQUIRED",
-    "I-EXP-02": "REQUIRED",
-    "I-EXP-03": "REQUIRED",
+    # Step 7 landed I-EXP-01, I-EXP-02, I-EXP-03, I-EXP-07, I-EXP-08,
+    # I-EXP-13, I-EXP-14, I-EXP-15, and I-EXP-16 (the static audit
+    # fixture covers all three structural audit rows together per the
+    # catalog patch plan's optional bundling allowance).
     "I-EXP-04": "REQUIRED",
     "I-EXP-05": "REQUIRED",
     "I-EXP-06": "REQUIRED",
-    "I-EXP-07": "REQUIRED",
-    "I-EXP-08": "REQUIRED",
     "I-EXP-09": "REQUIRED",
     "I-EXP-10": "REQUIRED",
     "I-EXP-11": "REQUIRED",
     "I-EXP-12": "REQUIRED",
-    "I-EXP-13": "STRUCTURAL",
-    "I-EXP-14": "STRUCTURAL",
-    "I-EXP-15": "STRUCTURAL",
-    "I-EXP-16": "STRUCTURAL",
 }
 
 
