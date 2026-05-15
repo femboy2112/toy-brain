@@ -1,70 +1,122 @@
-# CURRENT_MISSION.md — Model-Agnostic `go` Entry Point
+# CURRENT_MISSION.md — Fast Safe Text Interaction Entry Point
 
 ## One-line instruction
 
-When the user tells any repo-capable agent **`go`** in this repository, the agent should read this file and execute the current campaign.
+When a repo-capable agent receives `go` in this repository, it must read this file, read `CURRENT_CAMPAIGN.md`, continue the active campaign branch, run the next eligible campaign step, commit successful results, push the branch, and stop exactly where the campaign says to stop.
 
-This entry point is model-agnostic. It applies to Codex, Claude Code, or any future agent with equivalent repository read/write, shell, validation, commit, and push capabilities.
+This mission replaces the completed Phase 3.5 mission. It aims for the first safe text-stream interaction loop while preserving the catalog, `COGITO_ID` reservation, and the existing `PerceptEvent` / `tick()` boundary.
 
 ---
 
 ## Current mission
 
-Execute the next eligible step in:
+Execute the **Fast Safe Text Interaction Campaign** in:
 
 ```text
 CURRENT_CAMPAIGN.md
 ```
 
-`CURRENT_CAMPAIGN.md` is currently the Phase 3.5 Expression + ReadabilityPredictor campaign.
+Campaign target:
 
-The active agent must use campaign state detection, prerequisites, test results, and stop conditions to decide which step to run next.
+```text
+Phase 3.6  Reflective Inspection       — minimal read-only developmental summary layer
+Phase 3.7  Text Stream Ingress          — raw text chunks below promotion boundary
+Phase 3.8  Operator Stream Interaction  — typed TUI route to feed chunks and promote only explicit candidates
+```
+
+The intended path is:
+
+```text
+repo-state sync
+  -> minimal reflective inspection
+  -> bounded text stream substrate
+  -> explicit operator-facing stream commands
+  -> promotion candidates only through PerceptEvent + tick()
+```
 
 ---
 
-## Important local command rule
+## Branch / push / PR rule
 
-Use `python3 -m ...` for all Python module commands.
+This mission must use a branch-first Git workflow.
 
-Do **not** use `python -m ...` on this machine unless the user explicitly says a `python` alias exists.
+Preferred branch:
 
-If any copied command says `python -m`, convert it to `python3 -m` before running.
+```text
+campaign/fast-safe-text-interaction
+```
+
+Rules:
+
+```text
+never commit directly to main
+never push directly to main
+commit every successful step that changes files
+push every successful step commit to the campaign branch
+open a PR into main at campaign completion
+never merge the PR without explicit user approval
+```
+
+If the preferred branch already exists, continue it when it is clearly the active campaign branch. Otherwise use a timestamped variant.
+
+Preferred PR title:
+
+```text
+phase3: fast safe text interaction campaign
+```
 
 ---
 
 ## Required source files to read first
 
-Read these before doing anything:
+Read these before doing campaign work:
 
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
+PHASE3_5_EXPRESSION_READABILITY_AUDIT.md
 ```
 
-Then read whatever files the current campaign step requires.
-
-Do not rely on unstated conversation context. The campaign must run from repo-local files.
+Then read whichever files the next campaign step names. Do not rely on chat memory; use repo-local files and the current catalog.
 
 ---
 
-## Campaign execution rules
+## Baseline to verify
 
-1. Run the campaign preflight first.
-2. Determine the next incomplete eligible campaign step from repo state.
-3. Execute only that step's allowed scope.
-4. Use the step's test results to decide whether to continue, fix, commit, or stop.
-5. Commit and push after each successful step.
-6. Stop at explicit approval gates, failing tests requiring user judgment, or campaign completion.
+Expected starting state:
 
-Do not skip ahead to social/language harness, Mode B reflective planning, or later cognitive campaigns.
+```text
+Catalog: v0.12
+Counts: 139 REQUIRED / 48 STRUCTURAL / 5 NOT-EXERCISED / 12 DEFERRED / 8 OBSERVED
+Latest completed campaign: Phase 3.5 Expression + ReadabilityPredictor
+Required latest audit: PHASE3_5_EXPRESSION_READABILITY_AUDIT.md with PASS verdict
+```
+
+Stop if these facts are false or the catalog gate disagrees.
 
 ---
 
-## Global guardrails
+## Architectural guardrails
 
-Do not modify these unless `CURRENT_CAMPAIGN.md` explicitly allows the current step to touch them:
+Preserve the old kernel invariants and Phase 3 discipline:
+
+```text
+raw text never mutates BrainState directly
+raw text never becomes COGITO_ID
+raw text never bypasses PerceptEvent construction
+tick() remains the only TLICA runtime mutation route
+single-event tick discipline remains intact
+Expression evidence remains local-only
+Reflective Inspection remains read-only and below Mode B
+Text Stream evidence remains developmental evidence until explicit promotion
+operator commands remain finite, typed, bounded, and inspectable
+```
+
+Do not add unrestricted host access, unrestricted code evaluation, real LLM calls, social/language harnesses, Mode B planning, or direct TLICA mutation from developmental histories.
+
+Guarded paths may be touched only when the current campaign step explicitly allows it:
 
 ```text
 brain/tlica/
@@ -76,32 +128,15 @@ brain/tick.py
 brain/llm/
 ```
 
-Do not run real LLM scenario commands unless the user explicitly asks.
+---
+
+## Command rule
+
+Use `python3 -m ...` for Python module commands. Convert historical `python -m ...` examples to `python3 -m ...` unless the user has explicitly confirmed a `python` alias.
 
 ---
 
-## Git persistence requirement
-
-After each successful campaign step, the active agent must commit and push.
-
-Rules:
-
-```text
-stage only intended files
-commit with a clear message
-push to current branch / main as appropriate
-report the commit SHA
-```
-
-Committing and pushing completed step results is mandatory if files changed.
-
-Do not commit accidental changes to guarded files.
-
-If there are no changes, report that no commit was made and why.
-
----
-
-## Final report
+## Final report format
 
 After each run, report:
 
@@ -117,16 +152,12 @@ Validation:
 
 Git:
 - commit: <sha or none>
-- push: success / not run with reason
+- branch: <campaign branch>
+- push: success / not needed
+- PR: <url if opened, otherwise not opened yet>
 
 Next:
 - <next campaign step or stop condition>
 ```
 
----
-
-## Stop condition
-
-Stop according to `CURRENT_CAMPAIGN.md`.
-
-Do not continue past a campaign stop gate without a new explicit user instruction.
+Stop according to `CURRENT_CAMPAIGN.md` and do not pass a review gate without a fresh instruction.

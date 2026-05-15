@@ -1,70 +1,100 @@
-# CURRENT_CAMPAIGN.md — Phase 3.5 Expression + ReadabilityPredictor Campaign
+# CURRENT_CAMPAIGN.md — Fast Safe Text Interaction Campaign
 
-## Purpose
-
-Begin the next developmental campaign after the completed Operator TUI work.
-
-This campaign designs and implements a bounded local **Expression + ReadabilityPredictor** layer over existing bottom-up evidence:
+## Campaign status
 
 ```text
-Phase 3.1 Osmotic Chamber
-Phase 3.2 Output Ladder
-Phase 3.3 Minimal Worldlet
-Phase 3.4 Proto-BASIC REPL
-Operator TUI v0.11 + input/switch repair
+DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / FINAL-PR
 ```
 
-The goal is to inspect and score local expression/readability properties without creating language understanding, social communication, Mode B planning, or a real LLM-backed writer.
+This campaign replaces the completed Phase 3.5 Expression + ReadabilityPredictor campaign. It defines the fastest safe route from the current v0.12 repo to a bounded text-stream interaction loop.
+
+The campaign must run on a dedicated branch, must push successful step commits to that branch, and must finish by opening a pull request into `main`. It must not commit or push directly to `main`, and it must not merge without explicit user approval.
+
+Preferred campaign branch:
+
+```text
+campaign/fast-safe-text-interaction
+```
+
+Preferred final PR title:
+
+```text
+phase3: fast safe text interaction campaign
+```
 
 ---
 
-## Saved baseline
+## 0. Strategic target
 
-Expected baseline before this campaign:
-
-```text
-Catalog: v0.11
-Operator TUI Agent-Style Layout: PASS
-Operator TUI input/switch repair: merged
-Counts: 127 REQUIRED / 44 STRUCTURAL / 4 NOT-EXERCISED / 12 DEFERRED / 7 OBSERVED
-Full gate: green
-Entrypoint: python3 -m brain.ui
-```
-
-Required audit artifacts:
+Target user-visible loop:
 
 ```text
-OPERATOR_TUI_AUDIT.md
-OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md
-OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
+operator submits bounded text chunks
+  -> chunks enter local TextStreamHistory
+  -> deterministic stream summaries and candidates become inspectable
+  -> operator explicitly promotes a validated candidate into the queue
+  -> existing /step route remains the only tick() route
 ```
 
-Stop if any required audit is absent or not PASS.
+Target commands after the final campaign phase:
+
+```text
+/stream <text>
+/stream-summary
+/stream-candidates
+/stream-promote <candidate_id>
+/step
+/tick
+/state
+```
+
+This is not a free-form chat layer. Text first becomes local developmental evidence. Only explicit, validated promotion candidates may approach the existing event queue.
 
 ---
 
-## Model-agnostic execution rule
+## 1. Baseline
 
-When the user says `go`, the active repo-capable agent should:
+Expected starting state:
 
 ```text
-read CURRENT_MISSION.md
-read CURRENT_CAMPAIGN.md
-run preflight
-infer the next eligible step from repo state
-execute only that step's allowed scope
-validate as specified
-commit and push after successful steps
-stop at review gates, failures requiring user judgment, or campaign completion
+Catalog: v0.12
+Counts: 139 REQUIRED / 48 STRUCTURAL / 5 NOT-EXERCISED / 12 DEFERRED / 8 OBSERVED
+Latest complete campaign: Phase 3.5 Expression + ReadabilityPredictor
+Latest audit: PHASE3_5_EXPRESSION_READABILITY_AUDIT.md
+Audit verdict: PASS
+Recommended next mission: Phase 3.6 Reflective Inspection
 ```
 
-Use `python3 -m ...` for Python module commands. Do not use `python -m ...` unless the user explicitly says a `python` alias exists.
+Known operational drift to fix first:
+
+```text
+README.md still contains older catalog-count language.
+CURRENT_MISSION.md still pointed at Phase 3.5 before this campaign.
+CURRENT_CAMPAIGN.md still contained the completed Phase 3.5 campaign before this campaign.
+```
 
 ---
 
-## Hard boundaries
+## 2. Non-negotiable boundaries
 
-Do not modify unless a step explicitly allows it:
+Preserve these boundaries throughout the whole macro-campaign:
+
+```text
+COGITO_ID remains reserved
+raw text never maps to COGITO_ID
+raw text never mutates BrainState directly
+developmental histories remain local until explicit promotion
+tick() remains the only TLICA runtime transition route
+single-event tick discipline remains intact
+Expression remains local evidence only
+Readability remains local readability evidence only
+Reflective Inspection remains read-only and below Mode B
+operator commands remain finite, typed, bounded, and inspectable
+```
+
+Do not add unrestricted host capabilities, real LLM behavior, social/language harnessing, Mode B planning, or direct TLICA mutation from developmental histories.
+
+Guarded paths may be touched only when a step explicitly allows them:
 
 ```text
 brain/tlica/
@@ -76,209 +106,198 @@ brain/tick.py
 brain/llm/
 ```
 
-Do not implement:
+---
+
+## 3. Macro-campaign phases
 
 ```text
-real LLM calls
-social/language harness
-Mode B reflective planning
-natural-language teacher/corrector
-host execution
-shell execution
-network I/O
-filesystem save/export
-arbitrary Python execution
-TLICA runtime promotion
-PerceptEvent/tick() promotion from expression evidence
+Step 1      Repo-state sync
+Steps 2-9   Phase 3.6 Reflective Inspection
+Steps 10-18 Phase 3.7 Text Stream Ingress
+Steps 19-26 Phase 3.8 Operator Stream Interaction
+Step 27     Final PR preparation
 ```
 
-No external dependencies. Use only standard library and existing project APIs.
+Each step that changes files must be committed and pushed to the campaign branch before stopping or continuing.
 
 ---
 
-## Phase 3.5 thesis
+# Step 1 — Repo-state sync
 
-Expression and readability are local deterministic harness constructs:
+Purpose: remove operational drift before any new runtime layer is planned.
 
-```text
-Expression = a bounded local representation of how an output-like item is shaped for display/inspection.
-ReadabilityPredictor = a bounded local predictor over expression features, not a measure of truth, intelligence, language understanding, social success, or agency.
-```
-
-Expression evidence may inspect earlier local histories, but must remain local:
+Allowed files:
 
 ```text
-OutputHistory / WorldletHistory / ProtoBasicHistory / OperatorTranscript
-    -> ExpressionRecord / ReadabilityPrediction
-    -> local ExpressionHistory only
-```
-
-No reverse mutation is allowed:
-
-```text
-ExpressionHistory -> BrainState / MSI / PtCns / registry / tick / PerceptEvent / traces / scenarios  NOT ALLOWED
-```
-
----
-
-# Step 0 — Preflight
-
-Read:
-
-```text
+README.md
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-README.md
-INVARIANT_CATALOG.md
-OPERATOR_TUI_AUDIT.md
-OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md
-OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
-brain/development/output.py
-brain/development/worldlet.py
-brain/development/repl.py
-brain/ui/session.py
-brain/ui/transcript.py
-brain/ui/render.py
+PHASE3_FAST_SAFE_TEXT_INTERACTION_ROADMAP.md
 ```
 
-Run:
+Required work:
+
+```text
+update README.md so it no longer claims catalog v0.6/v0.5 as current
+make CURRENT_MISSION.md point to this campaign
+make CURRENT_CAMPAIGN.md describe this campaign
+add or refresh PHASE3_FAST_SAFE_TEXT_INTERACTION_ROADMAP.md
+state that Phase 3.5 is complete and Phase 3.6 is next
+state branch/push/PR workflow explicitly
+```
+
+Validation:
 
 ```bash
-git status --short
-git branch --show-current
-git log --oneline -10
 python3 -m tools.catalog counts
-python3 -m brain.invariants run --id I-UI-23
+python3 -m tools.citations verify
+python3 -m tools.import_audit
 bash tools/check_all.sh
 ```
 
-Stop if the tree is dirty, full gate fails, or any required audit is absent/not PASS.
+Commit message:
+
+```text
+docs(campaign): sync fast-safe text interaction mission
+```
+
+Push branch. Stop after this step if validation fails or README state is ambiguous.
 
 ---
 
-# Step 1 — Phase 3.5 synthesis
+# Step 2 — Phase 3.6 synthesis
 
-Create `PHASE3_5_EXPRESSION_READABILITY_SYNTHESIS.md`.
-
-Include:
+Create:
 
 ```text
-v0.11 baseline summary
-why Expression follows Proto-BASIC + Operator TUI
-Expression thesis
-ReadabilityPredictor thesis
-local evidence boundaries
-why readability is not truth / language / social success / intelligence
-one-way bridge from earlier histories
-non-goals
-risks
-next artifact: PHASE3_5_EXPRESSION_READABILITY_KICKOFF.md
+PHASE3_6_REFLECTIVE_INSPECTION_SYNTHESIS.md
 ```
 
-Validate:
+Purpose: define Reflective Inspection as a read-only developmental summary layer.
+
+Required content:
+
+```text
+v0.12 baseline
+why Phase 3.6 follows Phase 3.5 audit recommendation
+Reflective Inspection thesis
+read-only summary over OutputHistory / WorldletHistory / ProtoBasicHistory / ExpressionHistory / OperatorTranscript where available
+why this is not Mode B
+why this is not language/social communication
+why this is not truth scoring
+why this is not agency
+non-goals
+risks
+next artifact: kickoff
+```
+
+Validation:
 
 ```bash
-git diff --name-only
 python3 -m tools.catalog counts
 ```
 
-Commit/push.
+Commit and push.
 
 ---
 
-# Step 2 — Phase 3.5 kickoff
+# Step 3 — Phase 3.6 kickoff
 
-Create `PHASE3_5_EXPRESSION_READABILITY_KICKOFF.md`.
-
-Cover only:
+Create:
 
 ```text
-ExpressionSource
-ExpressionItem
-ExpressionFeatureVector
-ExpressionRecord
-ReadabilityScore exact Fraction in [0, 1]
-ReadabilityPrediction
-ReadabilityPredictor
-ExpressionHistory
-bounded feature extraction from local histories
-anti-Goodhart rules
-non-mutating inspection of OutputHistory / WorldletHistory / ProtoBasicHistory / OperatorTranscript
+PHASE3_6_REFLECTIVE_INSPECTION_KICKOFF.md
 ```
 
-Do not include real language-model scoring, natural-language teacher/corrector, social feedback, Mode B planning, external corpus, file/network access, PerceptEvent promotion, or TLICA runtime mutation.
+Define only local read-only structures, likely:
 
-Validate and commit/push.
+```text
+ReflectiveSource
+ReflectiveSummaryItem
+ReflectiveInspectionSnapshot
+ReflectiveInspectionSummary
+ReflectionHistory or InspectionHistory if needed, copy-on-write only
+```
+
+Required exclusions:
+
+```text
+no Mode B planning
+no self-modification
+no natural-language teacher
+no social model
+no real LLM calls
+no direct tick promotion
+no TLICA mutation
+no UI integration unless later accepted
+```
+
+Validation:
+
+```bash
+python3 -m tools.catalog counts
+```
+
+Commit and push.
 
 ---
 
-# Step 3 — Kickoff corrigenda
+# Step 4 — Phase 3.6 corrigenda
 
-Create `PHASE3_5_EXPRESSION_READABILITY_CORRIGENDA.md`.
+Create:
+
+```text
+PHASE3_6_REFLECTIVE_INSPECTION_CORRIGENDA.md
+```
 
 Check:
 
 ```text
-expression vs language distinction
-readability vs truth distinction
-readability vs social success distinction
-readability vs agency distinction
-feature extraction determinism
-bounded exact score discipline
-anti-Goodhart requirements
+reflection vs Mode B
+inspection vs agency
+summary vs truth
+read-only locality
+bounded exact counts/statistics
+source-history non-mutation
+whether UI integration is deferred
 which rows should be REQUIRED / STRUCTURAL / OBSERVED / NOT-EXERCISED
-whether ExpressionHistory must remain local only
-whether any UI integration is allowed or deferred
 ```
 
-Validate and commit/push.
+Commit and push.
 
 ---
 
-# Step 4 — Catalog patch plan
+# Step 5 — Phase 3.6 catalog patch plan
 
-Create `PHASE3_5_EXPRESSION_READABILITY_CATALOG_PATCH_PLAN.md`.
+Create:
 
-Design the future catalog patch without applying it.
+```text
+PHASE3_6_REFLECTIVE_INSPECTION_CATALOG_PATCH_PLAN.md
+```
 
 Likely row family:
 
 ```text
-I-EXP-*
+I-REF-*
 ```
 
 Likely row themes:
 
 ```text
-ExpressionSource is a finite closed enumeration
-ExpressionItem is bounded printable local evidence
-ExpressionFeatureVector is deterministic and exact
-ReadabilityScore is Fraction in [0,1]
-ReadabilityPrediction is local and source-tagged
-valid readability does not imply truth/language/social success
-anti-Goodhart prevents score inflation by repetition/length alone
-ExpressionHistory is copy-on-write and local
-no mutation of BrainState/MSI/PtCns/registry/developmental histories
-aggregate expression summaries are OBSERVED only
+finite source enumeration
+bounded read-only summary records
+deterministic exact aggregate counts
+summary construction does not mutate source histories
+summary construction does not mutate BrainState/MSI/PtCns/registry
+no Mode B / agency / truth / language claims
+OBSERVED aggregate inspection walk
 ```
 
-Specify row table, statuses, owning modules, fixture roster, count impact from v0.11, catalog patch mechanics, pending registration plan, strict implementation order, open decisions, and stop conditions.
-
-Validate and commit/push.
+Stop at review gate after committing and pushing this plan. Do not apply catalog patch until user approves the plan.
 
 ---
 
-# Step 5 — Review gate
-
-Do not proceed to Step 6 unless the catalog patch plan is coherent and no open decision blocks implementation.
-
-Stop if the plan requires real LLM calls, external corpus, social/language harness, Mode B planning, truth scoring, host/shell/network/file execution, BrainState/MSI/PtCns mutation, tick() semantic changes, scenario/trace schema changes, new external dependencies, or weakening existing I-* safety rows.
-
-Proceed only when the user says `go` again or explicitly accepts the plan.
-
----
-
-# Step 6 — Apply accepted catalog patch
+# Step 6 — Apply Phase 3.6 catalog patch
 
 Allowed files:
 
@@ -289,16 +308,16 @@ brain/_catalog_ids.py
 brain/invariants.py
 ```
 
-Optional package markers only if accepted by the patch plan:
+Optional package marker if the accepted plan allows it:
 
 ```text
-brain/development/expression.py
-brain/development/fixtures/expression_core.py
+brain/development/reflective.py
+brain/development/fixtures/reflective_*.py
 ```
 
-Apply only accepted rows, expected count updates, generated IDs, and pending registrations. Do not implement runtime behavior unless explicitly allowed by the accepted plan.
+Apply accepted rows only. Register pending checks where needed so coverage stays coherent.
 
-Run:
+Validation:
 
 ```bash
 python3 -m tools.catalog counts
@@ -306,114 +325,65 @@ python3 -m tools.catalog generate-ids
 python3 -m tools.catalog counts
 ```
 
-Commit/push.
+Commit and push.
 
 ---
 
-# Step 7 — Implement expression core
+# Step 7 — Implement Phase 3.6 core
 
-Allowed files depend on accepted plan, likely:
+Allowed files per accepted plan, likely:
 
 ```text
-brain/development/expression.py
-brain/development/fixtures/expression_core.py
+brain/development/reflective.py
+brain/development/fixtures/reflective_core.py
 brain/invariants.py
 ```
 
-Expected behavior:
+Required behavior:
 
 ```text
-finite ExpressionSource
-bounded ExpressionItem
-deterministic ExpressionFeatureVector
-no LLM / shell / network / file access
-no BrainState mutation
+frozen/slots records
+bounded source enumeration
+read-only summary construction
+no mutation of source histories
+no mutation of BrainState/MSI/PtCns/registry
 ```
 
-Run targeted checks and commit/push.
+Validation:
+
+```bash
+python3 -m brain.invariants run --id I-REF
+bash tools/check_all.sh
+```
+
+Commit and push.
 
 ---
 
-# Step 8 — Implement ReadabilityPredictor
+# Step 8 — Phase 3.6 full gate and audit
 
-Allowed files likely:
-
-```text
-brain/development/expression.py
-brain/development/fixtures/readability_predictor.py
-brain/invariants.py
-```
-
-Expected behavior:
+Create:
 
 ```text
-ReadabilityScore exact Fraction in [0,1]
-ReadabilityPrediction source-tagged and local
-score computed deterministically from ExpressionFeatureVector
-valid score does not imply truth/language/social success/intelligence
-anti-Goodhart rules for repetition/length/no-op inflation
+PHASE3_6_REFLECTIVE_INSPECTION_AUDIT.md
 ```
 
-Run targeted checks and commit/push.
+Verdict must be PASS / PASS WITH PATCHES / BLOCKED.
 
----
-
-# Step 9 — Implement ExpressionHistory and local summaries
-
-Allowed files likely:
+Audit:
 
 ```text
-brain/development/expression.py
-brain/development/fixtures/expression_history.py
-brain/invariants.py
+row registration
+read-only behavior
+source-history non-mutation
+kernel boundary
+Mode B boundary
+truth/language/social boundary
+full gate
+recommended next mission: Phase 3.7 Text Stream Ingress
 ```
 
-Expected behavior:
-
-```text
-copy-on-write ExpressionHistory
-bounded local entries
-summary inspection only
-OBSERVED aggregate row if accepted
-no mutation of OutputHistory / WorldletHistory / ProtoBasicHistory / OperatorTranscript
-no PerceptEvent/tick promotion
-```
-
-Run targeted checks and commit/push.
-
----
-
-# Step 10 — Optional UI inspection bridge if accepted
-
-Only if the accepted catalog plan explicitly authorizes a UI inspection pane.
-
-Allowed files likely:
-
-```text
-brain/ui/render.py
-brain/ui/session.py
-brain/ui/fixtures/agent_tui_smoke.py
-README.md
-```
-
-Expected behavior:
-
-```text
-UI may display ExpressionHistory summaries
-UI must not compute or mutate expression state unless routed through public helper
-no new save/export path
-no LLM calls
-```
-
-Skip this step if the catalog plan defers UI integration.
-
-Run targeted checks and commit/push.
-
----
-
-# Step 11 — Full gate
-
-Run:
+Validation:
 
 ```bash
 python3 -m tools.catalog counts
@@ -423,28 +393,486 @@ python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-Commit/push final sync docs if needed.
+Commit and push.
 
 ---
 
-# Step 12 — Post-completion audit
+# Step 9 — Phase 3.6 review gate
 
-Create `PHASE3_5_EXPRESSION_READABILITY_AUDIT.md`.
+Stop unless the Phase 3.6 audit is PASS or the user explicitly accepts PASS WITH PATCHES.
 
-Verdict must be PASS / PASS WITH PATCHES / BLOCKED.
-
-Audit scope creep, row registration, expression vs language distinction, readability vs truth/social/agency distinction, score boundedness, anti-Goodhart behavior, history locality, kernel boundary, full gate, and recommended next mission.
-
-Commit/push.
+If accepted, continue to Phase 3.7.
 
 ---
 
-## Campaign complete output
+# Step 10 — Phase 3.7 text-stream synthesis
+
+Create:
 
 ```text
-Phase 3.5 Expression + ReadabilityPredictor campaign complete.
-Catalog: <version>
-Counts: <actual>
-Full gate: pass
-Remaining deferred work: social/language harness, Mode B reflective planning, and later cognitive campaigns
+PHASE3_7_TEXT_STREAM_INGRESS_SYNTHESIS.md
 ```
+
+Purpose: define raw text stream ingress below promotion.
+
+Required thesis:
+
+```text
+TextStreamChunk = bounded local raw/operator text evidence
+TextStreamHistory = copy-on-write bounded local history
+SegmentCandidate = structural span/delimiter candidate, not a language parse
+StreamPattern = recurrence-backed structural pattern, not truth/PRESERVE
+StreamPromotionCandidate = explicit candidate, not yet PerceptEvent
+```
+
+Validation:
+
+```bash
+python3 -m tools.catalog counts
+```
+
+Commit and push.
+
+---
+
+# Step 11 — Phase 3.7 kickoff
+
+Create:
+
+```text
+PHASE3_7_TEXT_STREAM_INGRESS_KICKOFF.md
+```
+
+Define likely structures:
+
+```text
+TextStreamSource
+TextStreamChunk
+TextStreamHistory
+StreamFeatureVector
+SegmentCandidate
+StreamPattern
+StreamPromotionCandidate
+```
+
+Hard constraints:
+
+```text
+bounded printable text
+exact deterministic counts/statistics
+copy-on-write histories
+no direct tick call
+no BrainState mutation
+no COGITO_ID collision
+no language/truth/social/agency claim
+```
+
+Commit and push.
+
+---
+
+# Step 12 — Phase 3.7 corrigenda
+
+Create:
+
+```text
+PHASE3_7_TEXT_STREAM_INGRESS_CORRIGENDA.md
+```
+
+Check:
+
+```text
+raw stream vs PerceptEvent
+chunk text vs language meaning
+segment candidate vs parse
+stream pattern vs truth/PRESERVE
+promotion candidate vs event queue
+bounds and anti-growth rules
+source/provenance rules
+COGITO_ID defenses
+```
+
+Commit and push.
+
+---
+
+# Step 13 — Phase 3.7 catalog patch plan
+
+Create:
+
+```text
+PHASE3_7_TEXT_STREAM_INGRESS_CATALOG_PATCH_PLAN.md
+```
+
+Likely row family:
+
+```text
+I-STRM-*
+```
+
+Likely rows:
+
+```text
+bounded TextStreamChunk
+TextStreamHistory copy-on-write and bounded
+deterministic feature extraction
+SegmentCandidate is structural only
+StreamPattern requires recurrence
+promotion candidate requires explicit provenance and non-reserved ID
+no BrainState/source-history mutation
+no direct tick route
+anti-growth behavior for repeated or huge chunks
+```
+
+Stop at review gate after committing and pushing this plan.
+
+---
+
+# Step 14 — Apply Phase 3.7 catalog patch
+
+Allowed files:
+
+```text
+INVARIANT_CATALOG.md
+tools/catalog.py
+brain/_catalog_ids.py
+brain/invariants.py
+```
+
+Optional package marker if accepted:
+
+```text
+brain/development/text_stream.py
+```
+
+Validation:
+
+```bash
+python3 -m tools.catalog counts
+python3 -m tools.catalog generate-ids
+python3 -m tools.catalog counts
+```
+
+Commit and push.
+
+---
+
+# Step 15 — Implement text stream core
+
+Allowed files per accepted plan, likely:
+
+```text
+brain/development/text_stream.py
+brain/development/fixtures/text_stream_core.py
+brain/invariants.py
+```
+
+Required behavior:
+
+```text
+bounded chunk construction
+bounded copy-on-write history
+exact deterministic feature vector
+non-reserved IDs
+no mutation outside TextStreamHistory
+```
+
+Validation:
+
+```bash
+python3 -m brain.invariants run --id I-STRM
+bash tools/check_all.sh
+```
+
+Commit and push.
+
+---
+
+# Step 16 — Implement segment/pattern/promotion-candidate layer
+
+Allowed files per accepted plan.
+
+Required behavior:
+
+```text
+segment candidates are structural spans only
+patterns require recurrence
+promotion candidates require explicit source/provenance/evidence
+promotion candidates are not PerceptEvents
+promotion candidates do not call tick
+```
+
+Validation:
+
+```bash
+python3 -m brain.invariants run --id I-STRM
+bash tools/check_all.sh
+```
+
+Commit and push.
+
+---
+
+# Step 17 — Phase 3.7 full audit
+
+Create:
+
+```text
+PHASE3_7_TEXT_STREAM_INGRESS_AUDIT.md
+```
+
+Audit:
+
+```text
+boundedness
+copy-on-write behavior
+COGITO_ID defenses
+no direct tick route
+no language/truth/social/agency claims
+full gate
+recommended next mission: Phase 3.8 Operator Stream Interaction
+```
+
+Commit and push.
+
+---
+
+# Step 18 — Phase 3.7 review gate
+
+Stop unless Phase 3.7 audit is PASS or user accepts PASS WITH PATCHES.
+
+---
+
+# Step 19 — Phase 3.8 operator stream synthesis
+
+Create:
+
+```text
+PHASE3_8_OPERATOR_STREAM_INTERACTION_SYNTHESIS.md
+```
+
+Purpose: expose text stream ingress through the finite Operator TUI command surface.
+
+Required target commands:
+
+```text
+/stream <text>
+/stream-summary
+/stream-candidates
+/stream-promote <candidate_id>
+```
+
+Rules:
+
+```text
+/stream appends to TextStreamHistory only
+/stream-summary is read-only
+/stream-candidates is read-only
+/stream-promote validates and queues one explicit candidate
+/stream-promote does not call tick
+/step remains the tick route
+```
+
+Commit and push.
+
+---
+
+# Step 20 — Phase 3.8 kickoff
+
+Create:
+
+```text
+PHASE3_8_OPERATOR_STREAM_INTERACTION_KICKOFF.md
+```
+
+Plan changes to:
+
+```text
+brain/ui/command_line.py
+brain/ui/commands.py
+brain/ui/session.py
+brain/ui/render.py
+brain/ui/fixtures/...
+README.md
+```
+
+Only include exact files if accepted by the later catalog plan.
+
+Commit and push.
+
+---
+
+# Step 21 — Phase 3.8 corrigenda
+
+Create:
+
+```text
+PHASE3_8_OPERATOR_STREAM_INTERACTION_CORRIGENDA.md
+```
+
+Check:
+
+```text
+finite command parser
+bounded input length
+stream command does not tick
+promotion command only queues
+failure isolation is local UI status only
+session resource-free property remains true
+read-only render path remains deterministic
+```
+
+Commit and push.
+
+---
+
+# Step 22 — Phase 3.8 catalog patch plan
+
+Create:
+
+```text
+PHASE3_8_OPERATOR_STREAM_INTERACTION_CATALOG_PATCH_PLAN.md
+```
+
+Likely row family:
+
+```text
+I-UI-STRM-* or I-UI-* continuation
+```
+
+Stop at review gate after committing and pushing.
+
+---
+
+# Step 23 — Apply Phase 3.8 catalog patch
+
+Allowed files per accepted plan, likely:
+
+```text
+INVARIANT_CATALOG.md
+tools/catalog.py
+brain/_catalog_ids.py
+brain/invariants.py
+```
+
+Commit and push after catalog count validation.
+
+---
+
+# Step 24 — Implement stream commands
+
+Allowed files per accepted plan, likely:
+
+```text
+brain/ui/commands.py
+brain/ui/command_line.py
+brain/ui/session.py
+brain/ui/render.py
+brain/ui/fixtures/stream_commands.py
+brain/invariants.py
+```
+
+Required behavior:
+
+```text
+finite parser extension
+bounded text field
+stream history append through session only
+summary/candidate views read-only
+promotion command queues one candidate
+/step remains the only tick route
+```
+
+Validation:
+
+```bash
+python3 -m brain.invariants run --id I-UI
+python3 -m brain.invariants run --id I-STRM
+bash tools/check_all.sh
+```
+
+Commit and push.
+
+---
+
+# Step 25 — Phase 3.8 audit
+
+Create:
+
+```text
+PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md
+```
+
+Audit complete interaction path:
+
+```text
+/stream -> TextStreamHistory only
+/stream-summary -> read-only
+/stream-candidates -> read-only
+/stream-promote -> queue only
+/step -> existing tick path
+failure isolation
+full gate
+```
+
+Commit and push.
+
+---
+
+# Step 26 — End-to-end dry run documentation
+
+Create or update:
+
+```text
+PHASE3_TEXT_INTERACTION_DRY_RUN.md
+```
+
+Document a deterministic local session:
+
+```text
+/stream hello world
+/stream hello world
+/stream-summary
+/stream-candidates
+/stream-promote <candidate_id>
+/step
+/tick
+```
+
+No real LLM scenario is required unless the user explicitly requests it.
+
+Commit and push.
+
+---
+
+# Step 27 — Final PR preparation
+
+Required final validation:
+
+```bash
+python3 -m tools.catalog counts
+python3 -m tools.citations verify
+python3 -m tools.import_audit
+python3 -m brain.invariants run
+bash tools/check_all.sh
+```
+
+Open a PR to `main` with title:
+
+```text
+phase3: fast safe text interaction campaign
+```
+
+PR body must include:
+
+```text
+completed steps
+catalog version/count transition
+validation results
+interaction loop achieved
+remaining deferred work
+confirmation that main was not pushed directly
+confirmation that PR is not merged
+```
+
+Do not merge.
