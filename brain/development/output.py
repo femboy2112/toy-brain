@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
+from hashlib import sha256
 from types import MappingProxyType
 from typing import Mapping
 
@@ -19,6 +20,7 @@ from brain.tlica.profile import COGITO_ID
 OutputEchoID = str
 OutputImpulseID = str
 OutputPatternID = str
+OutputSignature = tuple[tuple[str, str], ...]
 OutputTokenID = str
 
 
@@ -112,15 +114,222 @@ class OutputEcho:
             raise TypeError("OutputEcho.provenance must be OutputProvenance")
 
 
+def output_signature_from_impulse(impulse: OutputImpulse) -> OutputSignature:
+    """Build the exact-match signature for recurrence-backed output."""
+    if not isinstance(impulse, OutputImpulse):
+        raise TypeError(
+            f"impulse must be OutputImpulse (got {type(impulse).__name__})"
+        )
+    return (("text", impulse.text),)
+
+
+def pattern_id_for_output_signature(signature: OutputSignature) -> OutputPatternID:
+    if not isinstance(signature, tuple) or not signature:
+        raise ValueError("I-OUT-07 violated: OutputPattern signature must be non-empty")
+    digest = sha256(repr(signature).encode("utf-8")).hexdigest()[:16]
+    return f"out-pattern:{digest}"
+
+
+def token_id_for_output_pattern(pattern: "OutputPattern") -> OutputTokenID:
+    if not isinstance(pattern, OutputPattern):
+        raise TypeError(
+            f"pattern must be OutputPattern (got {type(pattern).__name__})"
+        )
+    digest = sha256(pattern.pattern_id.encode("utf-8")).hexdigest()[:16]
+    return f"out-token:{digest}"
+
+
+def _require_source_kinds(
+    source_kinds: frozenset[FrameSourceKind],
+    *,
+    field: str,
+    row_id: str,
+) -> None:
+    if not isinstance(source_kinds, frozenset) or not source_kinds:
+        raise ValueError(f"{row_id} violated: {field} must be a non-empty frozenset")
+    for kind in source_kinds:
+        if not isinstance(kind, FrameSourceKind):
+            raise TypeError(f"{field} must contain FrameSourceKind values")
+
+
+@dataclass(frozen=True, slots=True)
+class OutputPattern:
+    """A recurrent exact output form below language and agency."""
+
+    pattern_id: OutputPatternID
+    signature: OutputSignature
+    text: str
+    support_count: int
+    source_kinds: frozenset[FrameSourceKind]
+    impulse_ids: tuple[OutputImpulseID, ...]
+    first_seen_index: int
+    last_seen_index: int
+
+    def __post_init__(self) -> None:
+        require_printable_id(self.pattern_id, field="OutputPattern.pattern_id")
+        if not isinstance(self.signature, tuple) or not self.signature:
+            raise ValueError("I-OUT-07 violated: OutputPattern.signature must be non-empty")
+        for key, value in self.signature:
+            require_printable_id(key, field="OutputPattern.signature key")
+            require_printable_id(value, field="OutputPattern.signature value")
+        if not isinstance(self.text, str) or not self.text or not self.text.strip():
+            raise ValueError("I-OUT-07 violated: OutputPattern.text must be non-empty")
+        if not self.text.isprintable():
+            raise ValueError("I-OUT-07 violated: OutputPattern.text must be printable")
+        if not isinstance(self.support_count, int) or self.support_count < 2:
+            raise ValueError("I-OUT-07 violated: OutputPattern.support_count must be >= 2")
+        _require_source_kinds(
+            self.source_kinds,
+            field="OutputPattern.source_kinds",
+            row_id="I-OUT-07",
+        )
+        if not isinstance(self.impulse_ids, tuple):
+            raise TypeError("OutputPattern.impulse_ids must be a tuple")
+        if len(self.impulse_ids) != self.support_count:
+            raise ValueError(
+                "I-OUT-07 violated: OutputPattern.impulse_ids must match support_count"
+            )
+        for impulse_id in self.impulse_ids:
+            require_printable_id(impulse_id, field="OutputPattern.impulse_id")
+        if (
+            not isinstance(self.first_seen_index, int)
+            or not isinstance(self.last_seen_index, int)
+            or self.first_seen_index < 0
+            or self.last_seen_index < self.first_seen_index
+        ):
+            raise ValueError(
+                "I-OUT-07 violated: OutputPattern seen indices must be ordered"
+            )
+
+    def with_observation(
+        self,
+        *,
+        support_count: int,
+        source_kinds: frozenset[FrameSourceKind],
+        impulse_ids: tuple[OutputImpulseID, ...],
+        last_seen_index: int,
+    ) -> "OutputPattern":
+        return OutputPattern(
+            pattern_id=self.pattern_id,
+            signature=self.signature,
+            text=self.text,
+            support_count=support_count,
+            source_kinds=source_kinds,
+            impulse_ids=impulse_ids,
+            first_seen_index=self.first_seen_index,
+            last_seen_index=last_seen_index,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class OutputTokenCandidate:
+    """Stable output-token candidate requiring recurrence and echo provenance."""
+
+    token_id: OutputTokenID
+    pattern_id: OutputPatternID
+    text: str
+    support_count: int
+    impulse_ids: tuple[OutputImpulseID, ...]
+    echo_ids: tuple[OutputEchoID, ...]
+    source_kinds: frozenset[FrameSourceKind]
+
+    def __post_init__(self) -> None:
+        require_printable_id(self.token_id, field="OutputTokenCandidate.token_id")
+        require_printable_id(self.pattern_id, field="OutputTokenCandidate.pattern_id")
+        if self.token_id == COGITO_ID or self.pattern_id == COGITO_ID:
+            raise ValueError(
+                "I-OUT-08 violated: OutputTokenCandidate cannot use reserved COGITO_ID"
+            )
+        if not isinstance(self.text, str) or not self.text or not self.text.strip():
+            raise ValueError(
+                "I-OUT-08 violated: OutputTokenCandidate.text must be non-empty"
+            )
+        if not self.text.isprintable() or self.text == COGITO_ID:
+            raise ValueError(
+                "I-OUT-08 violated: OutputTokenCandidate.text must be printable "
+                "and non-reserved"
+            )
+        if not isinstance(self.support_count, int) or self.support_count < 2:
+            raise ValueError(
+                "I-OUT-08 violated: OutputTokenCandidate requires recurrent support"
+            )
+        if not isinstance(self.impulse_ids, tuple) or len(self.impulse_ids) < 2:
+            raise ValueError(
+                "I-OUT-08 violated: OutputTokenCandidate requires recurrent impulses"
+            )
+        if len(self.impulse_ids) != self.support_count:
+            raise ValueError(
+                "I-OUT-08 violated: OutputTokenCandidate impulse support mismatch"
+            )
+        if not isinstance(self.echo_ids, tuple) or len(self.echo_ids) < self.support_count:
+            raise ValueError(
+                "I-OUT-08 violated: OutputTokenCandidate requires echo provenance"
+            )
+        for impulse_id in self.impulse_ids:
+            require_printable_id(impulse_id, field="OutputTokenCandidate.impulse_id")
+            if impulse_id == COGITO_ID:
+                raise ValueError(
+                    "I-OUT-08 violated: OutputTokenCandidate cannot reference COGITO_ID"
+                )
+        for echo_id in self.echo_ids:
+            require_printable_id(echo_id, field="OutputTokenCandidate.echo_id")
+            if echo_id == COGITO_ID:
+                raise ValueError(
+                    "I-OUT-08 violated: OutputTokenCandidate cannot reference COGITO_ID"
+                )
+        _require_source_kinds(
+            self.source_kinds,
+            field="OutputTokenCandidate.source_kinds",
+            row_id="I-OUT-08",
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class LearnedOutputToken:
+    """A learned output token below language, syntax, and world reference."""
+
+    token_id: OutputTokenID
+    candidate: OutputTokenCandidate
+
+    def __post_init__(self) -> None:
+        require_printable_id(self.token_id, field="LearnedOutputToken.token_id")
+        if self.token_id == COGITO_ID:
+            raise ValueError("I-OUT-10 violated: learned token cannot use COGITO_ID")
+        if not isinstance(self.candidate, OutputTokenCandidate):
+            raise ValueError(
+                "I-OUT-10 violated: learned token requires OutputTokenCandidate support"
+            )
+        if self.token_id != self.candidate.token_id:
+            raise ValueError(
+                "I-OUT-10 violated: learned token must preserve candidate token_id"
+            )
+
+    @property
+    def text(self) -> str:
+        return self.candidate.text
+
+    @property
+    def pattern_id(self) -> OutputPatternID:
+        return self.candidate.pattern_id
+
+    @property
+    def support_count(self) -> int:
+        return self.candidate.support_count
+
+    @property
+    def source_kinds(self) -> frozenset[FrameSourceKind]:
+        return self.candidate.source_kinds
+
+
 @dataclass(frozen=True, slots=True)
 class OutputHistory:
     """Immutable output-ladder store below the tick boundary."""
 
     impulses: tuple[OutputImpulse, ...] = ()
     echoes: tuple[OutputEcho, ...] = ()
-    output_patterns: Mapping[OutputPatternID, object] | None = None
-    token_candidates: Mapping[OutputTokenID, object] | None = None
-    learned_tokens: Mapping[OutputTokenID, object] | None = None
+    output_patterns: Mapping[OutputPatternID, OutputPattern] | None = None
+    token_candidates: Mapping[OutputTokenID, OutputTokenCandidate] | None = None
+    learned_tokens: Mapping[OutputTokenID, LearnedOutputToken] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.impulses, tuple):
@@ -146,10 +355,22 @@ class OutputHistory:
         learned = dict(self.learned_tokens or {})
         for key in patterns:
             require_printable_id(key, field="OutputHistory.output_patterns key")
+            if not isinstance(patterns[key], OutputPattern):
+                raise TypeError(
+                    "OutputHistory.output_patterns values must be OutputPattern"
+                )
         for key in candidates:
             require_printable_id(key, field="OutputHistory.token_candidates key")
+            if not isinstance(candidates[key], OutputTokenCandidate):
+                raise TypeError(
+                    "OutputHistory.token_candidates values must be OutputTokenCandidate"
+                )
         for key in learned:
             require_printable_id(key, field="OutputHistory.learned_tokens key")
+            if not isinstance(learned[key], LearnedOutputToken):
+                raise TypeError(
+                    "OutputHistory.learned_tokens values must be LearnedOutputToken"
+                )
 
         object.__setattr__(self, "output_patterns", MappingProxyType(patterns))
         object.__setattr__(self, "token_candidates", MappingProxyType(candidates))
@@ -209,4 +430,153 @@ def echo_output_impulse(
         output_patterns=history.output_patterns,
         token_candidates=history.token_candidates,
         learned_tokens=history.learned_tokens,
+    )
+
+
+def update_output_pattern(
+    history: OutputHistory,
+    impulse: OutputImpulse,
+    *,
+    min_support: int = 2,
+) -> tuple[OutputHistory, OutputPattern | None]:
+    """Append an impulse and create/update a pattern only after recurrence."""
+    if not isinstance(history, OutputHistory):
+        raise TypeError(
+            f"history must be OutputHistory (got {type(history).__name__})"
+        )
+    if not isinstance(impulse, OutputImpulse):
+        raise TypeError(
+            f"impulse must be OutputImpulse (got {type(impulse).__name__})"
+        )
+    if not isinstance(min_support, int) or min_support < 2:
+        raise ValueError("min_support must be an integer >= 2")
+
+    next_history = append_output_impulse(history, impulse)
+    signature = output_signature_from_impulse(impulse)
+    matches = tuple(
+        (index, candidate)
+        for index, candidate in enumerate(next_history.impulses)
+        if output_signature_from_impulse(candidate) == signature
+    )
+    support = len(matches)
+    if support < min_support:
+        return next_history, None
+
+    pattern_id = pattern_id_for_output_signature(signature)
+    impulse_ids = tuple(candidate.impulse_id for _, candidate in matches)
+    source_kinds = frozenset(candidate.provenance.source_kind for _, candidate in matches)
+    first_seen = matches[0][0]
+    last_seen = matches[-1][0]
+    existing = next_history.output_patterns.get(pattern_id)
+    if isinstance(existing, OutputPattern):
+        pattern = existing.with_observation(
+            support_count=support,
+            source_kinds=source_kinds,
+            impulse_ids=impulse_ids,
+            last_seen_index=last_seen,
+        )
+    else:
+        pattern = OutputPattern(
+            pattern_id=pattern_id,
+            signature=signature,
+            text=impulse.text,
+            support_count=support,
+            source_kinds=source_kinds,
+            impulse_ids=impulse_ids,
+            first_seen_index=first_seen,
+            last_seen_index=last_seen,
+        )
+
+    patterns = dict(next_history.output_patterns)
+    patterns[pattern.pattern_id] = pattern
+    return (
+        OutputHistory(
+            impulses=next_history.impulses,
+            echoes=next_history.echoes,
+            output_patterns=patterns,
+            token_candidates=next_history.token_candidates,
+            learned_tokens=next_history.learned_tokens,
+        ),
+        pattern,
+    )
+
+
+def maybe_create_output_token_candidate(
+    history: OutputHistory,
+    pattern: OutputPattern | None,
+) -> tuple[OutputHistory, OutputTokenCandidate | None]:
+    """Create a token candidate only from recurrence plus echo provenance."""
+    if not isinstance(history, OutputHistory):
+        raise TypeError(
+            f"history must be OutputHistory (got {type(history).__name__})"
+        )
+    if pattern is None:
+        return history, None
+    if not isinstance(pattern, OutputPattern):
+        raise TypeError(
+            f"pattern must be OutputPattern or None (got {type(pattern).__name__})"
+        )
+    if pattern.pattern_id not in history.output_patterns:
+        return history, None
+
+    support_ids = frozenset(pattern.impulse_ids)
+    echoed_by_impulse = {
+        echo.impulse.impulse_id: echo.echo_id
+        for echo in history.echoes
+        if echo.impulse.impulse_id in support_ids
+    }
+    if support_ids - frozenset(echoed_by_impulse):
+        return history, None
+
+    candidate = OutputTokenCandidate(
+        token_id=token_id_for_output_pattern(pattern),
+        pattern_id=pattern.pattern_id,
+        text=pattern.text,
+        support_count=pattern.support_count,
+        impulse_ids=pattern.impulse_ids,
+        echo_ids=tuple(echoed_by_impulse[impulse_id] for impulse_id in pattern.impulse_ids),
+        source_kinds=pattern.source_kinds,
+    )
+    candidates = dict(history.token_candidates)
+    candidates[candidate.token_id] = candidate
+    return (
+        OutputHistory(
+            impulses=history.impulses,
+            echoes=history.echoes,
+            output_patterns=history.output_patterns,
+            token_candidates=candidates,
+            learned_tokens=history.learned_tokens,
+        ),
+        candidate,
+    )
+
+
+def learn_output_token(
+    history: OutputHistory,
+    candidate: OutputTokenCandidate,
+) -> OutputHistory:
+    """Learn a stable token from an accepted candidate without runtime mutation."""
+    if not isinstance(history, OutputHistory):
+        raise TypeError(
+            f"history must be OutputHistory (got {type(history).__name__})"
+        )
+    if not isinstance(candidate, OutputTokenCandidate):
+        raise TypeError(
+            f"candidate must be OutputTokenCandidate (got {type(candidate).__name__})"
+        )
+    if history.token_candidates.get(candidate.token_id) is not candidate:
+        raise ValueError(
+            "I-OUT-10 violated: learned output token requires registered "
+            "OutputTokenCandidate support"
+        )
+
+    token = LearnedOutputToken(token_id=candidate.token_id, candidate=candidate)
+    learned = dict(history.learned_tokens)
+    learned[token.token_id] = token
+    return OutputHistory(
+        impulses=history.impulses,
+        echoes=history.echoes,
+        output_patterns=history.output_patterns,
+        token_candidates=history.token_candidates,
+        learned_tokens=learned,
     )

@@ -63,6 +63,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.focus_stabilizes_or_dissolves",
     "brain.development.fixtures.proto_content_promotion",
     "brain.development.fixtures.output_echo",
+    "brain.development.fixtures.output_pattern",
+    "brain.development.fixtures.output_token_candidate",
 ]
 
 
@@ -288,13 +290,7 @@ for _row_id, _status in _PHASE3_1_PENDING_ROWS.items():
 # ---------------------------------------------------------------------------
 
 
-_PHASE3_2_PENDING_ROWS: dict[str, str] = {
-    "I-OUT-06": "REQUIRED",
-    "I-OUT-07": "REQUIRED",
-    "I-OUT-08": "REQUIRED",
-    "I-OUT-09": "STRUCTURAL",
-    "I-OUT-10": "REQUIRED",
-}
+_PHASE3_2_PENDING_ROWS: dict[str, str] = {}
 
 
 def _make_phase3_2_pending_check(row_id: str) -> Callable[[], None]:
