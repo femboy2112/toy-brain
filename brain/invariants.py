@@ -563,6 +563,51 @@ for _row_id, _status in _PHASE3_5_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_5_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.6 Reflective Inspection: pending row registrations.
+#
+# Step 6 of the Phase 3.6 campaign applies the accepted v0.13 catalog patch
+# (I-REF-01..I-REF-14) before the reflective runtime layer
+# (brain/development/reflective.py) and its fixtures exist. These pending
+# registrations keep I-CAT-01 coverage coherent while making any attempted
+# row execution fail explicitly. Step 7 (reflective core + fixtures)
+# replaces them with real fixture-backed checks. I-REF-13 (OBSERVED) and
+# I-REF-14 (NOT-EXERCISED) do not participate in I-CAT-01 coverage and are
+# not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_6_PENDING_ROWS: dict[str, str] = {
+    "I-REF-01": "REQUIRED",
+    "I-REF-02": "REQUIRED",
+    "I-REF-03": "REQUIRED",
+    "I-REF-04": "REQUIRED",
+    "I-REF-05": "REQUIRED",
+    "I-REF-06": "REQUIRED",
+    "I-REF-07": "REQUIRED",
+    "I-REF-08": "REQUIRED",
+    "I-REF-09": "STRUCTURAL",
+    "I-REF-10": "STRUCTURAL",
+    "I-REF-11": "STRUCTURAL",
+    "I-REF-12": "STRUCTURAL",
+}
+
+
+def _make_phase3_6_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.6 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_6_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_6_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
