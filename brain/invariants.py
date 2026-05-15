@@ -308,6 +308,46 @@ for _row_id, _status in _PHASE3_2_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_2_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.3 Minimal Worldlet: pending row registrations.
+#
+# Step 6 applies the accepted v0.8 catalog patch before the worldlet runtime
+# layer exists. These registrations keep I-CAT-01 coverage coherent while
+# making any attempted row execution fail explicitly. Later campaign steps
+# replace these with real fixture-backed checks.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_3_PENDING_ROWS: dict[str, str] = {
+    "I-WLD-01": "STRUCTURAL",
+    "I-WLD-02": "REQUIRED",
+    "I-WLD-03": "STRUCTURAL",
+    "I-WLD-04": "REQUIRED",
+    "I-WLD-05": "STRUCTURAL",
+    "I-WLD-06": "REQUIRED",
+    "I-WLD-07": "REQUIRED",
+    "I-WLD-08": "STRUCTURAL",
+    "I-WLD-09": "REQUIRED",
+    "I-WLD-10": "REQUIRED",
+    "I-WLD-11": "STRUCTURAL",
+}
+
+
+def _make_phase3_3_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.3 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_3_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_3_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:

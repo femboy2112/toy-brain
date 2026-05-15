@@ -109,6 +109,12 @@ EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({
     "I-TRJ-04",
     "I-TRJ-08",
     "I-TRJ-09",
+    "I-WLD-02",
+    "I-WLD-04",
+    "I-WLD-06",
+    "I-WLD-07",
+    "I-WLD-09",
+    "I-WLD-10",
 })
 
 EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({
@@ -136,4 +142,9 @@ EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({
     "I-TRACE-01",
     "I-TRACE-02",
     "I-TRACE-03",
+    "I-WLD-01",
+    "I-WLD-03",
+    "I-WLD-05",
+    "I-WLD-08",
+    "I-WLD-11",
 })

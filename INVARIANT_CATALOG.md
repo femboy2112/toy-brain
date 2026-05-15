@@ -2,6 +2,8 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
+> **Catalog version:** v0.8. Patches over v0.7 (Phase 3.3 Minimal Worldlet catalog expansion): +6 REQUIRED rows, +5 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for finite worldlet state/object records, exact bounded worldlet valence, source-tagged local responses, copy-on-write worldlet history, learned-token-backed worldlet attempts, bounded deterministic consequence evidence, and local not-I pushback below external reality, agency, language, Mode B, and `PerceptEvent` / `tick()` promotion. These rows are engineering hypotheses, not Lean theorem claims.
+>
 > **Catalog version:** v0.7. Patches over v0.6 (Phase 3.2 Output Ladder catalog expansion): +7 REQUIRED rows, +4 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for source-tagged output impulses, output echo, recurrence-backed output patterns, token candidates, learned output tokens below language, and local proto-output-action readiness observation. These rows are engineering hypotheses, not Lean theorem claims.
 >
 > **Catalog version:** v0.6. Patches over v0.5 (Phase 3.1 Osmotic Chamber catalog expansion): +8 REQUIRED rows, +4 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for source-tagged phenomenal frames, recurrence/proto-content behavior, salience/probe boundary discipline, and promotion through the existing `tick()` boundary. These rows are engineering hypotheses, not Lean theorem claims.
@@ -395,6 +397,29 @@ Phase 3.3 worldlet semantics.
 | I-OUT-11 | Engineering hypothesis (Phase 3.2 Output Ladder) | Proto-output-action readiness is inspectable but non-gating in v0.7. | The fixture records whether local output-history support would make a below-agency proto-output-action candidate plausible; the row is OBSERVED and cannot fail the runner. | `brain/development/output.py` | `output_token_candidate.py` | OBSERVED |
 | I-OUT-12 | Engineering hypothesis (Phase 3.2 Output Ladder) | Output history cannot bypass the `PerceptEvent` / `tick()` boundary. | Before and after output impulse, echo, pattern, candidate, and learned-token construction, profile/MSI/PtCns/registry identities are unchanged. | `brain/development/output.py` | `output_echo.py` | REQUIRED |
 
+### Phase 3.3 Minimal Worldlet developmental invariants
+
+These rows are Phase 3.3 engineering hypotheses. They bind deterministic
+minimal-worldlet behavior to runtime checks without claiming new Lean theorems.
+Worldlet consequence evidence remains below language, below reflective agency,
+below Mode B, below real host execution, and below `PerceptEvent` / `tick()`
+promotion.
+
+| ID | Source | Proposition | Python assertion | Owning module | Fixture | Status |
+|---|---|---|---|---|---|---|
+| I-WLD-01 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | `WorldletState` and `WorldletObject` are finite deterministic records. | Construction requires printable IDs, finite object mappings, boolean availability, tuple/frozenset accepted-token surfaces, and deterministic object lookup for the same state and target. | `brain/development/worldlet.py` | `worldlet_state.py` | STRUCTURAL |
+| I-WLD-02 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | `WorldletValence` is exact and bounded. | Construction requires a `Fraction` value satisfying `-1 <= value <= 1`; out-of-range values raise and no silent clamping occurs. | `brain/development/worldlet.py` | `worldlet_response.py` | REQUIRED |
+| I-WLD-03 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Worldlet provenance reuses existing source discipline. | `WorldletProvenance` uses `FrameSourceKind`, `Fraction` confidence in `[0, 1]`, printable trace event IDs, and introduces no worldlet-specific source enum member. | `brain/development/worldlet.py` | `worldlet_response.py` | STRUCTURAL |
+| I-WLD-04 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | `WorldletHistory` appends attempts/responses copy-on-write. | Appending a worldlet attempt or response returns a new history, preserves prior attempts/responses exactly, and updates only local `latest_state`. | `brain/development/worldlet.py` | `worldlet_state.py` | REQUIRED |
+| I-WLD-05 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | `WorldletResponse` is a source-tagged local consequence record. | A response carries printable response/attempt IDs, accepted flag, finite reason, bounded `WorldletValence`, and worldlet provenance, but no `PerceptEvent` or runtime callback. | `brain/development/worldlet.py` | `worldlet_response.py` | STRUCTURAL |
+| I-WLD-06 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Worldlet response/history operations do not mutate TLICA runtime state. | Before and after worldlet response and history operations, profile/MSI/PtCns/registry identities are unchanged and no `tick()` call or `PerceptEvent` emission occurs. | `brain/development/worldlet.py` | `worldlet_response.py` | REQUIRED |
+| I-WLD-07 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | `WorldletAttempt` construction requires ready readiness plus registered learned-token support. | Construction rejects readiness-alone, incomplete readiness, missing `LearnedOutputToken`, mismatched token/pattern IDs, missing `OutputHistory` support, reserved IDs, and non-printable attempt/target IDs. | `brain/development/worldlet.py` | `worldlet_attempt.py` | REQUIRED |
+| I-WLD-08 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | `WorldletAttempt` remains below agency, language, and REPL syntax. | Attempt objects expose no `Act`, `ModeOp`, `AgencyWitness`, `PerceptEvent`, selected action, feasible-projected-PCE field, grammar, command syntax, teacher-correction, or `tick` callback. | `brain/development/worldlet.py` | `worldlet_attempt.py` | STRUCTURAL |
+| I-WLD-09 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Accepted worldlet attempts produce deterministic bounded responses. | For an available target whose accepted-token set contains the attempt token, `respond_worldlet` returns a deterministic accepted response with positive bounded valence and advances only local worldlet state/history. | `brain/development/worldlet.py` | `worldlet_consequence.py` | REQUIRED |
+| I-WLD-10 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Rejected, unavailable, and missing-target valid attempts produce bounded negative responses. | A valid constructed attempt against a rejecting target, unavailable target, or missing target returns a deterministic response with negative bounded valence instead of mutating TLICA state or raising after construction. | `brain/development/worldlet.py` | `worldlet_consequence.py` | REQUIRED |
+| I-WLD-11 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Not-I pushback is local response evidence, not an external reality claim. | Pushback fixtures assert response reasons and provenance remain local harness evidence and expose no external-world truth, social teacher, language-understanding, affect-taxonomy, free-will branch, or Mode B planning fields. | `brain/development/worldlet.py` | `worldlet_consequence.py` | STRUCTURAL |
+| I-WLD-12 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Aggregate local consequence history is inspectable. | The fixture records accepted/rejected/unavailable/missing-target response summaries for inspection; the row is OBSERVED and cannot fail the runner. | `brain/development/worldlet.py` | `worldlet_consequence.py` | OBSERVED |
+
 ### Meta / runner integrity (Phase 2 v1.2)
 
 > *I-CAT-01 has fixture `_meta` because the check is enforced at runner entry rather than by a fixture function alone. A stub `@register` entry inside `brain/invariants.py` re-runs the audit so the row also satisfies its own registration requirement. See "Validation procedure" below.*
@@ -454,14 +479,18 @@ Phase 3.3 worldlet semantics.
 | `output_echo.py` | I-OUT-01, I-OUT-02, I-OUT-03, I-OUT-04, I-OUT-05, I-OUT-12 |
 | `output_pattern.py` | I-OUT-06, I-OUT-07 |
 | `output_token_candidate.py` | I-OUT-08, I-OUT-09, I-OUT-10, I-OUT-11 (OBSERVED) |
+| `worldlet_state.py` | I-WLD-01, I-WLD-04 |
+| `worldlet_response.py` | I-WLD-02, I-WLD-03, I-WLD-05, I-WLD-06 |
+| `worldlet_attempt.py` | I-WLD-07, I-WLD-08 |
+| `worldlet_consequence.py` | I-WLD-09, I-WLD-10, I-WLD-11, I-WLD-12 (OBSERVED) |
 
-24 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1 and Phase 3.2 fixture files are introduced incrementally by their campaigns; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green.
+28 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1, Phase 3.2, and Phase 3.3 fixture files are introduced incrementally by their campaigns; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green.
 
 ---
 
 ## Validation procedure
 
-`python3 -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0.7 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
+`python3 -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0.8 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
 
 ---
 
@@ -474,13 +503,13 @@ Phase 3.3 worldlet semantics.
 
 ## Summary counts
 
-- **REQUIRED v0.7 invariants:** 99
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 24
+- **REQUIRED v0.8 invariants:** 105
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 29
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
-- **OBSERVED row-level:** 3 (recorded in run summary, not gating)
+- **OBSERVED row-level:** 4 (recorded in run summary, not gating)
 
-Total tabular entries: 141. v0.7 success is gated by the 99 REQUIRED rows + 24 STRUCTURAL rows (OBSERVED rows are logged but do not gate; the I-CAT-01 runner audit gates separately at startup).
+Total tabular entries: 153. v0.8 success is gated by the 105 REQUIRED rows + 29 STRUCTURAL rows (OBSERVED rows are logged but do not gate; the I-CAT-01 runner audit gates separately at startup).
 
 ---
 
