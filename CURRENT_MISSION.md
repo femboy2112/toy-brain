@@ -1,64 +1,70 @@
-# CURRENT_MISSION.md - Operator TUI Input/Switch Repair
+# CURRENT_MISSION.md — Model-Agnostic `go` Entry Point
 
 ## One-line instruction
 
-When the user tells a repo-capable agent `go` in this repository, read this
-file and execute the current repair campaign in `CURRENT_CAMPAIGN.md`.
+When the user tells any repo-capable agent **`go`** in this repository, the agent should read this file and execute the current campaign.
+
+This entry point is model-agnostic. It applies to Codex, Claude Code, or any future agent with equivalent repository read/write, shell, validation, commit, and push capabilities.
+
+---
 
 ## Current mission
 
-The active mission is the Operator TUI input/switch repair campaign.
+Execute the next eligible step in:
 
 ```text
-Campaign file : CURRENT_CAMPAIGN.md
-Working branch: codex/operator-tui-input-switch-fixes
-Entrypoint    : python3 -m brain.ui
-Catalog       : current INVARIANT_CATALOG.md on this branch
+CURRENT_CAMPAIGN.md
 ```
 
-This mission is a UI repair only. It does not start Phase 3.5 and does not
-change TLICA, tick semantics, LLM behavior, scenario files, trace files, or
-developmental-history semantics.
+`CURRENT_CAMPAIGN.md` is currently the Phase 3.5 Expression + ReadabilityPredictor campaign.
 
-## Verified problems
+The active agent must use campaign state detection, prerequisites, test results, and stop conditions to decide which step to run next.
 
-The following failures were reproduced on `main` before the repair:
+---
 
-```text
-1. python3 -m brain.ui --print-once rendered the legacy single-pane frame
-   instead of the agent layout with bottom composer.
-2. After an invalid typed command, later valid /queue and /step commands
-   dispatched successfully but inherited the stale error in transcript/footer.
-3. Backspace keycode 263, the common curses KEY_BACKSPACE code, was routed as
-   none and did not edit the composer buffer.
-```
+## Important local command rule
+
+Use `python3 -m ...` for all Python module commands.
+
+Do **not** use `python -m ...` on this machine unless the user explicitly says a `python` alias exists.
+
+If any copied command says `python -m`, convert it to `python3 -m` before running.
+
+---
 
 ## Required source files to read first
+
+Read these before doing anything:
 
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
-brain/ui/__main__.py
-brain/ui/session.py
-brain/ui/tui.py
-brain/ui/fixtures/tui_smoke.py
-brain/ui/fixtures/agent_tui_smoke.py
 ```
 
-Then read any file named by the current campaign step.
+Then read whatever files the current campaign step requires.
 
-## Important local command rule
+Do not rely on unstated conversation context. The campaign must run from repo-local files.
 
-Use `python3 -m ...` for Python module commands.
+---
 
-Do not use `python -m ...` on this machine unless the user explicitly says a
-`python` alias exists.
+## Campaign execution rules
 
-## Guardrails
+1. Run the campaign preflight first.
+2. Determine the next incomplete eligible campaign step from repo state.
+3. Execute only that step's allowed scope.
+4. Use the step's test results to decide whether to continue, fix, commit, or stop.
+5. Commit and push after each successful step.
+6. Stop at explicit approval gates, failing tests requiring user judgment, or campaign completion.
 
-Do not modify these files or directories for this repair:
+Do not skip ahead to social/language harness, Mode B reflective planning, or later cognitive campaigns.
+
+---
+
+## Global guardrails
+
+Do not modify these unless `CURRENT_CAMPAIGN.md` explicitly allows the current step to touch them:
 
 ```text
 brain/tlica/
@@ -72,27 +78,36 @@ brain/llm/
 
 Do not run real LLM scenario commands unless the user explicitly asks.
 
-No shell execution, network I/O, filesystem save/export feature, Mode B,
-Phase 3.5 Expression + ReadabilityPredictor, or new dependency is in scope.
+---
 
-## Done condition
+## Git persistence requirement
 
-The mission is complete when:
+After each successful campaign step, the active agent must commit and push.
+
+Rules:
 
 ```text
-branch codex/operator-tui-input-switch-fixes exists
-the three verified problems are fixed
-targeted I-UI checks pass
-bash tools/check_all.sh passes
-CURRENT_CAMPAIGN.md records the final validation results
-changes are committed on the repair branch
+stage only intended files
+commit with a clear message
+push to current branch / main as appropriate
+report the commit SHA
 ```
 
-## Final report format
+Committing and pushing completed step results is mandatory if files changed.
+
+Do not commit accidental changes to guarded files.
+
+If there are no changes, report that no commit was made and why.
+
+---
+
+## Final report
+
+After each run, report:
 
 ```text
 Campaign step executed:
-- Operator TUI input/switch repair
+- <step name>
 
 Created/updated:
 - <files>
@@ -101,10 +116,17 @@ Validation:
 - <commands and results>
 
 Git:
-- branch: codex/operator-tui-input-switch-fixes
 - commit: <sha or none>
-- push: <success / not run with reason>
+- push: success / not run with reason
 
 Next:
-- review and merge the repair branch, or continue with the campaign stop gate
+- <next campaign step or stop condition>
 ```
+
+---
+
+## Stop condition
+
+Stop according to `CURRENT_CAMPAIGN.md`.
+
+Do not continue past a campaign stop gate without a new explicit user instruction.
