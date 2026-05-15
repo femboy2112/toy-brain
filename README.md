@@ -46,12 +46,55 @@ python3 -m brain.ui --print-once       # render one deterministic frame to stdou
 python3 -m brain.ui                    # launch the curses wrapper (TTY required)
 ```
 
+### Interactive flow
+
+Once the curses wrapper is running, the operator drives a bottom-up
+`PerceptEvent` through `tick()` with two keystrokes:
+
+1. press `e` to open a bounded in-TUI prompt for a `content_id` and a
+   short text payload;
+2. type the `content_id`, press `Enter`, type the text payload, then
+   press `Enter` again — this builds a `QueuePerceptPayload` through
+   the public `PerceptEvent` constructor (no kernel internals are
+   touched);
+3. press `space` to step `tick()` with the queued event. The session
+   stores the returned `TickRecord` and replaces `BrainState` through
+   the public `tick()` path only.
+
+The keyboard map matches the help pane and is the closed enumeration
+enforced by `I-UI-13`:
+
+```text
+e          open the bounded percept prompt (content_id then text;
+           empty input cancels and surfaces a local UI error)
+<text>     printable input for content_id / text payload
+<Enter>    finish the current prompt field
+space      step tick() with the queued PerceptEvent (uses the local
+           OfflineStandInClient that always returns "PRESERVE")
+s / t / o / w / r   switch the active view (state, tick, output,
+           worldlet, repl)
+c          clear the local UI status and error fields
+?          show the help pane (`h` is an alias)
+q          quit the wrapper cleanly
+```
+
+Non-interactive entrypoints (no terminal required):
+
+- `python3 -m brain.ui --print-once` renders one deterministic frame
+  of the default operator view to `stdout` and exits;
+- `python3 -m brain.ui --check-terminal` prints the result of the
+  pure terminal-detection probe and exits without touching `curses`.
+
 Behaviour rules (enforced by the `I-UI-*` catalog rows):
 
 - read-only snapshots over kernel state (no mutation paths);
 - pure renderer is deterministic and free of file / network / shell I/O;
 - the only mutation route is `tick(...)` driven from a bounded operator
   event queue;
+- the live curses entrypoint wires
+  `brain.ui.tui.make_curses_percept_factory` into `run_curses` so the
+  `e` key opens a real prompt instead of surfacing "queue percept:
+  no input prompt configured";
 - no real LLM, no subprocess, no shell, no network, no filesystem
   writes outside an explicit reviewed save / export policy (none in
   this campaign).

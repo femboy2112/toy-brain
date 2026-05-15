@@ -320,12 +320,27 @@ def main(
     # The wrapper is responsible for the actual screen lifecycle; we
     # only construct the default session and the offline stand-in
     # client and pass them through.
-    from brain.ui.tui import run_curses
+    #
+    # The ``percept_factory_builder`` is passed in so the curses wrapper
+    # can construct a live :func:`brain.ui.tui.prompt_queue_percept`
+    # closure against the real ``stdscr`` once :func:`curses.wrapper`
+    # has obtained it. Without this wiring the ``e`` key would map to
+    # ``QUEUE_PERCEPT`` but :func:`step_loop` would surface
+    # "queue percept: no input prompt configured" because no factory
+    # was available — the regression the live-input campaign exists to
+    # patch. Passing the builder (not a pre-built factory) keeps the
+    # window reference scoped to the body of :func:`curses.wrapper`,
+    # matching the existing ``run_curses`` lifecycle.
+    from brain.ui.tui import make_curses_percept_factory, run_curses
 
     session = build_default_session()
     client = OfflineStandInClient()
     try:
-        run_curses(session, client=client)
+        run_curses(
+            session,
+            client=client,
+            percept_factory_builder=make_curses_percept_factory,
+        )
     except KeyboardInterrupt:
         # A clean Ctrl-C exit is a documented quit path.
         return 0
