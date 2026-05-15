@@ -43,7 +43,7 @@ layer.
 
 ```bash
 python3 -m brain.ui --check-terminal   # probe terminal usability
-python3 -m brain.ui --print-once       # render one deterministic frame to stdout
+python3 -m brain.ui --print-once       # render one deterministic agent frame to stdout
 python3 -m brain.ui                    # launch the curses wrapper (TTY required)
 ```
 
@@ -54,7 +54,7 @@ with a bottom typed-command composer. The layout is built from
 `brain.ui.layout.AgentLayout.from_size(width, height)` and is
 deterministic: header / state / inspector / transcript / composer /
 footer panes always exist on terminals at or above the documented floor
-(20 cols × 6 rows), and the composer is never dropped on small
+(20 cols x 6 rows), and the composer is never dropped on small
 terminals.
 
 ```text
@@ -141,18 +141,19 @@ model until the buffer is submitted, cleared, or explicitly emptied.
 
 Non-interactive entrypoints (no terminal required):
 
-- `python3 -m brain.ui --print-once` renders one deterministic frame
-  of the default operator view (legacy single-pane layout) to `stdout`
-  and exits;
+- `python3 -m brain.ui --print-once` renders one deterministic
+  agent-layout frame of the default operator view, including the bottom
+  composer, to `stdout` and exits;
 - `python3 -m brain.ui --check-terminal` prints the result of the
   pure terminal-detection probe and exits without touching `curses`.
 
 Behaviour rules (enforced by the `I-UI-*` catalog rows):
 
 - read-only snapshots over kernel state (no mutation paths);
-- pure renderers (`brain.ui.render.render` for the legacy single-pane
-  view, `brain.ui.render.render_agent` for the agent layout) are
-  deterministic and free of file / network / shell I/O;
+- pure renderers (`brain.ui.render.render` for the retained legacy
+  view-model fixtures, `brain.ui.render.render_agent` for the live
+  agent layout and `--print-once`) are deterministic and free of file /
+  network / shell I/O;
 - the only mutation route is `tick(...)` driven from a bounded
   operator event queue, dispatched through
   `OperatorSession.dispatch(Command(STEP_TICK))`;

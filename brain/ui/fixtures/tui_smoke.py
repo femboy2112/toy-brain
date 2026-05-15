@@ -978,6 +978,15 @@ def check_I_UI_12_entrypoint_fails_closed_without_terminal() -> None:
     assert code == 0, f"I-UI-12: --print-once expected exit 0 (got {code})"
     frame = fake_stdout.getvalue()
     assert frame, "I-UI-12: --print-once produced no output"
+    assert "toy-brain operator" in frame, (
+        "I-UI-12: --print-once did not render the agent header"
+    )
+    assert "mode=local-cmd" in frame, (
+        "I-UI-12: --print-once did not render the bottom composer"
+    )
+    assert "keys: enter submit" in frame, (
+        "I-UI-12: --print-once did not render the agent footer"
+    )
     # Determinism: running --print-once again produces identical output.
     fake_stdout2 = _FakeStream(isatty=True)
     code2 = ui_main.main(
