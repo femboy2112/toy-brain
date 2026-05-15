@@ -1,24 +1,25 @@
-# CURRENT_CAMPAIGN.md — Phase 3.1 Osmotic Chamber Campaign
+# CURRENT_CAMPAIGN.md — Phase 3.2 Output Ladder Campaign
 
 ## Purpose
 
-This campaign lets Codex proceed through Phase 3.1 without requiring a new `CURRENT_MISSION.md` for every micro-step.
+This campaign lets Codex proceed through Phase 3.2 without requiring a new `CURRENT_MISSION.md` for every micro-step.
 
 When the user says `go`, Codex should:
 
 ```text
 read CURRENT_MISSION.md
 read CURRENT_CAMPAIGN.md
+run preflight
 find the next eligible campaign step
-execute it
+execute only that step's allowed scope
 use test results to choose the next branch
 commit and push after each completed step
 stop only at explicit gates, failures requiring user judgment, or campaign completion
 ```
 
-This campaign is bounded to **Phase 3.1 Osmotic Chamber** only.
+This campaign is bounded to **Phase 3.2 Output Ladder** only.
 
-It does not authorize Phase 3.2+ work.
+It does not authorize Phase 3.3 Minimal Worldlet, Proto-BASIC REPL, expression/readability, social/language, or Mode B implementation.
 
 ---
 
@@ -32,42 +33,38 @@ If copied instructions say `python -m`, silently convert them to `python3 -m` be
 
 ---
 
-## Current accepted inputs
+## Accepted inputs
 
-Treat these repo-local files as accepted campaign inputs unless the user explicitly says otherwise:
+Treat these repo-local files as accepted inputs unless the user explicitly says otherwise:
 
 ```text
 PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
 PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
 PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
+PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+INVARIANT_CATALOG.md
 ```
 
-The catalog patch plan is accepted as the controlling plan for v0.6 unless direct inspection finds an internal contradiction, stale command, bad arithmetic, or conflict with v0.5 tooling.
-
-Core bridge principle:
+Core bridge principle inherited from Phase 3.1:
 
 ```text
 PRESERVE should be earned, not labeled.
+```
+
+Phase 3.2-specific principle:
+
+```text
+Output should become action-like only through echo, recurrence, source-tagged history, and bounded consequence evidence; it is not reflective agency yet.
 ```
 
 ---
 
 ## Current baseline
 
-Current baseline is v0.5 plus trace reserved-key hardening:
+Current baseline should be v0.6 after the Phase 3.1 Osmotic Chamber campaign and promotion-gate tightening.
 
-```text
-84 REQUIRED
-16 STRUCTURAL
-3 NOT-EXERCISED
-12 DEFERRED
-1 OBSERVED
-```
-
-`I-TRACE-03` is present and green.
-
-The next developmental catalog target from the patch plan is projected v0.6:
+Expected baseline:
 
 ```text
 92 REQUIRED
@@ -76,6 +73,8 @@ The next developmental catalog target from the patch plan is projected v0.6:
 12 DEFERRED
 2 OBSERVED
 ```
+
+`I-TRACE-03` is present and green. Phase 3.1 source tags, proto-patterns, probes, proto-content, and promotion through `PerceptEvent` + `tick()` are present.
 
 ---
 
@@ -89,18 +88,20 @@ lean_reference/
 traces/first_scenario_real.jsonl
 traces/RUN_SUMMARY.md
 scenarios/
+brain/tick.py
+brain/llm/
 ```
 
-Never do in this campaign:
+Never implement in this campaign:
 
 ```text
-Phase 3.2 output ladder
 Minimal Worldlet
 Proto-BASIC REPL
 expression layer
+readability predictor
 social/language harness
-Mode B implementation
-real LLM scenario run
+Mode B developmental layer
+real LLM training behavior
 prompt-tuning solely to force the four-tick scenario to pass
 seeded-MSI scenario shortcut
 ```
@@ -130,12 +131,15 @@ If tests fail, fix within the step's allowed scope. If the fix requires files ou
 
 Codex should infer completed steps from repo state:
 
-- If `PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md` exists and uses `python3 -m` throughout command examples, the catalog patch plan step is complete.
-- If `INVARIANT_CATALOG.md` banner/history includes v0.6 Phase 3.1 rows and `tools/catalog.py` expected counts match projected v0.6 counts, the v0.6 catalog patch step is complete.
-- If `brain/development/stream.py` exists and `I-FRAME-*` checks are registered and green, the frame/source-tag step is complete.
-- If `brain/development/drives.py`, `history.py`, and metric modules exist with relevant checks green, the metrics/history step is complete.
-- If `ProtoPattern`, probes, proto-content, and promotion rows are implemented and all targeted checks pass, the implementation rows are complete.
-- If `bash tools/check_all.sh` is green after all Phase 3.1 rows, the campaign is complete.
+- If `PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md` exists, Step 1 may be complete.
+- If `PHASE3_2_OUTPUT_LADDER_KICKOFF.md` exists, Step 2 may be complete.
+- If `PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md` exists, Step 3 may be complete.
+- If `PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md` exists, Step 4 may be complete.
+- If `INVARIANT_CATALOG.md` has v0.7 output-ladder rows and `tools/catalog.py` expected counts match, Step 5 may be complete.
+- If `brain/development/output.py` or equivalent output-ladder modules exist with targeted rows green, implementation steps may be complete.
+- If `PHASE3_2_OUTPUT_LADDER_AUDIT.md` exists and full gate is green, the campaign may be complete.
+
+When in doubt, inspect files and tests before deciding.
 
 ---
 
@@ -143,7 +147,7 @@ Codex should infer completed steps from repo state:
 
 ## Purpose
 
-Confirm the current repo state before taking action.
+Confirm the repo is ready for Phase 3.2 planning.
 
 ## Required reads
 
@@ -152,7 +156,8 @@ CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
-PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
+PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+brain/development/
 ```
 
 ## Commands
@@ -160,24 +165,248 @@ PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
 ```bash
 git status --short
 git branch --show-current
-git log --oneline -5
+git log --oneline -10
 python3 -m tools.catalog counts
+python3 -m brain.invariants run --id I-DEV-05
+bash tools/check_all.sh
 ```
 
 ## Branch logic
 
-- If there are uncommitted changes not created by Codex for this campaign, stop and report.
-- If counts fail before any changes, stop and report.
-- If the catalog patch plan is missing, recreate or restore it from the accepted plan only after reporting.
-- If the plan exists and is coherent, proceed to Step 1.
+- If there are uncommitted external changes, stop and report.
+- If the full gate fails, do not start Phase 3.2; diagnose within current scope or stop.
+- If the promotion-gate tightening is absent, stop and report that Phase 3.1 audit patch is incomplete.
+- If preflight is green, proceed to Step 1.
 
 ---
 
-# Step 1 — Apply accepted v0.6 catalog patch
+# Step 1 — Phase 3.2 synthesis
 
 ## Purpose
 
-Apply the accepted Phase 3.1 catalog row plan without implementing runtime behavior yet.
+Draft the bridge document explaining why the Output Ladder follows the Osmotic Chamber.
+
+## Output file
+
+```text
+PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md
+```
+
+## Allowed files
+
+```text
+PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md
+```
+
+## Required contents
+
+Include:
+
+```text
+v0.6 Phase 3.1 baseline summary
+why output follows substrate history
+output ladder thesis
+non-goals
+expected phase ordering
+risks
+next artifact: PHASE3_2_OUTPUT_LADDER_KICKOFF.md
+```
+
+Core thesis:
+
+```text
+Output is not language and not reflective action at first; it begins as source-tagged output echo and becomes action-like only after recurrence and consequence history.
+```
+
+## Validation
+
+```bash
+git diff --name-only
+python3 -m tools.catalog counts
+```
+
+Commit/push after drafting.
+
+---
+
+# Step 2 — Phase 3.2 kickoff
+
+## Purpose
+
+Draft a precise kickoff for the Output Ladder implementation plan.
+
+## Output file
+
+```text
+PHASE3_2_OUTPUT_LADDER_KICKOFF.md
+```
+
+## Allowed files
+
+```text
+PHASE3_2_OUTPUT_LADDER_KICKOFF.md
+```
+
+## Required scope
+
+The kickoff should cover only:
+
+```text
+OutputImpulse
+OutputEchoFrame / output source tagging
+OutputPattern / recurrence
+OutputTokenCandidate
+LearnedOutputToken
+ProtoOutputAction
+output-history storage
+output echo is not agency
+stable output token is not language yet
+promotion/interaction with existing substrate history
+```
+
+Do not include:
+
+```text
+Worldlet consequence rules
+Proto-BASIC grammar
+natural language teacher
+expression/readability
+Mode B reflective planning
+```
+
+## Validation
+
+```bash
+git diff --name-only
+python3 -m tools.catalog counts
+```
+
+Commit/push after drafting.
+
+---
+
+# Step 3 — Kickoff corrigenda
+
+## Purpose
+
+Review and tighten the kickoff before catalog rows or code.
+
+## Output file
+
+```text
+PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md
+```
+
+## Allowed files
+
+```text
+PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md
+```
+
+## Required issues to check
+
+At minimum:
+
+```text
+output echo vs agency distinction
+whether output token candidates require recurrence + echo provenance
+whether output source kinds require new enum values or use existing GENERATED / ENDOGENOUS / PROBE_ECHO
+whether output action candidates require worldlet evidence or should stay proto-action only
+whether rows should be REQUIRED / STRUCTURAL / OBSERVED
+whether any Phase 3.3 worldlet semantics leaked in
+```
+
+## Validation
+
+```bash
+git diff --name-only
+python3 -m tools.catalog counts
+```
+
+Commit/push after drafting.
+
+---
+
+# Step 4 — Catalog patch plan
+
+## Purpose
+
+Design the future v0.7 Phase 3.2 catalog patch without applying it yet.
+
+## Output file
+
+```text
+PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md
+```
+
+## Allowed files
+
+```text
+PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md
+```
+
+## Required contents
+
+Specify:
+
+```text
+proposed row families, likely I-OUT-*
+row IDs, statuses, owning modules, fixtures
+count impact from current v0.6
+fixture roster
+owning module map
+catalog patch mechanics
+strict implementation order
+open decisions
+stop condition
+```
+
+Likely row themes:
+
+```text
+output impulses are source-tagged
+output echo enters substrate history but is not agency
+repeated output pattern creates OutputPattern
+token candidate requires recurrence and correction/echo support
+learned output token is still not language
+proto-output action requires consequence history below Mode B
+no direct TLICA state mutation
+```
+
+Do not apply the catalog patch in this step.
+
+## Validation
+
+```bash
+git diff --name-only
+python3 -m tools.catalog counts
+```
+
+Commit/push after drafting.
+
+---
+
+# Step 5 — Review gate before implementation
+
+## Purpose
+
+Do not automatically apply the v0.7 catalog patch unless the catalog patch plan is coherent and no open decision blocks implementation.
+
+## Branch logic
+
+- If the catalog patch plan contains unresolved blockers, stop and report.
+- If the plan is coherent and internally complete, Codex may proceed to Step 6 when the user says `go` again.
+- If the user explicitly says the plan is accepted, proceed to Step 6 in the same campaign.
+
+This is an explicit review gate.
+
+---
+
+# Step 6 — Apply accepted v0.7 catalog patch
+
+## Purpose
+
+Apply the accepted Output Ladder catalog rows.
 
 ## Allowed files
 
@@ -186,60 +415,10 @@ INVARIANT_CATALOG.md
 tools/catalog.py
 brain/_catalog_ids.py
 brain/invariants.py
-brain/development/__init__.py
 brain/development/fixtures/__init__.py
 ```
 
-Only create minimal package/fixture package markers if needed to make future imports legal. Do not implement chamber logic in this step.
-
-## Required catalog additions
-
-Add the 13 planned Phase 3.1 rows:
-
-```text
-I-FRAME-01
-I-FRAME-02
-I-FRAME-03
-I-FRAME-04
-I-DEV-01
-I-DEV-02
-I-DEV-03
-I-DEV-04
-I-DEV-05
-I-DEV-06
-I-DEV-07
-I-SBX-01
-I-SBX-02
-```
-
-Use the planned statuses:
-
-```text
-REQUIRED +8
-STRUCTURAL +4
-OBSERVED +1
-```
-
-Update projected counts to:
-
-```text
-92 REQUIRED
-20 STRUCTURAL
-3 NOT-EXERCISED
-12 DEFERRED
-2 OBSERVED
-```
-
-## Important I-CAT-01 handling
-
-Because I-CAT-01 enforces catalog-to-registry coverage, do **not** leave new REQUIRED/STRUCTURAL rows unregistered.
-
-If a row cannot yet have a real implementation, register an intentional placeholder check that raises an explicit `NotImplementedError` only if the row is not supposed to pass yet. However, preferred campaign behavior is to add row registrations together with minimal implementations in the same step or next immediate step so the gate can move forward.
-
-Safer branch:
-
-- If adding catalog rows alone makes `python3 -m tools.catalog counts` pass but `brain.invariants` fail due missing registration, continue immediately to create placeholder fixture modules and registrations within the allowed scope.
-- Do not claim Step 1 complete until catalog counts and registry coverage are coherent.
+Only create module/fixture placeholders if necessary for registry coherence. Do not implement full output ladder behavior in this step unless the plan explicitly allows it.
 
 ## Commands
 
@@ -249,218 +428,97 @@ python3 -m tools.catalog generate-ids
 python3 -m tools.catalog counts
 ```
 
-Commit/push after counts and generated IDs are coherent. If full invariants are expected to fail because implementations are not present, say so explicitly and proceed to Step 2.
+Commit/push when catalog and generated IDs are coherent. If I-CAT-01 requires fixture registration immediately, create minimal intentional fixture registrations only within the accepted plan.
 
 ---
 
-# Step 2 — Implement I-FRAME rows
+# Step 7 — Implement output echo and source-tag rows
 
 ## Purpose
 
-Implement frame/source-tag data model and deterministic source-tag fixture coverage.
-
-## Rows
-
-```text
-I-FRAME-01
-I-FRAME-02
-I-FRAME-03
-I-FRAME-04
-```
+Implement the first output-ladder layer.
 
 ## Allowed files
 
 ```text
-brain/development/stream.py
-brain/development/fixtures/source_tag_audit.py
+brain/development/output.py
+brain/development/fixtures/output_echo.py
 brain/invariants.py
 brain/_catalog_ids.py
 ```
 
-## Required behavior
-
-Implement:
+## Expected behavior
 
 ```text
-FrameSourceKind = ENDOGENOUS, OPERATOR_INJECTION, PROBE_ECHO, EXTERNAL, GENERATED
-FrameSource
-PhenomenalFrame
-exact source coverage validation
-source confidence Fraction in [0,1]
-constructor rejection for missing/extra/mismatched source tags
+OutputImpulse
+OutputEcho
+output echo source/provenance
+output echo is not agency
+output echo does not mutate TLICA state
 ```
 
-## Commands
-
-```bash
-python3 -m brain.invariants run --id I-FRAME-01
-python3 -m brain.invariants run --id I-FRAME-02
-python3 -m brain.invariants run --id I-FRAME-03
-python3 -m brain.invariants run --id I-FRAME-04
-python3 -m tools.catalog counts
-```
-
-Commit/push when all I-FRAME rows pass.
+Run targeted rows from the accepted plan and commit/push when green.
 
 ---
 
-# Step 3 — Implement drives, history, and metric helpers
+# Step 8 — Implement output pattern / token candidate rows
 
 ## Purpose
 
-Add deterministic substrate support used by later rows.
+Implement recurrence-based output patterns and token candidates.
 
 ## Allowed files
 
 ```text
-brain/development/drives.py
-brain/development/history.py
-brain/development/salience.py
-brain/development/stability.py
-brain/development/prediction_gain.py
-```
-
-## Required behavior
-
-Implement exact-Fraction, deterministic helpers:
-
-```text
-SubstrateDrives
-SubstrateHistory
-salience_v1
-stability_v1
-prediction_gain_v1 positive-delta formula
-```
-
-No row needs to be declared complete unless a row fixture directly depends on it. Commit/push when modules are usable and local checks pass.
-
-## Commands
-
-```bash
-python3 -m tools.catalog counts
-```
-
-If no targeted rows are available yet, do not run full gate unless useful.
-
----
-
-# Step 4 — Implement ProtoPattern recurrence rows
-
-## Rows
-
-```text
-I-DEV-01
-I-DEV-02
-```
-
-## Allowed files
-
-```text
-brain/development/proto_pattern.py
-brain/development/proto_content.py
-brain/development/fixtures/recurrence_detection.py
-brain/development/fixtures/unstable_noise_rejection.py
+brain/development/output.py
+brain/development/fixtures/output_pattern.py
+brain/development/fixtures/output_token_candidate.py
 brain/invariants.py
 ```
 
-## Commands
+## Expected behavior
 
-```bash
-python3 -m brain.invariants run --id I-DEV-01
-python3 -m brain.invariants run --id I-DEV-02
-python3 -m tools.catalog counts
+```text
+repeated output impulse creates output pattern
+one-off output noise does not become token
+stable token candidate requires recurrence/support
+learned output token is not language
 ```
 
-Commit/push when green.
+Commit/push when targeted checks pass.
 
 ---
 
-# Step 5 — Implement probes and salience boundary rows
-
-## Rows
-
-```text
-I-DEV-03
-I-DEV-04
-I-DEV-07
-I-SBX-01
-I-SBX-02
-```
-
-## Allowed files
-
-```text
-brain/development/probes.py
-brain/development/fixtures/salience_is_not_truth.py
-brain/development/fixtures/focus_contact_protocol.py
-brain/development/fixtures/focus_stabilizes_or_dissolves.py
-brain/invariants.py
-```
-
-## Commands
-
-```bash
-python3 -m brain.invariants run --id I-DEV-03
-python3 -m brain.invariants run --id I-DEV-04
-python3 -m brain.invariants run --id I-SBX-01
-python3 -m brain.invariants run --id I-SBX-02
-python3 -m tools.catalog counts
-```
-
-`I-DEV-07` is OBSERVED. Run/report it if runner supports doing so without gating, but do not force it as a correctness gate.
-
-Commit/push when REQUIRED/STRUCTURAL rows are green.
-
----
-
-# Step 6 — Implement ProtoContent promotion rows
-
-## Rows
-
-```text
-I-DEV-05
-I-DEV-06
-```
-
-## Allowed files
-
-```text
-brain/development/promotion.py
-brain/development/proto_content.py
-brain/development/fixtures/proto_content_promotion.py
-brain/invariants.py
-```
-
-## Required behavior
-
-Promotion must:
-
-```text
-create a valid PerceptEvent
-reject COGITO_ID
-require more than salience alone
-preserve existing tick() boundary
-feed one PerceptEvent per tick
-not mutate BrainState/MSI/PtCns directly
-```
-
-## Commands
-
-```bash
-python3 -m brain.invariants run --id I-DEV-05
-python3 -m brain.invariants run --id I-DEV-06
-python3 -m tools.catalog counts
-```
-
-Commit/push when green.
-
----
-
-# Step 7 — Full campaign gate
+# Step 9 — Implement proto-output action rows if authorized
 
 ## Purpose
 
-Verify the whole repo after Phase 3.1 rows are implemented.
+Only implement proto-output-action behavior if the accepted catalog plan includes it.
+
+## Stop logic
+
+If the accepted plan defers proto-output actions to a later phase, skip this step and proceed to audit.
+
+If included, keep it below Mode B and below worldlet semantics.
+
+Allowed behavior:
+
+```text
+proto-output action candidate from recurrence and echo history
+not reflective agency
+not worldlet causality
+not language
+```
+
+Commit/push when targeted checks pass.
+
+---
+
+# Step 10 — Full gate
+
+## Purpose
+
+Verify the whole repo after Phase 3.2 rows are implemented.
 
 ## Commands
 
@@ -472,18 +530,43 @@ python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-## Completion condition
+Commit/push any final sync docs if needed.
 
-Campaign complete when:
+---
+
+# Step 11 — Post-completion audit
+
+## Purpose
+
+Audit Phase 3.2 after implementation.
+
+## Output file
 
 ```text
-all REQUIRED rows green
-all STRUCTURAL rows green
-OBSERVED rows reported but non-gating
-bash tools/check_all.sh exits 0
+PHASE3_2_OUTPUT_LADDER_AUDIT.md
 ```
 
-Commit/push any final documentation updates, then report completion.
+## Required verdict
+
+```text
+PASS
+PASS WITH PATCHES
+BLOCKED
+```
+
+Audit:
+
+```text
+scope creep
+row-family registration
+output echo vs agency distinction
+learned token vs language distinction
+kernel boundary
+full gate
+recommended next mission
+```
+
+Commit/push the audit.
 
 ---
 
@@ -495,10 +578,11 @@ Stop and report if:
 a fix requires editing brain/tlica/
 a fix requires changing tick() semantics
 a fix requires changing scenario schema
-a fix requires changing existing v0.5/v0.6 row meaning rather than implementing it
-a test failure suggests the catalog patch plan itself is wrong
+a fix requires real LLM execution
+a test failure suggests the campaign plan itself is wrong
+Phase 3.3 worldlet semantics become necessary
+Proto-BASIC syntax becomes necessary
 there are uncommitted external changes
-real LLM execution appears necessary
 ```
 
 ---
@@ -508,10 +592,10 @@ real LLM execution appears necessary
 When complete, report:
 
 ```text
-Phase 3.1 Osmotic Chamber campaign complete.
-Catalog: v0.6
+Phase 3.2 Output Ladder campaign complete.
+Catalog: <version>
 Counts: <actual>
 Full gate: pass
 Commits: <list>
-Remaining deferred work: Phase 3.2 output ladder and later phases
+Remaining deferred work: Phase 3.3 Minimal Worldlet and later phases
 ```
