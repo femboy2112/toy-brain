@@ -8,251 +8,343 @@ When the user tells Codex **`go`** in this repository, Codex should read this fi
 
 ## Current mission
 
-Implement the trace reserved-key micro-hardening mission before Phase 3.1 implementation.
+Draft the Phase 3.1 Osmotic Chamber catalog-patch plan:
 
-This is a **boundary-hardening implementation task**, not Phase 3 runtime development.
+```text
+PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
+```
 
-Do **not** implement the Osmotic Chamber or any Phase 3 developmental subsystem.
+This is a **planning artifact only**.
+
+Do **not** edit `INVARIANT_CATALOG.md` yet.
+Do **not** implement Phase 3 runtime code.
+Do **not** create `brain/development/` yet.
 
 ---
 
 ## Why this mission exists
 
-`PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md` decided that trace reserved-key protection must happen before Phase 3.1 implementation.
-
-Reason:
+The Phase 3.1 kickoff and corrigenda are now drafted:
 
 ```text
-trace reserved-key protection is a trace-envelope boundary issue, not a developmental feature
-it predates Phase 3.1
-it should be fixed before developmental trace volume increases
+PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 ```
 
-Current tracer payloads can overwrite reserved envelope fields such as:
+The trace reserved-key micro-hardening is complete and `I-TRACE-03` is green.
 
-```text
-type
-timestamp_ns
-tick_id
-```
+The next safe step is to design the exact catalog patch that will later bump the catalog from v0.5 to v0.6 for Phase 3.1 Osmotic Chamber rows.
 
-Phase 3.1 will introduce richer source-tagged developmental trace payloads. The trace seam must reject or protect reserved keys before that happens.
+Because `I-CAT-01` enforces catalog↔registry coverage, do not edit `INVARIANT_CATALOG.md` until the full row set, fixture names, owning modules, and implementation order are accepted.
+
+This mission drafts the catalog-patch plan only.
 
 ---
 
 ## Required source files to read first
 
-Read these before editing:
+Read these before writing the plan:
 
 ```text
 CURRENT_MISSION.md
 README.md
 INVARIANT_CATALOG.md
+PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
 PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
 PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
-PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
+traces/RUN_SUMMARY.md
 brain/trace.py
 brain/fixtures/trace_v1_1.py
-brain/invariants.py
 tools/catalog.py
 ```
 
-Do not rely on unstated conversation context. The patch must stand on repo-local files.
+Do not rely on unstated conversation context. The plan must stand on repo-local files.
 
 ---
 
-## Required behavior decision
+## Required output file
 
-Use **reject-on-reserved-key** behavior.
-
-When a tracer receives a payload containing reserved envelope keys, it should reject that payload rather than silently allowing overwrite.
-
-Reserved keys:
+Create:
 
 ```text
-type
-timestamp_ns
-tick_id
+PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
 ```
 
-Preferred semantics:
+Do not edit any other file unless absolutely necessary and explicitly justified.
+
+---
+
+## Required contents
+
+The plan must specify the exact proposed v0.6 catalog patch without applying it yet.
+
+### 1. Purpose
+
+State that this document designs the future v0.6 Phase 3.1 catalog patch for the deterministic Osmotic Chamber substrate layer.
+
+State that it is a planning artifact only.
+
+### 2. Baseline
+
+State that current baseline is:
 
 ```text
-MemoryTracer.record(...) raises ValueError on reserved payload keys.
-FileTracer.record(...) raises ValueError on reserved payload keys.
-SafeTracer swallows those failures when wrapping a tracer, preserving observation-only semantics.
-NullTracer may ignore all payloads without validation.
+catalog v0.5
+84 REQUIRED
+16 STRUCTURAL
+3 NOT-EXERCISED
+12 DEFERRED
+1 OBSERVED
 ```
 
-Rationale:
+State that `I-TRACE-03` is already present as trace reserved-key hardening.
+
+### 3. Versioning decision
+
+Recommend:
 
 ```text
-MemoryTracer and FileTracer are concrete trace sinks and should protect their event envelope.
-SafeTracer is the observation-only boundary and should prevent trace-sink failures from affecting the kernel.
-NullTracer discards everything and need not validate.
+The accepted Phase 3.1 Osmotic Chamber catalog patch should bump the catalog to v0.6.
+```
+
+Explain that this is the first developmental-layer catalog expansion and should not be folded into v0.5 trace hardening.
+
+### 4. Source-kind policy
+
+All Phase 3.1 developmental rows should use source wording equivalent to:
+
+```text
+Engineering hypothesis (Phase 3.1 Osmotic Chamber). Not a TLICA theorem. Specific formulas and thresholds are parameterized simulation choices; the family of constraints is the commitment, not any single instantiation.
+```
+
+Rows that are pure kernel-boundary or trace-envelope rules may use plan-convention wording instead.
+
+### 5. Proposed row families
+
+Define row families:
+
+```text
+I-FRAME-*   PhenomenalFrame / FrameSource structure and source coverage
+I-DEV-*     recurrence, salience, stability, prediction gain, probes, promotion
+I-SBX-*     substrate boundary constraints such as salience-is-not-truth and operator-injection-is-not-knowledge
+```
+
+Do not add output-ladder, worldlet, REPL, expression, or social/language rows.
+
+### 6. Proposed rows table
+
+Include a table with at least:
+
+```text
+ID
+Source
+Proposition
+Owning module
+Fixture
+Status
+Rationale
+```
+
+Use the corrigenda row sketch as the starting point:
+
+```text
+I-FRAME-01 exact source coverage
+I-FRAME-02 source confidence Fraction in [0, 1]
+I-FRAME-03 missing/extra/mismatched source tags raise
+I-FRAME-04 active source kinds distinguish ENDOGENOUS / OPERATOR_INJECTION / PROBE_ECHO / EXTERNAL / GENERATED
+I-DEV-01 recurring signature creates or updates ProtoPattern
+I-DEV-02 unstable one-off noise does not become stable proto-content
+I-DEV-03 salience alone does not promote
+I-DEV-04 FOCUS_CONTACT updates ProbeUse / policy history and does not promote by itself
+I-DEV-05 ProtoContent promotion creates valid PerceptEvent and enters through tick()
+I-DEV-06 developmental content cannot produce COGITO_ID
+I-DEV-07 focused contact can stabilize under recurrence or remain unpromoted / dissolve without recurrence (OBSERVED)
+I-SBX-01 probe output is not knowledge by itself
+I-SBX-02 salience drive is not truth and cannot bypass stability or prediction gain
+```
+
+You may refine IDs/propositions if justified, but keep the same scope.
+
+### 7. Count impact
+
+Calculate the proposed count impact.
+
+Starting from v0.5:
+
+```text
+84 REQUIRED
+16 STRUCTURAL
+3 NOT-EXERCISED
+12 DEFERRED
+1 OBSERVED
+```
+
+Show projected v0.6 counts based on the proposed row statuses.
+
+If using the row sketch as-is, expected additions are approximately:
+
+```text
+REQUIRED +8
+STRUCTURAL +4
+OBSERVED +1
+```
+
+Check that arithmetic carefully in the plan.
+
+### 8. Fixture roster
+
+List future fixture files:
+
+```text
+brain/development/fixtures/source_tag_audit.py
+brain/development/fixtures/recurrence_detection.py
+brain/development/fixtures/unstable_noise_rejection.py
+brain/development/fixtures/salience_is_not_truth.py
+brain/development/fixtures/focus_contact_protocol.py
+brain/development/fixtures/focus_stabilizes_or_dissolves.py
+brain/development/fixtures/proto_content_promotion.py
+```
+
+Explain which rows each fixture owns.
+
+### 9. Owning module map
+
+List future owning modules:
+
+```text
+brain/development/stream.py
+brain/development/drives.py
+brain/development/history.py
+brain/development/proto_pattern.py
+brain/development/proto_content.py
+brain/development/salience.py
+brain/development/stability.py
+brain/development/prediction_gain.py
+brain/development/probes.py
+brain/development/promotion.py
+```
+
+Do not create these files yet.
+
+### 10. Catalog patch mechanics
+
+Specify what the future implementation mission must update:
+
+```text
+INVARIANT_CATALOG.md banner/history
+INVARIANT_CATALOG.md row table(s)
+summary counts
+tools/catalog.py EXPECTED_COUNTS
+brain/_catalog_ids.py via python -m tools.catalog generate-ids
+brain/invariants.py FIXTURE_MODULES once fixtures exist
+```
+
+Warn that adding rows without registered checks will trip `I-CAT-01`.
+
+### 11. Implementation order after catalog acceptance
+
+Specify strict order:
+
+```text
+1. accepted catalog patch to v0.6
+2. stream/source tags
+3. drives
+4. history
+5. metrics
+6. proto-pattern
+7. probes
+8. proto-content
+9. promotion
+10. fixtures
+11. runner registration / generated IDs
+12. targeted checks
+13. full gate
+```
+
+### 12. Non-goals
+
+Explicitly prohibit:
+
+```text
+no runtime implementation in this mission
+no direct catalog edits in this mission
+no brain/development files in this mission
+no Phase 3.2+ rows
+no output ladder/worldlet/REPL/expression/social-language rows
+no Mode B rows
+no real LLM scenario run
+```
+
+### 13. Open decisions for review
+
+Include at least:
+
+```text
+whether projected v0.6 counts are acceptable
+whether I-DEV-07 should remain OBSERVED
+whether I-SBX-* belongs as separate family or folded into I-DEV-*
+whether promotion requires at least one ProbeUse in initial v0.6
+whether source kinds should be exactly five active values or include reserved future enum members
+```
+
+### 14. Stop condition
+
+End by saying:
+
+```text
+Do not apply this catalog patch until this plan is reviewed and accepted.
 ```
 
 ---
 
-## Required catalog policy
+## Guardrails
 
-Add one new STRUCTURAL trace row to `INVARIANT_CATALOG.md`.
-
-Recommended ID:
+Do not modify these files during this mission:
 
 ```text
-I-TRACE-03
-```
-
-Recommended row meaning:
-
-```text
-Tracer payloads cannot overwrite reserved event-envelope keys. MemoryTracer and FileTracer reject payloads containing `type`, `timestamp_ns`, or `tick_id`; SafeTracer preserves observation-only behavior by swallowing trace-sink validation failures.
-```
-
-Catalog versioning:
-
-```text
-Do not start Phase 3 catalog rows yet.
-Keep this as a v0.5 micro-hardening completion unless the existing catalog tooling requires a banner/count update.
-If adding I-TRACE-03 changes STRUCTURAL count, update the catalog banner and tools EXPECTED_COUNTS consistently.
-Do not label this as Phase 3.1 developmental work.
-```
-
-Important: keep source kind as `PLAN_CONVENTION` or equivalent plan-convention wording, not `ENGINEERING_HYPOTHESIS`, because this is a trace boundary rule, not a developmental hypothesis.
-
----
-
-## Required implementation scope
-
-Allowed files for this mission:
-
-```text
-brain/trace.py
-brain/fixtures/trace_v1_1.py
+brain/
 INVARIANT_CATALOG.md
-tools/catalog.py
-brain/_catalog_ids.py
-CURRENT_MISSION.md only if absolutely necessary
-```
-
-Optional if needed:
-
-```text
-brain/invariants.py
-README.md
-```
-
-But avoid README unless the catalog version/count change requires documentation sync.
-
-Do not modify:
-
-```text
-brain/development/
-brain/tlica/
-brain/tick.py
-brain/llm/
 lean_reference/
 traces/
 scenarios/
-PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
-PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
+tools/catalog.py
 ```
 
----
-
-## Required implementation details
-
-### 1. Add reserved-key helper
-
-In `brain/trace.py`, define a small helper or constant:
-
-```python
-_RESERVED_TRACE_KEYS = frozenset({"type", "timestamp_ns", "tick_id"})
-```
-
-Add a validator such as:
-
-```python
-def _reject_reserved_payload_keys(payload: Mapping[str, Any]) -> None:
-    overlap = _RESERVED_TRACE_KEYS & set(payload)
-    if overlap:
-        raise ValueError(
-            "I-TRACE-03 violated: trace payload contains reserved envelope keys "
-            f"{sorted(overlap)!r}"
-        )
-```
-
-### 2. Apply to MemoryTracer and FileTracer
-
-In `MemoryTracer.record(...)` and `FileTracer.record(...)`, call the validator before building/updating the event envelope.
-
-The implementation should ensure payload keys cannot overwrite:
+Allowed file for this mission:
 
 ```text
-type
-timestamp_ns
-tick_id
+PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
 ```
 
-### 3. Keep SafeTracer fail-open behavior
+Optional only if needed:
 
-`SafeTracer` should continue swallowing exceptions from the wrapped tracer.
-
-A reserved-key failure inside a raw MemoryTracer/FileTracer should raise.
-
-A reserved-key failure inside `SafeTracer(MemoryTracer(...))` or `SafeTracer(FileTracer(...))` should be swallowed and not affect kernel behavior.
-
-### 4. Add fixture coverage
-
-Extend `brain/fixtures/trace_v1_1.py` with a registered check for the new row.
-
-Recommended check:
-
-```python
-@register("I-TRACE-03", status="STRUCTURAL")
-def check_I_TRACE_03() -> None:
-    # raw MemoryTracer rejects reserved keys
-    # raw FileTracer rejects reserved keys
-    # SafeTracer(raw MemoryTracer) swallows reserved-key failure
-    # SafeTracer(raw FileTracer) swallows reserved-key failure
+```text
+CURRENT_MISSION.md
 ```
 
-Use `tempfile.TemporaryDirectory()` for FileTracer.
-
-Make sure the raised error message contains `I-TRACE-03`.
-
-### 5. Update generated catalog IDs
-
-After catalog row addition:
-
-```bash
-python -m tools.catalog generate-ids
-```
-
-Commit the generated `brain/_catalog_ids.py` if it changes.
+But do not update `CURRENT_MISSION.md` again unless the user asks.
 
 ---
 
 ## Validation
 
-Run:
+After drafting the plan:
+
+Run lightweight checks only:
 
 ```bash
+git diff --name-only
 python -m tools.catalog counts
-python -m brain.invariants run --id I-TRACE
-bash tools/check_all.sh
 ```
 
-If the runner does not support prefix `--id I-TRACE`, use the exact relevant row IDs individually.
-
-Do **not** run:
+Do not run:
 
 ```bash
+bash tools/check_all.sh
 python -m brain.scenario run ...
 ```
 
-unless explicitly asked.
+unless the user explicitly asks.
 
 ---
 
@@ -263,7 +355,7 @@ After validation passes, Codex must commit and push its result.
 Rules:
 
 ```text
-stage only intended mission files
+stage only PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
 commit with a clear message
 push to the current branch / main as appropriate
 report the commit SHA
@@ -281,30 +373,25 @@ When done, report:
 
 ```text
 Created/updated:
-- brain/trace.py
-- brain/fixtures/trace_v1_1.py
-- INVARIANT_CATALOG.md
-- tools/catalog.py if count changed
-- brain/_catalog_ids.py if regenerated
+- PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
 
 Validation:
-- python -m tools.catalog counts: ...
-- python -m brain.invariants run --id I-TRACE: ...
-- bash tools/check_all.sh: ...
+- git diff --name-only: ...
+- python -m tools.catalog counts: pass / not run with reason
 
 Git:
 - commit: <sha or none>
 - push: success / not run with reason
 
 Next:
-- review trace reserved-key hardening
-- then update mission for Phase 3.1 catalog patch / implementation planning
+- review catalog patch plan
+- then update mission to apply accepted v0.6 catalog patch
 ```
 
 ---
 
 ## Stop condition
 
-Stop after implementing trace reserved-key protection, validating, committing, pushing, and reporting the result.
+Stop after drafting `PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md`, validating, committing, pushing, and reporting the result.
 
-Do not proceed into Phase 3.1 Osmotic Chamber implementation unless the user gives a new explicit instruction.
+Do not apply the catalog patch or proceed into Phase 3.1 implementation unless the user gives a new explicit instruction.
