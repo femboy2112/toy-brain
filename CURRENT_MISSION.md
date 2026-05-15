@@ -8,13 +8,13 @@ When the user tells Codex **`go`** in this repository, Codex should read this fi
 
 ## Current mission
 
-Draft the Phase 3.1 kickoff document:
+Review the Phase 3.1 kickoff and draft its corrigenda document:
 
 ```text
-PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 ```
 
-This is a **planning artifact only**.
+This is a **planning/corrigenda artifact only**.
 
 Do **not** implement Phase 3 code.
 
@@ -22,39 +22,34 @@ Do **not** implement Phase 3 code.
 
 ## Why this mission exists
 
-`PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md` is now the bridge from the v0.5 hardened kernel to Phase 3. It names the next artifact:
+`PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md` is now drafted and pushed. It is good enough to enter a corrigenda pass, but review identified several issues to tighten before any Phase 3.1 implementation begins.
 
-```text
-PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
-```
-
-The kickoff must convert the synthesis into a precise implementation plan for Phase 3.1 while preserving the project discipline:
+The corrigenda should turn the kickoff into an implementation-ready plan while preserving the project discipline:
 
 ```text
 plan → corrigenda → code
 ```
 
-This mission drafts the kickoff only. It does not authorize runtime implementation.
+This mission drafts the corrigenda only. It does not authorize runtime implementation.
 
 ---
 
 ## Required source files to read first
 
-Read these before writing the kickoff:
+Read these before writing the corrigenda:
 
 ```text
 CURRENT_MISSION.md
 README.md
 INVARIANT_CATALOG.md
 PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
+PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
 traces/RUN_SUMMARY.md
 BASELINE_HARDENING_KICKOFF.md
 PHASE2_v1_2_CORRIGENDA.md
-.codex/README.md
-.codex/CODEX_AGENT_MAP.md
 ```
 
-Do not rely on unstated conversation context. The kickoff must stand on repo-local files.
+Do not rely on unstated conversation context. The corrigenda must stand on repo-local files.
 
 ---
 
@@ -63,341 +58,209 @@ Do not rely on unstated conversation context. The kickoff must stand on repo-loc
 Create:
 
 ```text
-PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 ```
 
 Do not edit any other file unless absolutely necessary and explicitly justified.
 
 ---
 
-## Required thesis
+## Required review stance
 
-The kickoff must carry this bridge principle:
+Treat `PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md` as a strong draft, not as final.
+
+The corrigenda should preserve what is sound:
 
 ```text
 PRESERVE should be earned, not labeled.
+Phase 3.1 is planning-only until kickoff + corrigenda are accepted.
+Osmotic Chamber only; no output ladder/worldlet/REPL/expression/social-language implementation.
+SubstrateHistory is in scope from day one.
+Existing tick() and PerceptEvent remain the only path into TLICA runtime state.
 ```
 
-It must explain that the real traced behavioral run showed a clean kernel but a 2/4 semantic expectation match, with both PRESERVE-expected self/sunset contents classified as DAMAGE.
-
-It must frame cold-start conservatism as an inference, not a proven fact:
-
-```text
-The trace shows what the LLM emitted; it does not directly prove why.
-```
-
-It must explain Phase 3.1’s empirical motivation:
-
-```text
-In a cogito-only state, identity-adjacent content is not automatically PRESERVE.
-Before lived content exists, new content may properly appear as perturbation.
-The chamber’s job is to build the substrate history that makes clean integration possible.
-```
+The corrigenda should tighten what is underspecified or risky.
 
 ---
 
-## Required kickoff sections
+## Required issues to address
 
-The kickoff must include these sections or equivalent headings.
+The corrigenda must address at least these issues.
 
-### 1. Purpose
+### C1 — FrameSourceKind granularity
 
-State that Phase 3.1 builds the deterministic Osmotic Chamber substrate layer.
-
-State that it is the first Phase 3 implementation phase, but this document is still only a kickoff plan.
-
-### 2. Current baseline
-
-State:
+The kickoff currently proposes:
 
 ```text
-catalog v0.5
-84 REQUIRED
-15 STRUCTURAL
-3 NOT-EXERCISED
-12 DEFERRED
-1 OBSERVED
+EXTERNAL
+INTERNAL
+PROBE
+GENERATED
 ```
 
-State that v0.5 is the acceptance gate and must remain green.
+This is probably too coarse.
 
-### 3. Empirical motivation from trace
-
-Summarize:
+Corrigenda should recommend a Phase 3.1-appropriate source enum that distinguishes at least:
 
 ```text
-trace file: traces/first_scenario_real.jsonl
-summary file: traces/RUN_SUMMARY.md
-kernel health: clean
-semantic match: 2/4
-cold-start conservatism: working inference
+ENDOGENOUS
+OPERATOR_INJECTION
+PROBE_ECHO
+EXTERNAL
+GENERATED
 ```
 
-### 4. Scope
-
-Phase 3.1 must include:
+It should explicitly defer later-only source kinds like:
 
 ```text
-PhenomenalFrame
-FrameSource
-SubstrateDrives
-SubstrateHistory
-ProtoPattern
-ProtoContent
-salience_v1
-stability_v1
-prediction_gain_v1
-SIMILARITY
-FOCUS_CONTACT
-ProbeUse
-ProbePolicyState
-promotion gate to PerceptEvent
-source-tag audit
-first deterministic chamber fixtures
-Phase 3.1 catalog rows and statuses
-trace reserved-key protection decision
+WORLDLET_RESPONSE
+OUTPUT_ECHO
+REPL_FEEDBACK
+TEACHER_SIGNAL
 ```
 
-### 5. Non-goals
+unless the corrigenda has a strong reason to include them as reserved-but-unused values.
 
-Explicitly prohibit:
+Explain why source granularity matters:
 
 ```text
-no Phase 3.2 output ladder
-no Minimal Worldlet
-no Proto-BASIC REPL
-no expression layer
-no social/language harness
-no Mode B implementation
-no stochastic REQUIRED behavior
-no prompt tuning to force the four-tick scenario to pass
-no seeded-MSI scenario hack as the immediate next move
-no direct mutation of TLICA state
-no bypassing PerceptEvent and tick()
+operator-injected content must not be confused with endogenous patterning
+probe echo must not be confused with external contact
+source confusion would undermine salience/stability/prediction histories
 ```
 
-### 6. Package / module plan
+### C2 — Avoid `ContentID = str` shadowing
 
-Propose a minimal `brain/development/` skeleton for Phase 3.1 only.
+The kickoff sketch currently aliases:
 
-Do not include output ladder, worldlet, repl, expression, or language modules in Phase 3.1.
+```python
+ContentID = str
+```
 
-Recommended Phase 3.1-only skeleton:
+This risks confusion with `brain.tlica.profile.ContentID`.
+
+Corrigenda should recommend one of:
 
 ```text
-brain/development/
-├── __init__.py
-├── stream.py              # PhenomenalFrame, FrameSource
-├── drives.py              # SubstrateDrives
-├── history.py             # SubstrateHistory, trace/provenance ids
-├── proto_pattern.py       # ProtoPattern, bucketing/signature logic
-├── proto_content.py       # ProtoContent, PromotionProvenance
-├── salience.py            # salience_v1
-├── stability.py           # stability_v1
-├── prediction_gain.py     # prediction_gain_v1
-├── probes.py              # SIMILARITY, FOCUS_CONTACT, ProbeUse, ProbePolicyState
-├── promotion.py           # ProtoContent -> PerceptEvent gate
-└── fixtures/
-    ├── recurrence_detection.py
-    ├── unstable_noise_rejection.py
-    ├── salience_is_not_truth.py
-    ├── focus_stabilizes_or_dissolves.py
-    ├── proto_content_promotion.py
-    └── source_tag_audit.py
+DevContentID = str
 ```
 
-### 7. Data model to lock
-
-Specify dataclass sketches for:
+or:
 
 ```text
-FrameSource
-PhenomenalFrame
-SubstrateDrives
-SubstrateHistory
-ProtoPattern
-ProtoContent
-PromotionProvenance
-ProtoProbe
-ProbeUse
-ProbePolicyState
+use existing ContentID only at the promotion boundary
 ```
 
-Use `Fraction` for numeric values.
-
-All dataclasses should be frozen and slots-based where practical.
-
-### 8. Source tagging rule
-
-Include a structural rule:
+The preferred rule:
 
 ```text
-Every channel in every PhenomenalFrame channel group must have a FrameSource.
+developmental proto-content IDs are developmental IDs until promotion;
+existing TLICA ContentID is used only when producing a PerceptEvent.
 ```
 
-Construction should raise if source tags are missing.
+### C3 — Revisit `prediction_gain_v1`
 
-### 9. Metric formulas to lock
+The kickoff formula uses:
 
-Define v1 formulas explicitly enough to be falsifiable:
+```python
+prediction_gain_v1 = clamp_unit(raw_gain - baseline + Fraction(1, 2))
+```
+
+This may artificially lift weak/non-predictive patterns to about `1/2`, which is also the proposed promotion threshold.
+
+Corrigenda should recommend a stricter formula, such as:
+
+```python
+prediction_gain_v1 = clamp_unit(raw_gain - baseline)
+```
+
+or another normalized positive-delta formula that keeps non-predictive patterns low.
+
+Explain why:
 
 ```text
-salience_v1
-stability_v1
-prediction_gain_v1
+promotion should not become easy just because the metric is offset upward
+PRESERVE should be earned by real recurrence/stability/predictive structure
 ```
 
-Formula choices may be heuristic, but the kickoff must mark them as engineering hypotheses, not TLICA theorems.
+### C4 — Clarify status of focus behavior row
 
-### 10. Primitive probes
+The kickoff proposes `focus_stabilizes_or_dissolves.py`, but the suggested row `I-DEV-04` is OBSERVED.
 
-Phase 3.1 only has:
+Corrigenda should decide:
 
 ```text
-SIMILARITY
-FOCUS_CONTACT
+If the fixture is deterministic and has a crisp pass/fail behavior, make it REQUIRED.
+If it is qualitative or trend-like, keep it OBSERVED and rename/scope it accordingly.
 ```
 
-Do not include mature tools like cause/effect, conditionals, object persistence, or Mode B meta-learning.
-
-### 11. Promotion gate
-
-Define when ProtoContent may become a PerceptEvent.
-
-The gate must require more than salience alone.
-
-It must preserve:
+The recommended path:
 
 ```text
-COGITO_ID cannot be created by developmental content
-PerceptEvent validation still applies
-existing tick() is the only entry into TLICA runtime state
+make the first focus fixture deterministic and REQUIRED for the narrow claim that FOCUS_CONTACT updates ProbeUse history and does not promote by itself;
+leave broader stabilize/dissolve dynamics as OBSERVED.
 ```
 
-### 12. Catalog rows and statuses
+### C5 — Trace reserved-key protection
 
-Propose Phase 3.1 rows conservatively.
+The kickoff recommends trace reserved-key protection as a pre-Phase-3.1 micro-hardening patch.
 
-Use:
+Corrigenda should convert that recommendation into a specific decision:
 
 ```text
-REQUIRED for safety / deterministic gates / kernel-boundary protections
-STRUCTURAL for protocols and construction constraints
-OBSERVED for noise robustness and qualitative developmental behavior
+trace reserved-key protection should be the next mission before Phase 3.1 implementation
 ```
 
-Do not introduce EXPERIMENTAL unless the tooling change is explicitly proposed and justified.
-
-Potential row families:
+or
 
 ```text
-I-FRAME-*   PhenomenalFrame/source-tag structure
-I-DEV-*     recurrence, salience-not-truth, focus, promotion gate
-I-SBX-*     operator injection is not knowledge, salience drive is not truth
-I-TRACE-*   reserved-key protection if handled here
+trace reserved-key protection should be the first Phase 3.1 catalog row
 ```
 
-### 13. Trace reserved-key protection decision
-
-The kickoff must explicitly decide whether trace reserved-key protection is:
+Preferred recommendation:
 
 ```text
-A. a pre-Phase-3.1 micro-hardening patch, or
-B. part of Phase 3.1 row set
+next mission before Phase 3.1 implementation
 ```
 
-The kickoff should recommend one and explain why.
-
-### 14. Fixtures
-
-Specify first deterministic fixtures.
-
-Required fixture concepts:
+Rationale:
 
 ```text
-recurring pattern is detected
-unstable noise is rejected
-salience alone does not promote
-focus can stabilize or dissolve a pattern
-proto-content can promote through PerceptEvent and tick()
-missing source tag raises
-COGITO_ID cannot be produced by developmental content
+it is a trace-envelope boundary issue, not a developmental feature
+it should be fixed before developmental trace volume increases
 ```
 
-### 15. Validation plan
+### C6 — Data model validation details
 
-Include expected validation commands.
-
-Because this is a kickoff document only, Codex should not run the full gate unless explicitly asked.
-
-The future implementation phase should eventually run:
-
-```bash
-python -m tools.catalog counts
-python -m brain.invariants run --id I-FRAME
-python -m brain.invariants run --id I-DEV
-python -m brain.invariants run --id I-SBX
-bash tools/check_all.sh
-```
-
-But the current mission should only run lightweight validation:
-
-```bash
-git diff --name-only
-python -m tools.catalog counts
-```
-
-### 16. Build order
-
-Specify a strict build order for the future implementation phase:
+Corrigenda should sharpen constructor validation expectations for:
 
 ```text
-catalog patch first
-trace reserved-key decision
-stream/source tags
-history
-metrics
-proto-pattern
-probes
-proto-content
-promotion
-fixtures
-runner registration
-full validation
+Fraction normalized fields in [0, 1]
+non-empty printable IDs
+source-map exact coverage
+non-empty provenance for promotion
+COGITO_ID rejection at developmental ID and promotion boundary
 ```
 
-### 17. Roadblocks / open decisions
+### C7 — Catalog versioning and row family plan
 
-Include at least:
+Corrigenda should recommend whether Phase 3.1 rows bump the catalog from v0.5 directly to v0.6, or whether trace reserved-key protection creates a v0.5.x / v0.6-pre hardening step first.
+
+Preferred recommendation:
 
 ```text
-formula arbitrariness
-source-tag schema stability
-SubstrateHistory granularity
-promotion threshold selection
-status discipline for OBSERVED vs REQUIRED
-interaction with current tick single-event guard
-whether trace reserved-key protection is pre-phase or in-phase
+trace reserved-key protection gets its own micro-hardening mission without changing Phase 3 semantics;
+Phase 3.1 Osmotic Chamber catalog patch should then bump to v0.6.
 ```
 
-### 18. Stop condition
+### C8 — Build-order correction
 
-End the document by saying:
-
-```text
-Nothing builds until this kickoff is reviewed and a corrigenda pass is completed.
-```
-
----
-
-## Engineering disclaimer
-
-Every Phase 3.1 row family must be marked as an engineering hypothesis unless it is a direct kernel-boundary rule.
-
-Use this text:
+Corrigenda should reaffirm:
 
 ```text
-SOURCE: Engineering hypothesis (Phase 3.1 Osmotic Chamber). Not a TLICA theorem. Specific formulas and thresholds are parameterized simulation choices; the family of constraints is the commitment, not any single instantiation.
+no code before accepted catalog patch
+no runtime behavior before data model/source-tag constructors
+no promotion before source-tag and metric fixtures are green
 ```
 
 ---
@@ -412,12 +275,13 @@ INVARIANT_CATALOG.md
 lean_reference/
 traces/
 scenarios/
+PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
 ```
 
 Allowed file for this mission:
 
 ```text
-PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 ```
 
 Optional only if needed:
@@ -432,7 +296,7 @@ But do not update `CURRENT_MISSION.md` again unless the user asks.
 
 ## Validation
 
-After drafting the kickoff:
+After drafting the corrigenda:
 
 Run lightweight checks only:
 
@@ -459,7 +323,7 @@ After validation passes, Codex must commit and push its result.
 Rules:
 
 ```text
-stage only PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+stage only PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 commit with a clear message
 push to the current branch / main as appropriate
 report the commit SHA
@@ -477,7 +341,7 @@ When done, report:
 
 ```text
 Created/updated:
-- PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+- PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 
 Validation:
 - git diff --name-only: ...
@@ -488,15 +352,14 @@ Git:
 - push: success / not run with reason
 
 Next:
-- review kickoff
-- run kickoff corrigenda pass
-- only then code Phase 3.1
+- review corrigenda
+- then decide trace reserved-key micro-hardening vs Phase 3.1 implementation planning
 ```
 
 ---
 
 ## Stop condition
 
-Stop after drafting `PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md`, validating, committing, pushing, and reporting the result.
+Stop after drafting `PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md`, validating, committing, pushing, and reporting the result.
 
 Do not proceed into Phase 3.1 code unless the user gives a new explicit instruction.
