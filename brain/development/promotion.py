@@ -42,10 +42,13 @@ def promote_proto_content(
         raise ValueError("I-DEV-06 violated: developmental content cannot produce COGITO_ID")
     if not content.eligible_for_promotion:
         raise ValueError(
-            "I-DEV-05 violated: promotion requires stability and positive prediction gain"
+            "I-DEV-05 violated: promotion requires salience, stability, and "
+            "prediction gain each at least 1/2"
         )
     if not content.provenance.trace_event_ids:
-        raise ValueError("I-DEV-05 violated: promotion requires probe provenance")
+        raise ValueError(
+            "I-DEV-05 violated: promotion requires trace/probe provenance"
+        )
 
     rho_value = content.stability if initial_rho is None else initial_rho
     require_unit_fraction(rho_value, field="initial_rho")

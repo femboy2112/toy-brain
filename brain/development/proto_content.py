@@ -18,6 +18,8 @@ from brain.development.proto_pattern import ProtoPattern
 from brain.development.stability import Signature, stability_v1
 from brain.development.stream import FrameSourceKind
 
+PROMOTION_THRESHOLD = Fraction(1, 2)
+
 
 def content_id_for_pattern(pattern: ProtoPattern) -> DevContentID:
     if not isinstance(pattern, ProtoPattern):
@@ -76,7 +78,11 @@ class ProtoContent:
 
     @property
     def eligible_for_promotion(self) -> bool:
-        return self.stability > Fraction(0) and self.prediction_gain > Fraction(0)
+        return (
+            self.salience >= PROMOTION_THRESHOLD
+            and self.stability >= PROMOTION_THRESHOLD
+            and self.prediction_gain >= PROMOTION_THRESHOLD
+        )
 
 
 def maybe_stabilize_proto_content(

@@ -13,6 +13,7 @@ from brain.development.proto_content import (
     maybe_stabilize_proto_content,
 )
 from brain.development.proto_pattern import update_proto_pattern
+from brain.development.stream import FrameSourceKind
 from brain.invariants import register
 from brain.io_types import PerceptEvent
 from brain.llm.client import MockClient
@@ -64,6 +65,40 @@ def _stable_proto_content() -> ProtoContent:
     return content
 
 
+def _proto_content_with(
+    suffix: str,
+    *,
+    salience: Fraction,
+    stability: Fraction,
+    prediction_gain: Fraction,
+    trace_event_ids: tuple[str, ...] = ("probe:manual",),
+) -> ProtoContent:
+    pattern_id = f"pattern:{suffix}"
+    return ProtoContent(
+        content_id=f"dev:{suffix}",
+        pattern_id=pattern_id,
+        signature=(("glow", Fraction(3, 5)),),
+        salience=salience,
+        stability=stability,
+        prediction_gain=prediction_gain,
+        provenance=PromotionProvenance(
+            pattern_id=pattern_id,
+            source_kinds=frozenset({FrameSourceKind.PROBE_ECHO}),
+            trace_event_ids=trace_event_ids,
+        ),
+    )
+
+
+def _assert_rejected_by_i_dev_05(content: ProtoContent) -> None:
+    assert not can_promote_proto_content(content)
+    try:
+        promote_proto_content(content)
+    except ValueError as exc:
+        assert "I-DEV-05" in str(exc)
+    else:
+        raise AssertionError("I-DEV-05 violated: unsupported promotion was accepted")
+
+
 @register("I-DEV-05", status="REQUIRED")
 def check_proto_content_promotes_only_as_percept_event_through_tick() -> None:
     content = _stable_proto_content()
@@ -84,6 +119,56 @@ def check_proto_content_promotes_only_as_percept_event_through_tick() -> None:
     assert state.msi is before_msi
     assert state.ptcns is before_ptcns
     assert state.registry is before_registry
+
+    _assert_rejected_by_i_dev_05(
+        _proto_content_with(
+            "low-positive",
+            salience=Fraction(1, 10),
+            stability=Fraction(1, 10),
+            prediction_gain=Fraction(1, 10),
+        )
+    )
+    _assert_rejected_by_i_dev_05(
+        _proto_content_with(
+            "audit-low-positive",
+            salience=Fraction(0),
+            stability=Fraction(1, 10),
+            prediction_gain=Fraction(1, 10),
+        )
+    )
+    _assert_rejected_by_i_dev_05(
+        _proto_content_with(
+            "zero-salience",
+            salience=Fraction(0),
+            stability=Fraction(3, 5),
+            prediction_gain=Fraction(3, 5),
+        )
+    )
+    _assert_rejected_by_i_dev_05(
+        _proto_content_with(
+            "low-stability",
+            salience=Fraction(3, 5),
+            stability=Fraction(1, 10),
+            prediction_gain=Fraction(3, 5),
+        )
+    )
+    _assert_rejected_by_i_dev_05(
+        _proto_content_with(
+            "low-prediction-gain",
+            salience=Fraction(3, 5),
+            stability=Fraction(3, 5),
+            prediction_gain=Fraction(1, 10),
+        )
+    )
+    _assert_rejected_by_i_dev_05(
+        _proto_content_with(
+            "missing-provenance",
+            salience=Fraction(3, 5),
+            stability=Fraction(3, 5),
+            prediction_gain=Fraction(3, 5),
+            trace_event_ids=(),
+        )
+    )
     assert event.content_id not in state.profile.domain
 
     new_state, record = tick(state, [event], MockClient(["PRESERVE"]))
