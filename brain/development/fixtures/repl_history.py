@@ -5,8 +5,10 @@ parse / command / execution / feedback entries, and the requirement that no
 Proto-BASIC operation mutates TLICA runtime state (profile / MSI / PtCns /
 content registry / ``OutputHistory`` / ``WorldletHistory`` / scenario / trace).
 
-``I-REPL-15`` (diminishing returns) and ``I-REPL-18`` (aggregate inspection)
-are Step 9 work and remain pending.
+Step 9 adds ``I-REPL-15`` (deterministic diminishing returns for repeated
+identical valid-effective commands) and the OBSERVED ``I-REPL-18`` aggregate
+history summary. Both stay local: no PerceptEvent emission, no tick() call,
+no host execution.
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from brain.development.output import (
     OutputTokenCandidate,
 )
 from brain.development.repl import (
+    PROTO_BASIC_STRONG_POSITIVE_THRESHOLD,
     ProtoBasicCommand,
     ProtoBasicExecutionCategory,
     ProtoBasicExecutionResult,
@@ -25,6 +28,7 @@ from brain.development.repl import (
     ProtoBasicFeedbackProvenance,
     ProtoBasicGrammar,
     ProtoBasicHistory,
+    ProtoBasicHistorySummary,
     ProtoBasicParseCategory,
     ProtoBasicParseResult,
     ProtoBasicToken,
@@ -33,9 +37,11 @@ from brain.development.repl import (
     append_history,
     build_command,
     canonical_command_form,
+    diminishing_returns_factor,
     execute_command,
     parse_line,
     score_feedback,
+    summarize_repl_history,
     tokenize,
 )
 from brain.development.stream import FrameSourceKind
@@ -343,3 +349,353 @@ def check_proto_basic_operations_do_not_mutate_tlica_runtime_state() -> None:
     # The Proto-BASIC valence remains exact and bounded after every step.
     assert isinstance(feedback.valence, ProtoBasicValence)
     assert Fraction(-1) <= feedback.valence.value <= Fraction(1)
+
+
+@register("I-REPL-15", status="REQUIRED")
+def check_repeated_no_op_commands_receive_diminishing_returns() -> None:
+    grammar = _grammar()
+
+    # Reference command: PRINT X (valid-effective on every emission).
+    parse_x = _parse_valid(grammar, "PRINT X", line_id="repl:line:dim-x")
+    command_x = build_command(
+        grammar=grammar,
+        parse_result=parse_x,
+        command_id="repl:command:dim-x",
+    )
+    key_x = canonical_command_form(
+        matched_shape=command_x.matched_shape,
+        matched_token_ids=command_x.matched_token_ids,
+    )
+
+    # Interleaved alternate command: PRINT Y. Its presence must NOT reset the
+    # emit_count for PRINT X (I-REPL-15: "not reset by interleaving other
+    # commands").
+    parse_y = _parse_valid(grammar, "PRINT Y", line_id="repl:line:dim-y")
+    command_y = build_command(
+        grammar=grammar,
+        parse_result=parse_y,
+        command_id="repl:command:dim-y",
+    )
+    key_y = canonical_command_form(
+        matched_shape=command_y.matched_shape,
+        matched_token_ids=command_y.matched_token_ids,
+    )
+    assert key_x != key_y
+
+    history = ProtoBasicHistory()
+    history = append_history(history, command=command_x)
+    history = append_history(history, command=command_y)
+
+    base_effective = Fraction(1, 2)
+    valences: list[Fraction] = []
+    factors: list[Fraction] = []
+    prev_factor: Fraction | None = None
+
+    # Emit PRINT X five times in a row. The schedule 1/(n+1) brings the
+    # strong-positive component (base 1/2) to 1/2 * 1/5 = 1/10 by the fifth
+    # emission, which meets the strong-positive threshold (1/10) exactly.
+    for emit_index in range(5):
+        # Look up emit_count BEFORE appending the execution result; this is
+        # the count used for diminishing returns at this emission.
+        count_before = history.emit_count_for(key_x)
+        factor = diminishing_returns_factor(count_before)
+        assert isinstance(factor, Fraction)
+        assert Fraction(0) < factor <= Fraction(1)
+        if prev_factor is not None:
+            assert factor <= prev_factor, (
+                "I-REPL-15 violated: diminishing_returns_factor must be "
+                f"non-increasing in emit_count (got {factor} after {prev_factor})"
+            )
+        prev_factor = factor
+
+        execution = execute_command(
+            command_x, category=ProtoBasicExecutionCategory.VALID_EFFECTIVE
+        )
+        feedback = score_feedback(
+            execution_result=execution,
+            provenance=_provenance(),
+            diminishing_returns_factor=factor,
+        )
+        # Strong positive component must equal base * factor exactly.
+        expected = base_effective * factor
+        assert feedback.valence.value == expected, (
+            "I-REPL-15 violated: valid-effective valence must equal "
+            f"base * factor exactly (got {feedback.valence.value}, "
+            f"expected {expected})"
+        )
+        assert Fraction(-1) <= feedback.valence.value <= Fraction(1), (
+            "I-REPL-15 violated: valence escaped [-1, 1]"
+        )
+        valences.append(feedback.valence.value)
+        factors.append(factor)
+        history = append_history(history, execution_result=execution)
+        history = append_history(history, feedback=feedback)
+
+    # The factor sequence is exactly 1/(n+1) for n = 0, 1, 2, 3, 4.
+    assert factors == [
+        Fraction(1, 1),
+        Fraction(1, 2),
+        Fraction(1, 3),
+        Fraction(1, 4),
+        Fraction(1, 5),
+    ], (
+        "I-REPL-15 violated: diminishing_returns_factor schedule must be "
+        f"1/(n+1) (got {factors})"
+    )
+    # Valence sequence is strictly decreasing (strong-positive shrinks).
+    for prior, later in zip(valences, valences[1:]):
+        assert later < prior, (
+            "I-REPL-15 violated: strong-positive valence must strictly "
+            f"decrease across repeated emissions (got {prior} then {later})"
+        )
+
+    # Only the first emission reaches strong positive; later emissions drop
+    # to or below the strong-positive threshold (or stay above for emit_count
+    # 1 with base 1/2 -> 1/4, which is still > threshold 1/10). The catalog
+    # plan states strong positive is "gateable" by effective execution, not
+    # that the second emission must immediately fall below threshold; we
+    # therefore only assert that the LAST emission of a long no-op run drops
+    # to or below the threshold.
+    assert valences[-1] <= PROTO_BASIC_STRONG_POSITIVE_THRESHOLD, (
+        "I-REPL-15 violated: diminishing returns failed to bring repeated "
+        f"no-op valence to or below the strong-positive threshold "
+        f"(got {valences[-1]}, threshold {PROTO_BASIC_STRONG_POSITIVE_THRESHOLD})"
+    )
+
+    # Interleave a PRINT Y emission. PRINT X's emit_count must be unchanged
+    # afterwards; the next PRINT X emission must use 1/5, not reset to 1.
+    pre_interleave_x_count = history.emit_count_for(key_x)
+    assert pre_interleave_x_count == 5
+    execution_y = execute_command(
+        command_y, category=ProtoBasicExecutionCategory.VALID_EFFECTIVE
+    )
+    feedback_y = score_feedback(
+        execution_result=execution_y,
+        provenance=_provenance(),
+        diminishing_returns_factor=diminishing_returns_factor(
+            history.emit_count_for(key_y)
+        ),
+    )
+    history = append_history(history, execution_result=execution_y)
+    history = append_history(history, feedback=feedback_y)
+
+    post_interleave_x_count = history.emit_count_for(key_x)
+    assert post_interleave_x_count == pre_interleave_x_count, (
+        "I-REPL-15 violated: emit_count for PRINT X must not be reset by "
+        f"interleaving PRINT Y (got {post_interleave_x_count}, expected "
+        f"{pre_interleave_x_count})"
+    )
+
+    next_factor = diminishing_returns_factor(post_interleave_x_count)
+    assert next_factor == Fraction(1, 6), (
+        "I-REPL-15 violated: post-interleave PRINT X factor must follow "
+        f"1/(n+1) without reset (got {next_factor}, expected 1/6)"
+    )
+
+    # diminishing_returns_factor itself validates its input domain.
+    try:
+        diminishing_returns_factor(-1)
+    except ValueError as exc:
+        assert "I-REPL-15" in str(exc)
+    else:
+        raise AssertionError(
+            "I-REPL-15 violated: diminishing_returns_factor accepted negative "
+            "emit_count"
+        )
+    try:
+        diminishing_returns_factor(True)  # type: ignore[arg-type]
+    except TypeError as exc:
+        assert "I-REPL-15" in str(exc)
+    else:
+        raise AssertionError(
+            "I-REPL-15 violated: diminishing_returns_factor accepted bool"
+        )
+
+    # score_feedback rejects out-of-range diminishing_returns_factor.
+    bogus_execution = execute_command(
+        command_x, category=ProtoBasicExecutionCategory.VALID_EFFECTIVE
+    )
+    try:
+        score_feedback(
+            execution_result=bogus_execution,
+            provenance=_provenance(),
+            diminishing_returns_factor=Fraction(2, 1),
+        )
+    except ValueError as exc:
+        assert "I-REPL-15" in str(exc)
+    else:
+        raise AssertionError(
+            "I-REPL-15 violated: score_feedback accepted factor > 1"
+        )
+    try:
+        score_feedback(
+            execution_result=bogus_execution,
+            provenance=_provenance(),
+            diminishing_returns_factor=Fraction(-1, 2),
+        )
+    except ValueError as exc:
+        assert "I-REPL-15 violated:" in str(exc)
+    else:
+        raise AssertionError(
+            "I-REPL-15 violated: score_feedback accepted negative factor"
+        )
+
+
+@register("I-REPL-18", status="OBSERVED")
+def observe_aggregate_proto_basic_history_summary() -> None:
+    grammar = _grammar()
+    history = ProtoBasicHistory()
+
+    # Parse-level outcomes: valid, near-miss, syntax-invalid, semantic-invalid.
+    # The parser produces these naturally from a few well-chosen lines.
+    parse_valid = _parse_valid(
+        grammar, "PRINT X", line_id="repl:line:obs-valid"
+    )
+    history = append_history(history, parse_result=parse_valid)
+
+    line_near = tokenize("print X", line_id="repl:line:obs-near")
+    parse_near = parse_line(grammar, line_near)
+    assert parse_near.category is ProtoBasicParseCategory.NEAR_MISS
+    history = append_history(history, parse_result=parse_near)
+
+    line_syntax = tokenize("", line_id="repl:line:obs-syntax")
+    parse_syntax = parse_line(grammar, line_syntax)
+    assert parse_syntax.category is ProtoBasicParseCategory.SYNTAX_INVALID
+    history = append_history(history, parse_result=parse_syntax)
+
+    line_semantic = tokenize("X PRINT", line_id="repl:line:obs-semantic")
+    parse_semantic = parse_line(grammar, line_semantic)
+    assert parse_semantic.category is ProtoBasicParseCategory.SEMANTIC_INVALID
+    history = append_history(history, parse_result=parse_semantic)
+
+    # The remaining parse categories (tool-unavailable / resource-limit /
+    # sandbox-fault) are not produced by the natural parser path. Construct
+    # them directly so the OBSERVED summary covers the full partition.
+    for category, line_id in (
+        (
+            ProtoBasicParseCategory.TOOL_UNAVAILABLE,
+            "repl:line:obs-tool",
+        ),
+        (
+            ProtoBasicParseCategory.RESOURCE_LIMIT,
+            "repl:line:obs-resource",
+        ),
+        (
+            ProtoBasicParseCategory.SANDBOX_FAULT,
+            "repl:line:obs-sandbox",
+        ),
+    ):
+        synthesized = ProtoBasicParseResult(
+            line_id=line_id,
+            category=category,
+            matched_shape=None,
+            matched_token_ids=(),
+            correction_hint=None,
+            detail=f"observed-{category.value}",
+        )
+        history = append_history(history, parse_result=synthesized)
+
+    # Execution-level outcomes: valid-effective (twice, for emit_count > 1),
+    # valid-ineffective, tool-unavailable, resource-limit, sandbox-fault.
+    command_x = build_command(
+        grammar=grammar,
+        parse_result=parse_valid,
+        command_id="repl:command:obs-x",
+    )
+    history = append_history(history, command=command_x)
+    for _ in range(2):
+        execution = execute_command(
+            command_x, category=ProtoBasicExecutionCategory.VALID_EFFECTIVE
+        )
+        history = append_history(history, execution_result=execution)
+
+    for category in (
+        ProtoBasicExecutionCategory.VALID_INEFFECTIVE,
+        ProtoBasicExecutionCategory.TOOL_UNAVAILABLE,
+        ProtoBasicExecutionCategory.RESOURCE_LIMIT,
+        ProtoBasicExecutionCategory.SANDBOX_FAULT,
+    ):
+        execution = ProtoBasicExecutionResult(
+            line_id=f"repl:line:obs-exec-{category.value}",
+            category=category,
+            effective=False,
+            detail=f"observed-{category.value}",
+        )
+        history = append_history(history, execution_result=execution)
+
+    summary = summarize_repl_history(history)
+    assert isinstance(summary, ProtoBasicHistorySummary)
+
+    # Parse counts cover every category at least once.
+    parse_counts = dict(summary.parse_counts)
+    for category in ProtoBasicParseCategory:
+        assert parse_counts.get(category, 0) >= 1, (
+            f"I-REPL-18 violated: summary missing parse category {category}"
+        )
+    assert parse_counts[ProtoBasicParseCategory.VALID] == 1
+    assert parse_counts[ProtoBasicParseCategory.NEAR_MISS] == 1
+
+    # Execution counts cover every category at least once, with the two
+    # valid-effective emissions captured.
+    execution_counts = dict(summary.execution_counts)
+    for category in ProtoBasicExecutionCategory:
+        assert execution_counts.get(category, 0) >= 1, (
+            f"I-REPL-18 violated: summary missing execution category {category}"
+        )
+    assert execution_counts[ProtoBasicExecutionCategory.VALID_EFFECTIVE] == 2
+
+    # emit_counts surface the canonical form for PRINT X with count 2.
+    key_x = canonical_command_form(
+        matched_shape=command_x.matched_shape,
+        matched_token_ids=command_x.matched_token_ids,
+    )
+    assert summary.emit_counts[key_x] == 2
+
+    # Anti-Goodhart sketch is local inspectable text mentioning the
+    # diminishing-returns factor; never a teacher utterance or external
+    # claim.
+    sketch = summary.anti_goodhart_sketch
+    assert isinstance(sketch, str) and sketch.strip()
+    assert "diminishing_returns_factor" in sketch
+    forbidden_phrases = (
+        "PerceptEvent",
+        "tick(",
+        "teacher",
+        "natural-language",
+        "real interpreter",
+        "external reality",
+    )
+    for phrase in forbidden_phrases:
+        assert phrase not in sketch, (
+            f"I-REPL-18 violated: anti_goodhart_sketch leaks scope phrase "
+            f"{phrase!r}"
+        )
+
+    # The summary is read-only (mapping proxies refuse in-place mutation).
+    try:
+        summary.parse_counts[ProtoBasicParseCategory.VALID] = 999  # type: ignore[index]
+    except TypeError:
+        pass
+    else:
+        raise AssertionError(
+            "I-REPL-18 violated: summary.parse_counts permitted in-place mutation"
+        )
+    try:
+        summary.emit_counts[key_x] = 999  # type: ignore[index]
+    except TypeError:
+        pass
+    else:
+        raise AssertionError(
+            "I-REPL-18 violated: summary.emit_counts permitted in-place mutation"
+        )
+
+    # An empty history summary still produces a well-formed sketch.
+    empty_summary = summarize_repl_history(ProtoBasicHistory())
+    assert isinstance(empty_summary.anti_goodhart_sketch, str)
+    assert empty_summary.anti_goodhart_sketch.strip()
+    assert dict(empty_summary.emit_counts) == {}
+    # Every category present in the empty summary with count zero.
+    for category in ProtoBasicParseCategory:
+        assert empty_summary.parse_counts[category] == 0
+    for category in ProtoBasicExecutionCategory:
+        assert empty_summary.execution_counts[category] == 0

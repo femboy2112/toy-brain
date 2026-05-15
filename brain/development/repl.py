@@ -12,10 +12,10 @@ feedback without:
     readability scoring, or Mode B reflective agency.
 
 The Phase 3.4 catalog ties the public surface here to the ``I-REPL-*`` rows.
-Step 7 of the campaign covers I-REPL-01..10 and I-REPL-17 (grammar/parser/
-feedback boundary). Step 8 will add command construction/execution/history
-(I-REPL-11..14, I-REPL-16). Step 9 will tighten diminishing-returns and
-aggregate inspection (I-REPL-15, I-REPL-18).
+Step 7 of the campaign covered I-REPL-01..10 and I-REPL-17 (grammar/parser/
+feedback boundary). Step 8 added command construction/execution/history
+(I-REPL-11..14, I-REPL-16). Step 9 tightens diminishing-returns and aggregate
+inspection (I-REPL-15, I-REPL-18).
 """
 from __future__ import annotations
 
@@ -1543,6 +1543,181 @@ def append_history(
     )
 
 
+# ---------------------------------------------------------------------------
+# Diminishing returns / anti-Goodhart helper (I-REPL-15).
+# ---------------------------------------------------------------------------
+
+
+def diminishing_returns_factor(emit_count: int) -> Fraction:
+    """Deterministic non-increasing factor used to dampen strong positive
+    feedback for repeated identical commands (I-REPL-15).
+
+    Convention (Section 6 of the catalog patch plan):
+
+        emit_count = 0 -> Fraction(1, 1)
+        emit_count = 1 -> Fraction(1, 2)
+        emit_count = 2 -> Fraction(1, 3)
+        emit_count = n -> Fraction(1, n + 1)
+
+    The result is a ``Fraction`` in ``(0, 1]`` and is computed exactly. Higher
+    ``emit_count`` always yields a smaller-or-equal factor; the schedule is
+    non-increasing, never silently clamped, and never resets across calls.
+    Callers compute ``emit_count`` from ``ProtoBasicHistory.emit_count_for``
+    before scoring feedback so interleaving other commands cannot reset the
+    repeat history of the canonical form.
+    """
+    if not isinstance(emit_count, int) or isinstance(emit_count, bool):
+        raise TypeError(
+            "I-REPL-15 violated: diminishing_returns_factor emit_count must be "
+            "an int"
+        )
+    if emit_count < 0:
+        raise ValueError(
+            "I-REPL-15 violated: diminishing_returns_factor emit_count must be "
+            "non-negative"
+        )
+    return Fraction(1, emit_count + 1)
+
+
+# ---------------------------------------------------------------------------
+# Aggregate history summary (I-REPL-18, OBSERVED).
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoBasicHistorySummary:
+    """Local inspectable Proto-BASIC outcome summary (I-REPL-18, OBSERVED).
+
+    Records deterministic counts of parse and execution outcomes plus a
+    qualitative anti-Goodhart sketch describing the diminishing-returns trend
+    for the most-repeated valid-effective canonical form. The summary is local
+    inspection only; it does not promote into PerceptEvent, mutate TLICA state,
+    or claim external-reality truth.
+    """
+
+    parse_counts: Mapping[ProtoBasicParseCategory, int]
+    execution_counts: Mapping[ProtoBasicExecutionCategory, int]
+    emit_counts: Mapping[str, int]
+    anti_goodhart_sketch: str
+
+    def __post_init__(self) -> None:
+        for key, value in self.parse_counts.items():
+            if not isinstance(key, ProtoBasicParseCategory):
+                raise TypeError(
+                    "ProtoBasicHistorySummary.parse_counts keys must be "
+                    "ProtoBasicParseCategory"
+                )
+            if not isinstance(value, int) or value < 0:
+                raise ValueError(
+                    "ProtoBasicHistorySummary.parse_counts values must be "
+                    "non-negative integers"
+                )
+        for key, value in self.execution_counts.items():
+            if not isinstance(key, ProtoBasicExecutionCategory):
+                raise TypeError(
+                    "ProtoBasicHistorySummary.execution_counts keys must be "
+                    "ProtoBasicExecutionCategory"
+                )
+            if not isinstance(value, int) or value < 0:
+                raise ValueError(
+                    "ProtoBasicHistorySummary.execution_counts values must be "
+                    "non-negative integers"
+                )
+        for key, value in self.emit_counts.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError(
+                    "ProtoBasicHistorySummary.emit_counts keys must be "
+                    "non-empty strings"
+                )
+            if not isinstance(value, int) or value < 0:
+                raise ValueError(
+                    "ProtoBasicHistorySummary.emit_counts values must be "
+                    "non-negative integers"
+                )
+        if not isinstance(self.anti_goodhart_sketch, str) or not (
+            self.anti_goodhart_sketch.isprintable()
+            and self.anti_goodhart_sketch.strip()
+        ):
+            raise ValueError(
+                "ProtoBasicHistorySummary.anti_goodhart_sketch must be "
+                "non-empty printable text"
+            )
+        object.__setattr__(
+            self, "parse_counts", MappingProxyType(dict(self.parse_counts))
+        )
+        object.__setattr__(
+            self,
+            "execution_counts",
+            MappingProxyType(dict(self.execution_counts)),
+        )
+        object.__setattr__(
+            self, "emit_counts", MappingProxyType(dict(self.emit_counts))
+        )
+
+
+def summarize_repl_history(
+    history: ProtoBasicHistory,
+) -> ProtoBasicHistorySummary:
+    """Build an OBSERVED local summary of ``ProtoBasicHistory`` (I-REPL-18).
+
+    The summary counts parse outcomes by ``ProtoBasicParseCategory`` and
+    execution outcomes by ``ProtoBasicExecutionCategory``, surfaces the
+    per-canonical-form ``emit_counts`` map, and includes a qualitative
+    anti-Goodhart sketch describing the diminishing-returns trend for the
+    most-repeated valid-effective canonical form. The sketch is local
+    inspection text only; it is not natural-language explanation, teacher
+    correction, or external-reality claim.
+    """
+    if not isinstance(history, ProtoBasicHistory):
+        raise TypeError(
+            "I-REPL-18 violated: summarize_repl_history requires a "
+            "ProtoBasicHistory"
+        )
+
+    parse_counts: dict[ProtoBasicParseCategory, int] = {
+        category: 0 for category in ProtoBasicParseCategory
+    }
+    for parse_result in history.parse_results:
+        parse_counts[parse_result.category] += 1
+
+    execution_counts: dict[ProtoBasicExecutionCategory, int] = {
+        category: 0 for category in ProtoBasicExecutionCategory
+    }
+    for execution_result in history.execution_results:
+        execution_counts[execution_result.category] += 1
+
+    emit_counts = dict(history.emit_counts or {})
+
+    # Anti-Goodhart sketch: name the most-repeated canonical form and the
+    # exact diminishing-returns factor at its current emit_count. This is
+    # OBSERVED inspection only.
+    if emit_counts:
+        top_form, top_count = max(
+            emit_counts.items(), key=lambda kv: (kv[1], kv[0])
+        )
+        factor = diminishing_returns_factor(top_count)
+        sketch = (
+            "anti-goodhart: most-repeated canonical form "
+            f"{top_form!r} has emit_count={top_count}; "
+            f"diminishing_returns_factor={factor} (Fraction in (0, 1]); "
+            "strong positive feedback for repeated emissions shrinks "
+            "as 1/(n+1)."
+        )
+    else:
+        sketch = (
+            "anti-goodhart: no valid-effective emissions yet; "
+            "diminishing_returns_factor=1 by convention; no repeated "
+            "no-op pressure observed."
+        )
+
+    return ProtoBasicHistorySummary(
+        parse_counts=parse_counts,
+        execution_counts=execution_counts,
+        emit_counts=emit_counts,
+        anti_goodhart_sketch=sketch,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ProtoBasicProgram:
     """A thin one-line wrapper around ``ProtoBasicLine`` (I-REPL-17).
@@ -1585,6 +1760,7 @@ __all__ = [
     "ProtoBasicFeedbackProvenance",
     "ProtoBasicGrammar",
     "ProtoBasicHistory",
+    "ProtoBasicHistorySummary",
     "ProtoBasicLine",
     "ProtoBasicParseCategory",
     "ProtoBasicParseResult",
@@ -1595,9 +1771,11 @@ __all__ = [
     "append_history",
     "build_command",
     "canonical_command_form",
+    "diminishing_returns_factor",
     "execute_command",
     "parse_line",
     "require_proto_basic_valence",
     "score_feedback",
+    "summarize_repl_history",
     "tokenize",
 ]
