@@ -1,10 +1,10 @@
-# CURRENT_CAMPAIGN.md — Phase 3.3 Minimal Worldlet Campaign
+# CURRENT_CAMPAIGN.md — Phase 3.4 Proto-BASIC REPL Campaign
 
 ## Purpose
 
-This campaign lets Codex proceed through Phase 3.3 without requiring a new `CURRENT_MISSION.md` for every micro-step.
+This campaign lets any repo-capable model agent proceed through Phase 3.4 without requiring a new `CURRENT_MISSION.md` for every micro-step.
 
-When the user says `go`, Codex should:
+When the user says `go`, the active agent should:
 
 ```text
 read CURRENT_MISSION.md
@@ -17,9 +17,9 @@ commit and push after each completed step
 stop only at explicit gates, failures requiring user judgment, or campaign completion
 ```
 
-This campaign is bounded to **Phase 3.3 Minimal Worldlet** only.
+This campaign is bounded to **Phase 3.4 Proto-BASIC REPL** only.
 
-It does not authorize Proto-BASIC REPL, expression/readability, social/language, or Mode B implementation.
+It does not authorize expression/readability, social/language, Mode B, real host execution, open-ended process execution, or arbitrary code execution.
 
 ---
 
@@ -40,49 +40,50 @@ Treat these repo-local files as accepted inputs unless the user explicitly says 
 ```text
 PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
 PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
-PHASE3_2_OUTPUT_LADDER_SYNTHESIS.md
-PHASE3_2_OUTPUT_LADDER_KICKOFF.md
-PHASE3_2_OUTPUT_LADDER_CORRIGENDA.md
-PHASE3_2_OUTPUT_LADDER_CATALOG_PATCH_PLAN.md
 PHASE3_2_OUTPUT_LADDER_AUDIT.md
+PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md
+PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
+PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md
+PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md
+PHASE3_3_MINIMAL_WORLDLET_AUDIT.md
 INVARIANT_CATALOG.md
 ```
 
-Core inherited principle:
+Inherited principle:
 
 ```text
 PRESERVE should be earned, not labeled.
 ```
 
-Phase 3.2 boundary inherited into Phase 3.3:
+Phase 3.3 boundary inherited into Phase 3.4:
 
 ```text
-Output readiness is only local history evidence; it is not agency, language, or world consequence.
+Worldlet consequence evidence is local deterministic harness evidence; it is not external reality, reflective agency, language, Mode B, or runtime promotion.
 ```
 
-Phase 3.3-specific principle:
+Phase 3.4-specific principle:
 
 ```text
-A worldlet supplies bounded not-I pushback and consequence evidence, but it is still a deterministic harness, not a real environment and not reflective agency.
+Proto-BASIC is a constrained local output-worldlet interface. It teaches syntax, near-miss correction, bounded consequence, and proto-agency pressure without host execution, arbitrary code execution, language understanding, or reflective Mode B agency.
 ```
 
 ---
 
 ## Current baseline
 
-Current baseline should be v0.7 after the Phase 3.2 Output Ladder campaign.
+Current baseline should be v0.8 after the Phase 3.3 Minimal Worldlet campaign.
 
 Expected baseline:
 
 ```text
-99 REQUIRED
-24 STRUCTURAL
+105 REQUIRED
+29 STRUCTURAL
 3 NOT-EXERCISED
 12 DEFERRED
-3 OBSERVED
+4 OBSERVED
 ```
 
-The Phase 3.2 audit reports PASS. `I-OUT-*` rows are green, output echo remains below agency, learned output tokens remain below language, and proto-output-action readiness is OBSERVED only.
+The Phase 3.3 audit reports PASS. `I-WLD-*` rows are green, worldlet responses remain local harness evidence, valence is bounded, and not-I pushback is not an external-reality claim.
 
 ---
 
@@ -103,14 +104,17 @@ brain/llm/
 Never implement in this campaign:
 
 ```text
-Proto-BASIC REPL
+real host execution
+open-ended process execution
+arbitrary Python execution
+shell command execution
+network I/O
+file-system mutation outside local in-memory REPL state
 expression layer
 readability predictor
 social/language harness
 Mode B developmental layer
 real LLM training behavior
-real host execution
-open-ended process execution
 prompt-tuning solely to force the four-tick scenario to pass
 seeded-MSI scenario shortcut
 ```
@@ -138,15 +142,15 @@ If tests fail, fix within the step's allowed scope. If the fix requires files ou
 
 ## Campaign state detection
 
-Codex should infer completed steps from repo state:
+The agent should infer completed steps from repo state:
 
-- If `PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md` exists, Step 1 may be complete.
-- If `PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md` exists, Step 2 may be complete.
-- If `PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md` exists, Step 3 may be complete.
-- If `PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md` exists, Step 4 may be complete.
-- If `INVARIANT_CATALOG.md` has v0.8 Minimal Worldlet rows and `tools/catalog.py` expected counts match, Step 6 may be complete.
-- If `brain/development/worldlet.py` or equivalent worldlet modules exist with targeted rows green, implementation steps may be complete.
-- If `PHASE3_3_MINIMAL_WORLDLET_AUDIT.md` exists and full gate is green, the campaign may be complete.
+- If `PHASE3_4_PROTO_BASIC_REPL_SYNTHESIS.md` exists, Step 1 may be complete.
+- If `PHASE3_4_PROTO_BASIC_REPL_KICKOFF.md` exists, Step 2 may be complete.
+- If `PHASE3_4_PROTO_BASIC_REPL_CORRIGENDA.md` exists, Step 3 may be complete.
+- If `PHASE3_4_PROTO_BASIC_REPL_CATALOG_PATCH_PLAN.md` exists, Step 4 may be complete.
+- If `INVARIANT_CATALOG.md` has v0.9 Proto-BASIC REPL rows and `tools/catalog.py` expected counts match, Step 6 may be complete.
+- If `brain/development/repl.py` or equivalent REPL modules exist with targeted rows green, implementation steps may be complete.
+- If `PHASE3_4_PROTO_BASIC_REPL_AUDIT.md` exists and full gate is green, the campaign may be complete.
 
 When in doubt, inspect files and tests before deciding.
 
@@ -156,7 +160,7 @@ When in doubt, inspect files and tests before deciding.
 
 ## Purpose
 
-Confirm the repo is ready for Phase 3.3 planning.
+Confirm the repo is ready for Phase 3.4 planning.
 
 ## Required reads
 
@@ -165,7 +169,8 @@ CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
-PHASE3_2_OUTPUT_LADDER_AUDIT.md
+PHASE3_3_MINIMAL_WORLDLET_AUDIT.md
+brain/development/worldlet.py
 brain/development/output.py
 ```
 
@@ -176,35 +181,35 @@ git status --short
 git branch --show-current
 git log --oneline -10
 python3 -m tools.catalog counts
-python3 -m brain.invariants run --id I-OUT-11
+python3 -m brain.invariants run --id I-WLD-12
 bash tools/check_all.sh
 ```
 
 ## Branch logic
 
 - If there are uncommitted external changes, stop and report.
-- If the full gate fails, do not start Phase 3.3; diagnose within current scope or stop.
-- If Phase 3.2 audit is absent or not PASS, stop and report.
+- If the full gate fails, do not start Phase 3.4; diagnose within current scope or stop.
+- If Phase 3.3 audit is absent or not PASS, stop and report.
 - If preflight is green, proceed to Step 1.
 
 ---
 
-# Step 1 — Phase 3.3 synthesis
+# Step 1 — Phase 3.4 synthesis
 
 ## Purpose
 
-Draft the bridge document explaining why the Minimal Worldlet follows the Output Ladder.
+Draft the bridge document explaining why Proto-BASIC REPL follows the Minimal Worldlet.
 
 ## Output file
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md
+PHASE3_4_PROTO_BASIC_REPL_SYNTHESIS.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md
+PHASE3_4_PROTO_BASIC_REPL_SYNTHESIS.md
 ```
 
 ## Required contents
@@ -212,21 +217,23 @@ PHASE3_3_MINIMAL_WORLDLET_SYNTHESIS.md
 Include:
 
 ```text
-v0.7 Phase 3.2 baseline summary
-why worldlet follows output readiness
-minimal worldlet thesis
-not-I pushback and bounded consequence evidence
-why this is still below agency and Mode B
+v0.8 Phase 3.3 baseline summary
+why a constrained REPL follows worldlet consequence evidence
+Proto-BASIC thesis
+syntax as bounded worldlet interaction, not language
+valid / invalid / near-miss / unavailable / resource-limit / sandbox-fault categories
+bounded valence and anti-Goodhart requirements
+why this remains below expression, social language, and Mode B
 non-goals
 expected phase ordering
 risks
-next artifact: PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
+next artifact: PHASE3_4_PROTO_BASIC_REPL_KICKOFF.md
 ```
 
 Core thesis:
 
 ```text
-The Minimal Worldlet converts local proto-output readiness into bounded consequence-bearing attempts, but only inside a deterministic harness. It supplies not-I pushback; it does not create reflective agency, language, REPL command syntax, or real-world action.
+Proto-BASIC gives the system a deterministic rule-governed output worldlet where syntax, near-miss correction, and bounded consequence can be learned through local feedback. It is not a real interpreter, not host execution, not language understanding, and not reflective agency.
 ```
 
 ## Validation
@@ -240,22 +247,22 @@ Commit/push after drafting.
 
 ---
 
-# Step 2 — Phase 3.3 kickoff
+# Step 2 — Phase 3.4 kickoff
 
 ## Purpose
 
-Draft a precise kickoff for the Minimal Worldlet implementation plan.
+Draft a precise kickoff for the Proto-BASIC REPL implementation plan.
 
 ## Output file
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
+PHASE3_4_PROTO_BASIC_REPL_KICKOFF.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
+PHASE3_4_PROTO_BASIC_REPL_KICKOFF.md
 ```
 
 ## Required scope
@@ -263,24 +270,30 @@ PHASE3_3_MINIMAL_WORLDLET_KICKOFF.md
 The kickoff should cover only:
 
 ```text
-WorldletState
-WorldletObject / target surface if needed
-WorldletAttempt
-WorldletResponse
-WorldletValence bounded in [-1, 1]
-WorldletHistory
-not-I pushback
-bounded deterministic consequence evidence
-connection from ProtoOutputActionReadiness to WorldletAttempt
-worldlet response enters local worldlet history, not TLICA state
+ProtoBasicToken
+ProtoBasicLine
+ProtoBasicProgram / one-line command surface
+ProtoBasicParseResult
+ProtoBasicCommand
+ProtoBasicExecutionResult
+ProtoBasicFeedback
+ProtoBasicValence bounded in [-1, 1]
+ProtoBasicHistory
+near-miss correction hints
+resource-limit / unavailable / syntax-invalid / semantic-invalid / sandbox-fault categories
+anti-Goodhart controls such as diminishing returns and effect-required reward
+connection from WorldletHistory / learned output token support to Proto-BASIC attempts
 ```
 
 Do not include:
 
 ```text
-Proto-BASIC grammar
-open-ended sandbox execution
-real host execution
+real BASIC interpreter
+host execution
+shell access
+file I/O
+network I/O
+arbitrary Python execution
 natural language teacher
 expression/readability
 social/language harness
@@ -307,13 +320,13 @@ Review and tighten the kickoff before catalog rows or code.
 ## Output file
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md
+PHASE3_4_PROTO_BASIC_REPL_CORRIGENDA.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md
+PHASE3_4_PROTO_BASIC_REPL_CORRIGENDA.md
 ```
 
 ## Required issues to check
@@ -321,14 +334,15 @@ PHASE3_3_MINIMAL_WORLDLET_CORRIGENDA.md
 At minimum:
 
 ```text
-worldlet consequence vs agency distinction
-whether WorldletAttempt may be constructed from readiness alone or requires learned token support
-whether response valence is bounded and source-tagged
-whether failed attempts produce negative-but-bounded evidence without fear/avoidance pathology
-whether not-I pushback is represented without claiming external reality
+REPL consequence vs agency distinction
+Proto-BASIC syntax vs language distinction
+whether the grammar is intentionally tiny and deterministic
+whether valid syntax alone is insufficient for strong positive feedback
+whether invalid / near-miss / sandbox-fault feedback is bounded
+whether repeated no-op spam is prevented by diminishing returns or effect-required reward
 whether rows should be REQUIRED / STRUCTURAL / OBSERVED
-whether Proto-BASIC / REPL semantics leaked in
-whether worldlet evidence can ever enter PerceptEvent/tick in this phase or must remain local
+whether expression/readability/social/Mode B semantics leaked in
+whether REPL evidence can ever enter PerceptEvent/tick in this phase or must remain local
 ```
 
 ## Validation
@@ -346,18 +360,18 @@ Commit/push after drafting.
 
 ## Purpose
 
-Design the future v0.8 Phase 3.3 catalog patch without applying it yet.
+Design the future v0.9 Phase 3.4 catalog patch without applying it yet.
 
 ## Output file
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md
+PHASE3_4_PROTO_BASIC_REPL_CATALOG_PATCH_PLAN.md
 ```
 
 ## Allowed files
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md
+PHASE3_4_PROTO_BASIC_REPL_CATALOG_PATCH_PLAN.md
 ```
 
 ## Required contents
@@ -365,9 +379,9 @@ PHASE3_3_MINIMAL_WORLDLET_CATALOG_PATCH_PLAN.md
 Specify:
 
 ```text
-proposed row families, likely I-WLD-*
+proposed row families, likely I-REPL-*
 row IDs, statuses, owning modules, fixtures
-count impact from current v0.7
+count impact from current v0.8
 fixture roster
 owning module map
 catalog patch mechanics
@@ -379,14 +393,16 @@ stop condition
 Likely row themes:
 
 ```text
-worldlet state is finite and deterministic
-worldlet attempts are constructed from output readiness / learned token support only
-worldlet attempts are not agency and do not select Act
-worldlet responses are bounded and source-tagged
-valid attempts may change only WorldletHistory, not TLICA runtime state
-invalid or unavailable attempts produce bounded negative valence
-not-I pushback is recorded as response evidence, not external reality
-worldlet consequence evidence is local and below Mode B
+grammar is finite and deterministic
+parse result distinguishes valid, near-miss, syntax-invalid, semantic-invalid, tool-unavailable, resource-limit, sandbox-fault
+feedback valence is exact and bounded in [-1, 1]
+valid syntax alone does not grant strong positive feedback
+valid-effective commands produce bounded positive feedback
+invalid / fault cases produce bounded negative feedback
+near-miss correction hints are structured local feedback, not language understanding
+history is copy-on-write and local
+REPL operations do not call tick(), emit PerceptEvent, or mutate TLICA runtime state
+anti-Goodhart prevents repeated no-op spam from dominating
 ```
 
 Do not apply the catalog patch in this step.
@@ -406,23 +422,23 @@ Commit/push after drafting.
 
 ## Purpose
 
-Do not automatically apply the v0.8 catalog patch unless the catalog patch plan is coherent and no open decision blocks implementation.
+Do not automatically apply the v0.9 catalog patch unless the catalog patch plan is coherent and no open decision blocks implementation.
 
 ## Branch logic
 
 - If the catalog patch plan contains unresolved blockers, stop and report.
-- If the plan is coherent and internally complete, Codex may proceed to Step 6 when the user says `go` again.
+- If the plan is coherent and internally complete, the agent may proceed to Step 6 when the user says `go` again.
 - If the user explicitly says the plan is accepted, proceed to Step 6 in the same campaign.
 
 This is an explicit review gate.
 
 ---
 
-# Step 6 — Apply accepted v0.8 catalog patch
+# Step 6 — Apply accepted v0.9 catalog patch
 
 ## Purpose
 
-Apply the accepted Minimal Worldlet catalog rows.
+Apply the accepted Proto-BASIC REPL catalog rows.
 
 ## Allowed files
 
@@ -434,7 +450,7 @@ brain/invariants.py
 brain/development/fixtures/__init__.py
 ```
 
-Only create module/fixture placeholders if necessary for registry coherence. Do not implement full worldlet behavior in this step unless the plan explicitly allows it.
+Only create module/fixture placeholders if necessary for registry coherence. Do not implement full REPL behavior in this step unless the plan explicitly allows it.
 
 ## Commands
 
@@ -448,18 +464,18 @@ Commit/push when catalog and generated IDs are coherent. If I-CAT-01 requires fi
 
 ---
 
-# Step 7 — Implement worldlet state and response boundary rows
+# Step 7 — Implement grammar/parser/feedback boundary rows
 
 ## Purpose
 
-Implement the minimal worldlet state/response surface.
+Implement the deterministic syntax and feedback surface.
 
 ## Allowed files
 
 ```text
-brain/development/worldlet.py
-brain/development/fixtures/worldlet_state.py
-brain/development/fixtures/worldlet_response.py
+brain/development/repl.py
+brain/development/fixtures/repl_grammar.py
+brain/development/fixtures/repl_feedback.py
 brain/invariants.py
 brain/_catalog_ids.py
 ```
@@ -467,11 +483,11 @@ brain/_catalog_ids.py
 ## Expected behavior
 
 ```text
-finite deterministic WorldletState
-WorldletResponse
-WorldletValence bounded in [-1, 1]
-source/provenance tags
-copy-on-write WorldletHistory
+finite command grammar
+parse result categories
+near-miss correction hint structure
+bounded feedback valence
+no language/social/Mode B fields
 no TLICA runtime mutation
 ```
 
@@ -479,53 +495,53 @@ Run targeted rows from the accepted plan and commit/push when green.
 
 ---
 
-# Step 8 — Implement worldlet attempt and consequence rows
+# Step 8 — Implement command execution / history rows
 
 ## Purpose
 
-Implement consequence-bearing attempts below agency.
+Implement deterministic local command execution below host execution.
 
 ## Allowed files
 
 ```text
-brain/development/worldlet.py
-brain/development/fixtures/worldlet_attempt.py
-brain/development/fixtures/worldlet_consequence.py
+brain/development/repl.py
+brain/development/fixtures/repl_execution.py
+brain/development/fixtures/repl_history.py
 brain/invariants.py
 ```
 
 ## Expected behavior
 
 ```text
-WorldletAttempt from learned output token / proto-output readiness support
-attempt is not Act and not AgencyWitness
-valid attempt produces deterministic WorldletResponse
-invalid/unavailable attempt produces bounded negative response
-response updates WorldletHistory only
+valid-effective command changes only ProtoBasicHistory
+valid-ineffective command receives weak/non-strong feedback
+syntax-invalid and semantic-invalid are bounded
+resource-limit and sandbox-fault are bounded and local
+no shell, no host process, no file I/O, no network I/O
 ```
 
 Commit/push when targeted checks pass.
 
 ---
 
-# Step 9 — Implement not-I pushback / local evidence rows if authorized
+# Step 9 — Implement anti-Goodhart / local evidence rows if authorized
 
 ## Purpose
 
-Represent not-I pushback and local consequence evidence only if the accepted catalog plan includes it.
+Represent anti-Goodhart constraints only if the accepted catalog plan includes them.
 
 ## Stop logic
 
-If the accepted plan defers not-I pushback to a later phase, skip this step and proceed to full gate.
+If the accepted plan defers anti-Goodhart to a later phase, skip this step and proceed to full gate.
 
-If included, keep it below external reality claims, below Mode B, and below language.
+If included, keep it deterministic and local.
 
 Allowed behavior:
 
 ```text
-not-I pushback as deterministic response evidence
-bounded valence
-local history only
+diminishing returns for repeated no-op / repeated identical command
+strong positive feedback requires effect, not syntax alone
+history summaries are local evidence only
 no PerceptEvent promotion unless explicitly authorized by the accepted plan
 ```
 
@@ -537,7 +553,7 @@ Commit/push when targeted checks pass.
 
 ## Purpose
 
-Verify the whole repo after Phase 3.3 rows are implemented.
+Verify the whole repo after Phase 3.4 rows are implemented.
 
 ## Commands
 
@@ -557,12 +573,12 @@ Commit/push any final sync docs if needed.
 
 ## Purpose
 
-Audit Phase 3.3 after implementation.
+Audit Phase 3.4 after implementation.
 
 ## Output file
 
 ```text
-PHASE3_3_MINIMAL_WORLDLET_AUDIT.md
+PHASE3_4_PROTO_BASIC_REPL_AUDIT.md
 ```
 
 ## Required verdict
@@ -578,9 +594,10 @@ Audit:
 ```text
 scope creep
 row-family registration
-worldlet response vs agency distinction
-not-I pushback vs external reality distinction
-bounded valence
+syntax vs language distinction
+execution vs host execution distinction
+bounded feedback / valence
+anti-Goodhart behavior
 kernel boundary
 full gate
 recommended next mission
@@ -600,8 +617,12 @@ a fix requires changing tick() semantics
 a fix requires changing scenario schema
 a fix requires real LLM execution
 a test failure suggests the campaign plan itself is wrong
-Proto-BASIC syntax becomes necessary
-open-ended host execution becomes necessary
+real host execution becomes necessary
+open-ended process execution becomes necessary
+arbitrary Python/shell/file/network execution becomes necessary
+expression/readability semantics become necessary
+social-language semantics become necessary
+Mode B reflective planning becomes necessary
 there are uncommitted external changes
 ```
 
@@ -612,10 +633,10 @@ there are uncommitted external changes
 When complete, report:
 
 ```text
-Phase 3.3 Minimal Worldlet campaign complete.
+Phase 3.4 Proto-BASIC REPL campaign complete.
 Catalog: <version>
 Counts: <actual>
 Full gate: pass
 Commits: <list>
-Remaining deferred work: Phase 3.4 Proto-BASIC REPL and later phases
+Remaining deferred work: expression/readability, social/language harness, Mode B, and later phases
 ```
