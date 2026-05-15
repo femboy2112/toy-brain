@@ -250,3 +250,52 @@ The bridge from v0.5 to Phase 3 is therefore narrow and explicit: keep the
 kernel invariant discipline, add a developmental substrate before expecting
 semantic preservation, and treat real-backend behavior as evidence to interpret,
 not as a fixture oracle to overfit.
+
+## 11. Explicit Non-Goals
+
+This synthesis does not authorize:
+
+- prompt-tuning solely to force the four-tick scenario to pass
+- seeded-MSI scenario hacks as the immediate next move
+- Phase 3 runtime implementation from this synthesis
+- direct developmental mutation of TLICA state
+- bypassing `PerceptEvent` and `tick()`
+- implementation of the Osmotic Chamber before a kickoff + corrigenda pass
+- implementation of the output ladder, worldlet, Proto-BASIC REPL, expression
+  layer, or language harness from this synthesis
+
+The developmental layer must feed the existing kernel through the promotion
+gate rather than replacing the kernel or mutating TLICA state directly.
+
+## 12. Next Artifact
+
+The next artifact is:
+
+```text
+PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+```
+
+No Phase 3 code before kickoff + corrigenda.
+
+That kickoff must lock:
+
+```text
+PhenomenalFrame
+FrameSource
+SubstrateDrives
+SubstrateHistory
+ProtoPattern
+ProtoContent
+salience_v1
+stability_v1
+prediction_gain_v1
+SIMILARITY
+FOCUS_CONTACT
+ProbeUse
+ProbePolicyState
+promotion gate to PerceptEvent
+source-tag audit
+first deterministic chamber fixtures
+Phase 3.1 row statuses
+trace reserved-key protection decision
+```
