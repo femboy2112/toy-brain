@@ -1,8 +1,10 @@
-# CURRENT_MISSION.md — Codex `go` Entry Point
+# CURRENT_MISSION.md — Model-Agnostic `go` Entry Point
 
 ## One-line instruction
 
-When the user tells Codex **`go`** in this repository, Codex should read this file and execute the current Phase 3.3 campaign.
+When the user tells any repo-capable agent **`go`** in this repository, the agent should read this file and execute the current campaign.
+
+This entry point is model-agnostic. It applies to Codex, Claude Code, or any future agent with equivalent repository read/write, shell, validation, commit, and push capabilities.
 
 ---
 
@@ -14,9 +16,9 @@ Execute the next eligible step in:
 CURRENT_CAMPAIGN.md
 ```
 
-`CURRENT_CAMPAIGN.md` is currently the Phase 3.3 Minimal Worldlet campaign.
+`CURRENT_CAMPAIGN.md` is currently the Phase 3.4 Proto-BASIC REPL campaign.
 
-Codex must use campaign state detection, prerequisites, test results, and stop conditions to decide which step to run next.
+The active agent must use campaign state detection, prerequisites, test results, and stop conditions to decide which step to run next.
 
 ---
 
@@ -56,7 +58,7 @@ Do not rely on unstated conversation context. The campaign must run from repo-lo
 5. Commit and push after each successful step.
 6. Stop at explicit approval gates, failing tests requiring user judgment, or campaign completion.
 
-Do not skip ahead to later Phase 3.4+ work.
+Do not skip ahead to later post-Phase-3.4 work.
 
 ---
 
@@ -80,7 +82,7 @@ Do not run real LLM scenario commands unless the user explicitly asks.
 
 ## Git persistence requirement
 
-After each successful campaign step, Codex must commit and push.
+After each successful campaign step, the active agent must commit and push.
 
 Rules:
 
@@ -95,7 +97,7 @@ Committing and pushing completed step results is mandatory if files changed.
 
 Do not commit accidental changes to guarded files.
 
-If there are no changes, Codex should report that no commit was made and why.
+If there are no changes, report that no commit was made and why.
 
 ---
 
