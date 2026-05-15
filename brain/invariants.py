@@ -111,6 +111,9 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.text_stream_no_tick",
     "brain.development.fixtures.text_stream_static_audit",
     "brain.development.fixtures.text_stream_anti_growth",
+    "brain.development.fixtures.text_stream_segment_candidate",
+    "brain.development.fixtures.text_stream_pattern_recurrence",
+    "brain.development.fixtures.text_stream_promotion_candidate",
 ]
 
 
@@ -637,18 +640,13 @@ for _row_id, _status in _PHASE3_6_PENDING_ROWS.items():
 
 
 _PHASE3_7_PENDING_ROWS: dict[str, str] = {
-    # Step 15 landed I-STRM-01, I-STRM-02, I-STRM-03, I-STRM-04, I-STRM-08,
-    # I-STRM-09, I-STRM-10, I-STRM-11, I-STRM-12, I-STRM-13, I-STRM-14, and
-    # I-STRM-15 via brain.development.text_stream and the nine
-    # text_stream_* fixtures (one shared text_stream_static_audit.py
-    # fixture covering I-STRM-12, I-STRM-14, I-STRM-15 per the catalog
-    # patch plan's bundling allowance, and the
-    # text_stream_feature_vector_exact.py fixture covering both I-STRM-04
-    # and I-STRM-13 per the catalog patch plan's bundling allowance for
-    # frozen-record checks).
-    "I-STRM-05": "REQUIRED",
-    "I-STRM-06": "REQUIRED",
-    "I-STRM-07": "REQUIRED",
+    # Step 15 landed I-STRM-01..04 and I-STRM-08..15. Step 16 landed
+    # I-STRM-05 (text_stream_segment_candidate), I-STRM-06
+    # (text_stream_pattern_recurrence), and I-STRM-07
+    # (text_stream_promotion_candidate). I-STRM-16 (OBSERVED) and
+    # I-STRM-17 (NOT-EXERCISED) do not participate in I-CAT-01 coverage
+    # and are not pending here. No Phase 3.7 Text Stream Ingress rows
+    # remain pending.
 }
 
 
