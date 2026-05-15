@@ -102,6 +102,15 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.reflective_no_source_history_mutation",
     "brain.development.fixtures.reflective_no_aggregate_score",
     "brain.development.fixtures.reflective_static_audit",
+    "brain.development.fixtures.text_stream_source_enum_closed",
+    "brain.development.fixtures.text_stream_chunk_bounded",
+    "brain.development.fixtures.text_stream_history_cow_bounded",
+    "brain.development.fixtures.text_stream_feature_vector_exact",
+    "brain.development.fixtures.text_stream_no_brainstate_mutation",
+    "brain.development.fixtures.text_stream_no_source_history_mutation",
+    "brain.development.fixtures.text_stream_no_tick",
+    "brain.development.fixtures.text_stream_static_audit",
+    "brain.development.fixtures.text_stream_anti_growth",
 ]
 
 
@@ -628,21 +637,18 @@ for _row_id, _status in _PHASE3_6_PENDING_ROWS.items():
 
 
 _PHASE3_7_PENDING_ROWS: dict[str, str] = {
-    "I-STRM-01": "REQUIRED",
-    "I-STRM-02": "REQUIRED",
-    "I-STRM-03": "REQUIRED",
-    "I-STRM-04": "REQUIRED",
+    # Step 15 landed I-STRM-01, I-STRM-02, I-STRM-03, I-STRM-04, I-STRM-08,
+    # I-STRM-09, I-STRM-10, I-STRM-11, I-STRM-12, I-STRM-13, I-STRM-14, and
+    # I-STRM-15 via brain.development.text_stream and the nine
+    # text_stream_* fixtures (one shared text_stream_static_audit.py
+    # fixture covering I-STRM-12, I-STRM-14, I-STRM-15 per the catalog
+    # patch plan's bundling allowance, and the
+    # text_stream_feature_vector_exact.py fixture covering both I-STRM-04
+    # and I-STRM-13 per the catalog patch plan's bundling allowance for
+    # frozen-record checks).
     "I-STRM-05": "REQUIRED",
     "I-STRM-06": "REQUIRED",
     "I-STRM-07": "REQUIRED",
-    "I-STRM-08": "REQUIRED",
-    "I-STRM-09": "REQUIRED",
-    "I-STRM-10": "REQUIRED",
-    "I-STRM-11": "REQUIRED",
-    "I-STRM-12": "STRUCTURAL",
-    "I-STRM-13": "STRUCTURAL",
-    "I-STRM-14": "STRUCTURAL",
-    "I-STRM-15": "STRUCTURAL",
 }
 
 
