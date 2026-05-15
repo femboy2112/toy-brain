@@ -55,6 +55,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.fixtures.llm_protocol",
     "brain.fixtures.scenario_v1",
     "brain.fixtures.trace_v1_1",
+    "brain.development.fixtures.source_tag_audit",
 ]
 
 
@@ -253,10 +254,6 @@ def check_I_ISO_03() -> None:
 
 
 _PHASE3_1_PENDING_ROWS: dict[str, str] = {
-    "I-FRAME-01": "STRUCTURAL",
-    "I-FRAME-02": "STRUCTURAL",
-    "I-FRAME-03": "REQUIRED",
-    "I-FRAME-04": "STRUCTURAL",
     "I-DEV-01": "REQUIRED",
     "I-DEV-02": "REQUIRED",
     "I-DEV-03": "REQUIRED",
