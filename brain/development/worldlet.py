@@ -8,12 +8,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
+from hashlib import sha256
 from types import MappingProxyType
 from typing import Mapping
 
 from brain.development.drives import require_unit_fraction
 from brain.development.history import TraceEventID, require_printable_id
-from brain.development.output import OutputPatternID, OutputTokenID
+from brain.development.output import (
+    LearnedOutputToken,
+    OutputHistory,
+    OutputPatternID,
+    OutputTokenID,
+    ProtoOutputActionReadiness,
+)
 from brain.development.stream import FrameSourceKind
 from brain.tlica.profile import COGITO_ID
 
@@ -203,6 +210,76 @@ class WorldletAttempt:
             raise TypeError("WorldletAttempt.provenance must be WorldletProvenance")
 
 
+def construct_worldlet_attempt(
+    history: OutputHistory,
+    readiness: ProtoOutputActionReadiness,
+    learned_token: LearnedOutputToken,
+    *,
+    attempt_id: WorldletAttemptID,
+    target_id: WorldletObjectID | None,
+    provenance: WorldletProvenance,
+) -> WorldletAttempt:
+    """Construct a worldlet attempt only from mature local output support."""
+    if not isinstance(history, OutputHistory):
+        raise TypeError(
+            f"history must be OutputHistory (got {type(history).__name__})"
+        )
+    if not isinstance(readiness, ProtoOutputActionReadiness):
+        raise ValueError(
+            "I-WLD-07 violated: worldlet attempt requires "
+            "ProtoOutputActionReadiness support"
+        )
+    if not readiness.ready:
+        raise ValueError(
+            "I-WLD-07 violated: worldlet attempt requires ready readiness"
+        )
+    if not isinstance(learned_token, LearnedOutputToken):
+        raise ValueError(
+            "I-WLD-07 violated: worldlet attempt requires LearnedOutputToken support"
+        )
+    if history.learned_tokens.get(learned_token.token_id) is not learned_token:
+        raise ValueError(
+            "I-WLD-07 violated: learned token must be registered in OutputHistory"
+        )
+    if history.token_candidates.get(learned_token.token_id) is not learned_token.candidate:
+        raise ValueError(
+            "I-WLD-07 violated: learned token candidate must be registered in OutputHistory"
+        )
+    if learned_token.token_id != readiness.token_id:
+        raise ValueError(
+            "I-WLD-07 violated: readiness token_id must match learned token"
+        )
+    if learned_token.pattern_id != readiness.pattern_id:
+        raise ValueError(
+            "I-WLD-07 violated: readiness pattern_id must match learned token"
+        )
+    if learned_token.support_count != readiness.support_count:
+        raise ValueError(
+            "I-WLD-07 violated: readiness support_count must match learned token"
+        )
+    if learned_token.source_kinds != readiness.source_kinds:
+        raise ValueError(
+            "I-WLD-07 violated: readiness source_kinds must match learned token"
+        )
+    if not isinstance(provenance, WorldletProvenance):
+        raise ValueError(
+            "I-WLD-07 violated: worldlet attempt requires worldlet provenance"
+        )
+
+    try:
+        return WorldletAttempt(
+            attempt_id=attempt_id,
+            token_id=learned_token.token_id,
+            pattern_id=learned_token.pattern_id,
+            target_id=target_id,
+            provenance=provenance,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "I-WLD-07 violated: invalid worldlet attempt identifier"
+        ) from exc
+
+
 @dataclass(frozen=True, slots=True)
 class WorldletResponse:
     """Source-tagged local consequence record returned by the harness."""
@@ -307,3 +384,96 @@ def append_worldlet_response(
         attempts=history.attempts,
         responses=history.responses + (response,),
     )
+
+
+def _worldlet_digest(*parts: object) -> str:
+    return sha256(repr(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def _worldlet_response_id(
+    state: WorldletState,
+    attempt: WorldletAttempt,
+    reason: str,
+) -> WorldletResponseID:
+    digest = _worldlet_digest(
+        "response",
+        state.state_id,
+        state.step_index,
+        attempt.attempt_id,
+        attempt.token_id,
+        attempt.target_id,
+        reason,
+    )
+    return f"wld:response:{digest}"
+
+
+def _worldlet_next_state(
+    state: WorldletState,
+    attempt: WorldletAttempt,
+    reason: str,
+) -> WorldletState:
+    digest = _worldlet_digest(
+        "state",
+        state.state_id,
+        state.step_index,
+        attempt.attempt_id,
+        attempt.token_id,
+        attempt.target_id,
+        reason,
+    )
+    return WorldletState(
+        state_id=f"wld:state:{digest}",
+        objects=state.objects,
+        step_index=state.step_index + 1,
+    )
+
+
+def respond_worldlet(
+    history: WorldletHistory,
+    attempt: WorldletAttempt,
+) -> tuple[WorldletHistory, WorldletResponse]:
+    """Apply one valid attempt to the local deterministic worldlet harness."""
+    if not isinstance(history, WorldletHistory):
+        raise TypeError(
+            f"history must be WorldletHistory (got {type(history).__name__})"
+        )
+    if not isinstance(attempt, WorldletAttempt):
+        raise TypeError(
+            f"attempt must be WorldletAttempt (got {type(attempt).__name__})"
+        )
+
+    state = history.latest_state
+    target = state.object_for_target(attempt.target_id)
+    if target is None:
+        accepted = False
+        reason = "missing-target"
+        valence = Fraction(-1, 2)
+    elif not target.available:
+        accepted = False
+        reason = "target-unavailable"
+        valence = Fraction(-1, 2)
+    elif attempt.token_id in target.accepted_token_ids:
+        accepted = True
+        reason = "accepted"
+        valence = Fraction(1, 2)
+    else:
+        accepted = False
+        reason = "rejected"
+        valence = Fraction(-1, 2)
+
+    response = WorldletResponse(
+        response_id=_worldlet_response_id(state, attempt, reason),
+        attempt_id=attempt.attempt_id,
+        accepted=accepted,
+        reason=reason,
+        valence=WorldletValence(valence),
+        provenance=attempt.provenance,
+    )
+    next_state = _worldlet_next_state(state, attempt, reason)
+    with_attempt = append_worldlet_attempt(history, attempt)
+    with_response = append_worldlet_response(
+        with_attempt,
+        response,
+        latest_state=next_state,
+    )
+    return with_response, response
