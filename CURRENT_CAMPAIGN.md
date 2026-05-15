@@ -1,46 +1,70 @@
-# CURRENT_CAMPAIGN.md - Operator TUI Input/Switch Repair Campaign
+# CURRENT_CAMPAIGN.md — Phase 3.5 Expression + ReadabilityPredictor Campaign
 
 ## Purpose
 
-Fix the Operator TUI behavior that made the agent-style UI feel unreliable in
-real use:
+Begin the next developmental campaign after the completed Operator TUI work.
+
+This campaign designs and implements a bounded local **Expression + ReadabilityPredictor** layer over existing bottom-up evidence:
 
 ```text
---print-once did not show the agent layout
-valid commands after a parse error showed stale ERROR transcript/footer state
-Backspace keycode 263 did not edit the composer
+Phase 3.1 Osmotic Chamber
+Phase 3.2 Output Ladder
+Phase 3.3 Minimal Worldlet
+Phase 3.4 Proto-BASIC REPL
+Operator TUI v0.11 + input/switch repair
 ```
 
-This campaign is a focused repair branch, not a new developmental phase.
+The goal is to inspect and score local expression/readability properties without creating language understanding, social communication, Mode B planning, or a real LLM-backed writer.
 
-## Branch
+---
 
-All implementation work belongs on:
+## Saved baseline
+
+Expected baseline before this campaign:
 
 ```text
-codex/operator-tui-input-switch-fixes
+Catalog: v0.11
+Operator TUI Agent-Style Layout: PASS
+Operator TUI input/switch repair: merged
+Counts: 127 REQUIRED / 44 STRUCTURAL / 4 NOT-EXERCISED / 12 DEFERRED / 7 OBSERVED
+Full gate: green
+Entrypoint: python3 -m brain.ui
 ```
 
-If an agent is on another branch, stop and switch to the branch above before
-editing.
-
-## Scope
-
-Allowed files:
+Required audit artifacts:
 
 ```text
-CURRENT_MISSION.md
-CURRENT_CAMPAIGN.md
-README.md
+OPERATOR_TUI_AUDIT.md
+OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md
 OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
-brain/ui/__main__.py
-brain/ui/session.py
-brain/ui/tui.py
-brain/ui/fixtures/tui_smoke.py
-brain/ui/fixtures/agent_tui_smoke.py
 ```
 
-Do not touch:
+Stop if any required audit is absent or not PASS.
+
+---
+
+## Model-agnostic execution rule
+
+When the user says `go`, the active repo-capable agent should:
+
+```text
+read CURRENT_MISSION.md
+read CURRENT_CAMPAIGN.md
+run preflight
+infer the next eligible step from repo state
+execute only that step's allowed scope
+validate as specified
+commit and push after successful steps
+stop at review gates, failures requiring user judgment, or campaign completion
+```
+
+Use `python3 -m ...` for Python module commands. Do not use `python -m ...` unless the user explicitly says a `python` alias exists.
+
+---
+
+## Hard boundaries
+
+Do not modify unless a step explicitly allows it:
 
 ```text
 brain/tlica/
@@ -52,117 +76,346 @@ brain/tick.py
 brain/llm/
 ```
 
-## Findings
-
-### Finding 1 - `--print-once` rendered the wrong UI
-
-Reproduction:
-
-```bash
-python3 -m brain.ui --print-once --width 60 --height 12
-```
-
-Before repair, the output began with:
+Do not implement:
 
 ```text
-[ core state ]----------------------------------------------
+real LLM calls
+social/language harness
+Mode B reflective planning
+natural-language teacher/corrector
+host execution
+shell execution
+network I/O
+filesystem save/export
+arbitrary Python execution
+TLICA runtime promotion
+PerceptEvent/tick() promotion from expression evidence
 ```
 
-That meant the command used the retained legacy single-pane renderer. The
-campaign corrigenda expected the non-interactive entrypoint to render an
-`AgentTuiViewModel` so operators can inspect the bottom composer without a
-real TTY.
+No external dependencies. Use only standard library and existing project APIs.
 
-Fix:
+---
+
+## Phase 3.5 thesis
+
+Expression and readability are local deterministic harness constructs:
 
 ```text
-brain/ui/__main__.py now builds ComposerState.empty(),
-OperatorTranscript.empty(), AgentTuiViewModel, and render_agent() for
---print-once and _render_once_to_string().
+Expression = a bounded local representation of how an output-like item is shaped for display/inspection.
+ReadabilityPredictor = a bounded local predictor over expression features, not a measure of truth, intelligence, language understanding, social success, or agency.
 ```
 
-### Finding 2 - stale errors survived later valid commands
-
-Reproduction:
+Expression evidence may inspect earlier local histories, but must remain local:
 
 ```text
-type /bad + Enter
-type /queue beta hello-world + Enter
-type /step + Enter
+OutputHistory / WorldletHistory / ProtoBasicHistory / OperatorTranscript
+    -> ExpressionRecord / ReadabilityPrediction
+    -> local ExpressionHistory only
 ```
 
-Before repair, `/queue` and `/step` dispatched successfully but transcript
-entries after those submissions were still `ERROR unknown command: /bad`.
-
-Fix:
+No reverse mutation is allowed:
 
 ```text
-OperatorSession.dispatch() clears error_message at the start of each valid
-Command dispatch. Failure handlers set a fresh error; success paths no longer
-inherit stale local UI errors.
+ExpressionHistory -> BrainState / MSI / PtCns / registry / tick / PerceptEvent / traces / scenarios  NOT ALLOWED
 ```
 
-### Finding 3 - Backspace code 263 was ignored
+---
 
-Reproduction:
+# Step 0 — Preflight
+
+Read:
 
 ```text
-ComposerState(buffer="abc", cursor=3)
-send raw keycode 263
-```
-
-Before repair, the route kind was `none` and the buffer stayed `abc`.
-
-Fix:
-
-```text
-build_agent_keystroke_router() maps literal curses KEY_BACKSPACE code 263 to
-AgentKeyKind.BACKSPACE.
-```
-
-## Implementation Steps
-
-1. Preflight:
-
-```bash
-git status --short --branch
-python3 -m tools.catalog counts
-python3 -m brain.ui --print-once --width 60 --height 12
-```
-
-2. Runtime repair:
-
-```text
-brain/ui/__main__.py
-brain/ui/session.py
-brain/ui/tui.py
-```
-
-3. Regression coverage:
-
-```text
-brain/ui/fixtures/tui_smoke.py
-brain/ui/fixtures/agent_tui_smoke.py
-```
-
-4. Documentation and mission handoff:
-
-```text
-README.md
-OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
+README.md
+INVARIANT_CATALOG.md
+OPERATOR_TUI_AUDIT.md
+OPERATOR_TUI_LIVE_INPUT_PATCH_AUDIT.md
+OPERATOR_TUI_AGENT_LAYOUT_AUDIT.md
+brain/development/output.py
+brain/development/worldlet.py
+brain/development/repl.py
+brain/ui/session.py
+brain/ui/transcript.py
+brain/ui/render.py
 ```
 
-5. Validation:
+Run:
 
 ```bash
-python3 -m brain.ui --print-once --width 60 --height 12
-python3 -m brain.invariants run --id I-UI-12
-python3 -m brain.invariants run --id I-UI-17
-python3 -m brain.invariants run --id I-UI-18
-python3 -m brain.invariants run --id I-UI-21
+git status --short
+git branch --show-current
+git log --oneline -10
+python3 -m tools.catalog counts
 python3 -m brain.invariants run --id I-UI-23
+bash tools/check_all.sh
+```
+
+Stop if the tree is dirty, full gate fails, or any required audit is absent/not PASS.
+
+---
+
+# Step 1 — Phase 3.5 synthesis
+
+Create `PHASE3_5_EXPRESSION_READABILITY_SYNTHESIS.md`.
+
+Include:
+
+```text
+v0.11 baseline summary
+why Expression follows Proto-BASIC + Operator TUI
+Expression thesis
+ReadabilityPredictor thesis
+local evidence boundaries
+why readability is not truth / language / social success / intelligence
+one-way bridge from earlier histories
+non-goals
+risks
+next artifact: PHASE3_5_EXPRESSION_READABILITY_KICKOFF.md
+```
+
+Validate:
+
+```bash
+git diff --name-only
+python3 -m tools.catalog counts
+```
+
+Commit/push.
+
+---
+
+# Step 2 — Phase 3.5 kickoff
+
+Create `PHASE3_5_EXPRESSION_READABILITY_KICKOFF.md`.
+
+Cover only:
+
+```text
+ExpressionSource
+ExpressionItem
+ExpressionFeatureVector
+ExpressionRecord
+ReadabilityScore exact Fraction in [0, 1]
+ReadabilityPrediction
+ReadabilityPredictor
+ExpressionHistory
+bounded feature extraction from local histories
+anti-Goodhart rules
+non-mutating inspection of OutputHistory / WorldletHistory / ProtoBasicHistory / OperatorTranscript
+```
+
+Do not include real language-model scoring, natural-language teacher/corrector, social feedback, Mode B planning, external corpus, file/network access, PerceptEvent promotion, or TLICA runtime mutation.
+
+Validate and commit/push.
+
+---
+
+# Step 3 — Kickoff corrigenda
+
+Create `PHASE3_5_EXPRESSION_READABILITY_CORRIGENDA.md`.
+
+Check:
+
+```text
+expression vs language distinction
+readability vs truth distinction
+readability vs social success distinction
+readability vs agency distinction
+feature extraction determinism
+bounded exact score discipline
+anti-Goodhart requirements
+which rows should be REQUIRED / STRUCTURAL / OBSERVED / NOT-EXERCISED
+whether ExpressionHistory must remain local only
+whether any UI integration is allowed or deferred
+```
+
+Validate and commit/push.
+
+---
+
+# Step 4 — Catalog patch plan
+
+Create `PHASE3_5_EXPRESSION_READABILITY_CATALOG_PATCH_PLAN.md`.
+
+Design the future catalog patch without applying it.
+
+Likely row family:
+
+```text
+I-EXP-*
+```
+
+Likely row themes:
+
+```text
+ExpressionSource is a finite closed enumeration
+ExpressionItem is bounded printable local evidence
+ExpressionFeatureVector is deterministic and exact
+ReadabilityScore is Fraction in [0,1]
+ReadabilityPrediction is local and source-tagged
+valid readability does not imply truth/language/social success
+anti-Goodhart prevents score inflation by repetition/length alone
+ExpressionHistory is copy-on-write and local
+no mutation of BrainState/MSI/PtCns/registry/developmental histories
+aggregate expression summaries are OBSERVED only
+```
+
+Specify row table, statuses, owning modules, fixture roster, count impact from v0.11, catalog patch mechanics, pending registration plan, strict implementation order, open decisions, and stop conditions.
+
+Validate and commit/push.
+
+---
+
+# Step 5 — Review gate
+
+Do not proceed to Step 6 unless the catalog patch plan is coherent and no open decision blocks implementation.
+
+Stop if the plan requires real LLM calls, external corpus, social/language harness, Mode B planning, truth scoring, host/shell/network/file execution, BrainState/MSI/PtCns mutation, tick() semantic changes, scenario/trace schema changes, new external dependencies, or weakening existing I-* safety rows.
+
+Proceed only when the user says `go` again or explicitly accepts the plan.
+
+---
+
+# Step 6 — Apply accepted catalog patch
+
+Allowed files:
+
+```text
+INVARIANT_CATALOG.md
+tools/catalog.py
+brain/_catalog_ids.py
+brain/invariants.py
+```
+
+Optional package markers only if accepted by the patch plan:
+
+```text
+brain/development/expression.py
+brain/development/fixtures/expression_core.py
+```
+
+Apply only accepted rows, expected count updates, generated IDs, and pending registrations. Do not implement runtime behavior unless explicitly allowed by the accepted plan.
+
+Run:
+
+```bash
+python3 -m tools.catalog counts
+python3 -m tools.catalog generate-ids
+python3 -m tools.catalog counts
+```
+
+Commit/push.
+
+---
+
+# Step 7 — Implement expression core
+
+Allowed files depend on accepted plan, likely:
+
+```text
+brain/development/expression.py
+brain/development/fixtures/expression_core.py
+brain/invariants.py
+```
+
+Expected behavior:
+
+```text
+finite ExpressionSource
+bounded ExpressionItem
+deterministic ExpressionFeatureVector
+no LLM / shell / network / file access
+no BrainState mutation
+```
+
+Run targeted checks and commit/push.
+
+---
+
+# Step 8 — Implement ReadabilityPredictor
+
+Allowed files likely:
+
+```text
+brain/development/expression.py
+brain/development/fixtures/readability_predictor.py
+brain/invariants.py
+```
+
+Expected behavior:
+
+```text
+ReadabilityScore exact Fraction in [0,1]
+ReadabilityPrediction source-tagged and local
+score computed deterministically from ExpressionFeatureVector
+valid score does not imply truth/language/social success/intelligence
+anti-Goodhart rules for repetition/length/no-op inflation
+```
+
+Run targeted checks and commit/push.
+
+---
+
+# Step 9 — Implement ExpressionHistory and local summaries
+
+Allowed files likely:
+
+```text
+brain/development/expression.py
+brain/development/fixtures/expression_history.py
+brain/invariants.py
+```
+
+Expected behavior:
+
+```text
+copy-on-write ExpressionHistory
+bounded local entries
+summary inspection only
+OBSERVED aggregate row if accepted
+no mutation of OutputHistory / WorldletHistory / ProtoBasicHistory / OperatorTranscript
+no PerceptEvent/tick promotion
+```
+
+Run targeted checks and commit/push.
+
+---
+
+# Step 10 — Optional UI inspection bridge if accepted
+
+Only if the accepted catalog plan explicitly authorizes a UI inspection pane.
+
+Allowed files likely:
+
+```text
+brain/ui/render.py
+brain/ui/session.py
+brain/ui/fixtures/agent_tui_smoke.py
+README.md
+```
+
+Expected behavior:
+
+```text
+UI may display ExpressionHistory summaries
+UI must not compute or mutate expression state unless routed through public helper
+no new save/export path
+no LLM calls
+```
+
+Skip this step if the catalog plan defers UI integration.
+
+Run targeted checks and commit/push.
+
+---
+
+# Step 11 — Full gate
+
+Run:
+
+```bash
 python3 -m tools.catalog counts
 python3 -m tools.citations verify
 python3 -m tools.import_audit
@@ -170,112 +423,28 @@ python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-## Current Repair Status
+Commit/push final sync docs if needed.
+
+---
+
+# Step 12 — Post-completion audit
+
+Create `PHASE3_5_EXPRESSION_READABILITY_AUDIT.md`.
+
+Verdict must be PASS / PASS WITH PATCHES / BLOCKED.
+
+Audit scope creep, row registration, expression vs language distinction, readability vs truth/social/agency distinction, score boundedness, anti-Goodhart behavior, history locality, kernel boundary, full gate, and recommended next mission.
+
+Commit/push.
+
+---
+
+## Campaign complete output
 
 ```text
-Branch                : codex/operator-tui-input-switch-fixes
-Runtime fixes         : implemented
-Regression fixtures   : implemented
-Docs/mission handoff  : implemented
-Full validation       : pass
-Commit/push           : pending commit
-```
-
-## Final Validation Results
-
-Validated on branch `codex/operator-tui-input-switch-fixes`:
-
-```text
-python3 -m brain.ui --print-once --width 60 --height 12
-  PASS - output includes agent header, transcript pane, bottom composer,
-  mode=local-cmd meta row, and footer.
-
-python3 -m brain.invariants run --id I-UI-12
-  PASS - entrypoint fixture covers agent --print-once output.
-
-python3 -m brain.invariants run --id I-UI-17
-  PASS - composer edit model remains green.
-
-python3 -m brain.invariants run --id I-UI-18
-  PASS - local command parser remains green.
-
-python3 -m brain.invariants run --id I-UI-21
-  PASS - wrapper delegation fixture covers stale-error recovery and
-  Backspace keycode 263.
-
-python3 -m brain.invariants run --id I-UI-23
-  OBS-PASS - scripted agent walk remains inspectable.
-
-python3 -m tools.catalog counts
-  PASS - 127 REQUIRED / 44 STRUCTURAL / 4 NOT-EXERCISED / 12 DEFERRED /
-  7 OBSERVED.
-
-python3 -m tools.citations verify
-  PASS - 100 citations verified.
-
-python3 -m tools.import_audit
-  PASS - I-PCE-05 clean.
-
-python3 -m brain.invariants run
-  PASS - 178 rows checked; REQUIRED 127 green / 0 red; STRUCTURAL
-  44 green / 0 red; OBSERVED 7 pass / 0 fail; gate failures 0.
-
-bash tools/check_all.sh
-  PASS - All checks passed.
-```
-
-## Expected Fixed Behavior
-
-`python3 -m brain.ui --print-once --width 60 --height 12` should include:
-
-```text
-toy-brain operator
-[ transcript ]
-> _
-mode=local-cmd
-keys: enter submit
-```
-
-The scripted input sequence:
-
-```text
-/bad
-/queue beta hello-world
-/step
-Backspace keycode 263 over "abc"
-```
-
-should yield:
-
-```text
-ERROR for /bad only
-QUEUED for /queue
-STEP for /step
-empty final error_message
-buffer "ab" after keycode 263
-```
-
-## Stop Conditions
-
-Stop and report if:
-
-```text
-any full-gate command fails after one repair pass
-the fix requires changing guarded files
-the fix requires weakening an I-UI row
-the fix would add shell/network/host execution or a new dependency
-```
-
-## Completion Output
-
-When complete, report:
-
-```text
-Operator TUI input/switch repair complete.
-Branch: codex/operator-tui-input-switch-fixes
-Entrypoint: python3 -m brain.ui
-Fixed: --print-once agent layout, stale error recovery, Backspace 263
-Full gate: <pass/fail>
-Commit: <sha>
-Push: <status>
+Phase 3.5 Expression + ReadabilityPredictor campaign complete.
+Catalog: <version>
+Counts: <actual>
+Full gate: pass
+Remaining deferred work: social/language harness, Mode B reflective planning, and later cognitive campaigns
 ```
