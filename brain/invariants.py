@@ -95,6 +95,13 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.readability_predictor_length_cap",
     "brain.development.fixtures.readability_predictor_determinism",
     "brain.development.fixtures.expression_history_cow_bounded",
+    "brain.development.fixtures.reflective_source_enum_closed",
+    "brain.development.fixtures.reflective_summary_item_bounded",
+    "brain.development.fixtures.reflective_snapshot_deterministic",
+    "brain.development.fixtures.reflective_no_brainstate_mutation",
+    "brain.development.fixtures.reflective_no_source_history_mutation",
+    "brain.development.fixtures.reflective_no_aggregate_score",
+    "brain.development.fixtures.reflective_static_audit",
 ]
 
 
@@ -578,18 +585,14 @@ for _row_id, _status in _PHASE3_5_PENDING_ROWS.items():
 
 
 _PHASE3_6_PENDING_ROWS: dict[str, str] = {
-    "I-REF-01": "REQUIRED",
-    "I-REF-02": "REQUIRED",
-    "I-REF-03": "REQUIRED",
-    "I-REF-04": "REQUIRED",
-    "I-REF-05": "REQUIRED",
-    "I-REF-06": "REQUIRED",
-    "I-REF-07": "REQUIRED",
-    "I-REF-08": "REQUIRED",
-    "I-REF-09": "STRUCTURAL",
-    "I-REF-10": "STRUCTURAL",
-    "I-REF-11": "STRUCTURAL",
-    "I-REF-12": "STRUCTURAL",
+    # Step 7 landed I-REF-01..12 via brain.development.reflective and the
+    # seven reflective_* fixtures (one shared reflective_static_audit.py
+    # fixture covering I-REF-09, I-REF-11, I-REF-12 per the catalog patch
+    # plan's bundling allowance, and one shared
+    # reflective_summary_item_bounded.py fixture covering I-REF-02, I-REF-03,
+    # I-REF-04, and I-REF-10). I-REF-13 (OBSERVED) and I-REF-14
+    # (NOT-EXERCISED) do not participate in I-CAT-01 coverage and are not
+    # pending here. No Phase 3.6 Reflective Inspection rows remain pending.
 }
 
 
