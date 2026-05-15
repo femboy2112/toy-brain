@@ -8,17 +8,12 @@ When the user tells Codex **`go`** in this repository, Codex should read this fi
 
 ## Current mission
 
-Audit the completed Phase 3.1 Osmotic Chamber campaign and write a post-completion audit report:
+Tighten the Phase 3.1 proto-content promotion gate to the stronger Option A rule from the post-completion audit.
 
-```text
-PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
-```
+This is a **focused Phase 3.1 patch mission**.
 
-This is an **audit artifact only**.
-
-Do **not** implement new code.
-Do **not** patch the catalog.
 Do **not** start Phase 3.2.
+Do **not** implement output ladder, worldlet, Proto-BASIC REPL, expression, social/language, or Mode B surfaces.
 
 ---
 
@@ -34,309 +29,217 @@ If any copied command says `python -m`, convert it to `python3 -m` before runnin
 
 ## Why this mission exists
 
-The Phase 3.1 campaign appears complete. The repo now contains:
+`PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md` gave Phase 3.1 the verdict:
 
 ```text
-catalog v0.6
-Phase 3.1 Osmotic Chamber row families
-brain/development/ substrate modules
-Phase 3.1 fixtures
-final gate-sync commit
+PASS WITH PATCHES
 ```
 
-Before moving to any next phase or additional implementation, Codex should audit the completed state.
+The one P1 patch required before Phase 3.2 is promotion threshold/provenance alignment.
 
-The audit should answer:
+The audit found that the implementation currently allows hand-constructed `ProtoContent` with low positive support to promote, e.g.:
 
 ```text
-Did Phase 3.1 stay inside scope?
-Are v0.6 catalog counts coherent?
-Are the I-FRAME / I-DEV / I-SBX rows implemented and registered?
-Did the implementation preserve the PerceptEvent + tick() boundary?
-Is COGITO_ID protected at developmental and promotion boundaries?
-Are OBSERVED rows non-gating?
-Did any Phase 3.2+ surfaces accidentally appear?
-Are there obvious risks to address before Phase 3.2 planning?
+salience = 0
+stability = 1/10
+prediction_gain = 1/10
+trace provenance present
+```
+
+That is green against the current rows, but weaker than the stronger rule in the Phase 3.1 kickoff/corrigenda. The project decision is Option A:
+
+```text
+tighten implementation rather than relax catalog/docs
+```
+
+Bridge principle:
+
+```text
+PRESERVE should be earned, not labeled.
 ```
 
 ---
 
 ## Required source files to read first
 
-Read these before writing the audit:
+Read these before editing:
 
 ```text
 CURRENT_MISSION.md
-CURRENT_CAMPAIGN.md
-README.md
-INVARIANT_CATALOG.md
-PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md
-PHASE3_1_OSMOTIC_CHAMBER_KICKOFF.md
+PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
 PHASE3_1_OSMOTIC_CHAMBER_CORRIGENDA.md
 PHASE3_1_OSMOTIC_CHAMBER_CATALOG_PATCH_PLAN.md
-traces/RUN_SUMMARY.md
+INVARIANT_CATALOG.md
+brain/development/promotion.py
+brain/development/proto_content.py
+brain/development/fixtures/proto_content_promotion.py
+brain/development/fixtures/salience_is_not_truth.py
+brain/invariants.py
 ```
 
-Then inspect the implemented Phase 3.1 files:
+Do not rely on unstated conversation context. The patch must stand on repo-local files and current tests.
+
+---
+
+## Required behavior
+
+Tighten `can_promote_proto_content(...)` and `promote_proto_content(...)` so promotion requires the stronger deterministic threshold rule:
 
 ```text
-brain/development/
-brain/development/fixtures/
+salience >= 1/2
+stability >= 1/2
+prediction_gain >= 1/2
+non-empty provenance / trace support
+content_id != COGITO_ID
+valid PerceptEvent construction
+entry into runtime state only through tick()
+```
+
+Low positive evidence must not promote.
+
+Specifically, a hand-constructed `ProtoContent` with:
+
+```text
+salience = 0
+stability = 1/10
+prediction_gain = 1/10
+trace provenance present
+```
+
+must fail `can_promote_proto_content(...)` and must be rejected by `promote_proto_content(...)` with a `ValueError` naming `I-DEV-05`.
+
+Zero support must still fail, and COGITO_ID must still fail with `I-DEV-06`.
+
+---
+
+## Provenance requirement
+
+Do not weaken provenance.
+
+At minimum, promotion must still require non-empty `trace_event_ids`.
+
+If practical within the current data model, strengthen the error wording to clarify that promotion requires trace/probe provenance.
+
+Do not invent a new `support_frame_ids` field in this patch unless it can be done without destabilizing existing Phase 3.1 rows. The audit patch target is threshold/provenance alignment, not a broader data-model rewrite.
+
+---
+
+## Allowed files
+
+Allowed files for this mission:
+
+```text
+brain/development/promotion.py
+brain/development/proto_content.py
+brain/development/fixtures/proto_content_promotion.py
+brain/development/fixtures/salience_is_not_truth.py
+INVARIANT_CATALOG.md
+PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+```
+
+Optional if genuinely necessary:
+
+```text
 brain/invariants.py
 brain/_catalog_ids.py
 tools/catalog.py
+README.md
 ```
 
-Do not rely on unstated conversation context. The audit must stand on repo-local files and command results.
+But avoid optional files unless count/catalog wording changes require them.
 
 ---
 
-## Required output file
+## Forbidden files / scopes
 
-Create:
-
-```text
-PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
-```
-
-Allowed file for this mission:
+Do not modify:
 
 ```text
-PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+brain/tlica/
+lean_reference/
+traces/
+scenarios/
+brain/tick.py
+brain/llm/
+CURRENT_CAMPAIGN.md
+.codex/
+.agents/
 ```
 
-Do not edit implementation files while auditing.
-
-If you discover a defect, document it in the audit. Do not fix it unless the user explicitly asks for a fix mission.
-
----
-
-## Audit scope
-
-The audit must include these sections or equivalent headings.
-
-### 1. Executive verdict
-
-State whether Phase 3.1 is:
+Do not implement:
 
 ```text
-PASS
-PASS WITH PATCHES
-BLOCKED
-```
-
-Define what that means.
-
-### 2. Current counts and gate status
-
-Report current catalog counts.
-
-Expected v0.6 target:
-
-```text
-92 REQUIRED
-20 STRUCTURAL
-3 NOT-EXERCISED
-12 DEFERRED
-2 OBSERVED
-```
-
-Report whether `python3 -m tools.catalog counts` agrees.
-
-### 3. Full validation status
-
-Run and report:
-
-```bash
-python3 -m tools.catalog counts
-python3 -m tools.citations verify
-python3 -m tools.import_audit
-python3 -m brain.invariants run
-bash tools/check_all.sh
-```
-
-If any command fails, stop after collecting enough output to identify the failure.
-
-Do not run real LLM scenario commands.
-
-### 4. Row-family audit
-
-Audit each row family:
-
-```text
-I-FRAME-*
-I-DEV-*
-I-SBX-*
-```
-
-For each family, report:
-
-```text
-expected rows
-owning modules
-fixtures
-status split
-whether targeted checks pass
-any implementation concerns
-```
-
-### 5. Scope-creep audit
-
-Check for accidental Phase 3.2+ implementation.
-
-There should be no runtime implementation of:
-
-```text
-output ladder
+Phase 3.2 output ladder
 Minimal Worldlet
 Proto-BASIC REPL
 expression layer
 social/language harness
 Mode B developmental layer
-real LLM training behavior
-```
-
-If any related files or code exist, classify whether they are docs-only, stubs, or scope creep.
-
-### 6. Kernel-boundary audit
-
-Verify:
-
-```text
-promotion produces PerceptEvent
-existing tick() remains the only TLICA runtime state transition path
-developmental code does not mutate BrainState / MSI / PtCns / mode state directly
-single-event tick semantics are preserved
-```
-
-### 7. COGITO_ID audit
-
-Verify:
-
-```text
-developmental content cannot produce COGITO_ID
-promotion boundary independently rejects COGITO_ID
-fixtures exercise this rejection
-```
-
-### 8. OBSERVED-row audit
-
-Verify that OBSERVED rows are reported but do not gate success.
-
-In particular, inspect `I-DEV-07`.
-
-### 9. Source-tag / provenance audit
-
-Verify:
-
-```text
-FrameSourceKind has exactly the accepted Phase 3.1 active values
-source coverage is exact
-operator injection / probe echo / endogenous / external / generated are distinguishable
-source confusion is prevented at construction
-```
-
-### 10. Metric / promotion audit
-
-Review:
-
-```text
-salience_v1
-stability_v1
-prediction_gain_v1
-promotion threshold logic
-salience-is-not-truth behavior
-```
-
-Pay special attention to whether non-predictive patterns can accidentally satisfy promotion.
-
-### 11. Risks and recommended patches
-
-List any needed patches as:
-
-```text
-P0 blocker
-P1 before Phase 3.2
-P2 cleanup
-```
-
-Do not implement them.
-
-### 12. Next recommended mission
-
-Recommend the next mission after audit.
-
-Possible outcomes:
-
-```text
-If PASS: prepare Phase 3.2 output ladder synthesis/kickoff.
-If PASS WITH PATCHES: create a focused patch mission for identified issues.
-If BLOCKED: fix blockers before proceeding.
+real LLM behavior
 ```
 
 ---
 
-## Guardrails
+## Catalog guidance
 
-Do not modify these files during this audit mission:
+If the existing catalog wording already supports the stronger rule, do not change catalog counts or version.
 
-```text
-brain/
-INVARIANT_CATALOG.md
-lean_reference/
-traces/
-scenarios/
-tools/catalog.py
-CURRENT_CAMPAIGN.md
-CURRENT_MISSION.md
-.codex/
-.agents/
-```
+If you update `INVARIANT_CATALOG.md`, keep it narrowly scoped to clarifying `I-DEV-05` / `I-DEV-03` promotion threshold wording. Do not add new rows unless absolutely necessary.
 
-The only intended changed file is:
+Preferred path:
 
 ```text
-PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+no new rows
+no count change
+fixture coverage tightened under existing I-DEV-03 / I-DEV-05
 ```
-
-Git operations are required and are not considered edits to guarded files.
 
 ---
 
-## Validation and commands
+## Required fixture coverage
 
-Use `python3`, not `python`.
+Add targeted checks showing:
+
+```text
+can_promote_proto_content(...) returns False for low positive support
+promote_proto_content(...) raises ValueError naming I-DEV-05 for low positive support
+salience=0 fails even if stability and prediction_gain are positive
+stability < 1/2 fails
+prediction_gain < 1/2 fails
+missing trace provenance still fails
+existing good stable proto-content still promotes
+COGITO_ID still fails with I-DEV-06
+```
+
+Keep tests deterministic and exact-`Fraction`.
+
+---
+
+## Validation
 
 Run:
 
 ```bash
-git status --short
-git log --oneline -10
+python3 -m brain.invariants run --id I-DEV-03
+python3 -m brain.invariants run --id I-DEV-05
+python3 -m brain.invariants run --id I-DEV-06
+python3 -m brain.invariants run --id I-SBX-02
 python3 -m tools.catalog counts
-python3 -m tools.citations verify
-python3 -m tools.import_audit
-python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-Do not run:
-
-```bash
-python3 -m brain.scenario run ...
-```
-
-unless the user explicitly asks.
+Do not run real LLM scenario commands.
 
 ---
 
 ## Git persistence requirement
 
-After writing the audit, commit and push it.
+After validation passes, Codex must commit and push its result.
 
 Rules:
 
 ```text
-stage only PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+stage only intended files
 commit with a clear message
 push to current branch / main as appropriate
 report the commit SHA
@@ -344,7 +247,7 @@ report the commit SHA
 
 Do not commit accidental changes to guarded files.
 
-If no audit file is created, report why and do not commit.
+If no files change, report why and do not commit.
 
 ---
 
@@ -354,7 +257,7 @@ When done, report:
 
 ```text
 Created/updated:
-- PHASE3_1_OSMOTIC_CHAMBER_AUDIT.md
+- <files>
 
 Validation:
 - command results
@@ -367,13 +270,13 @@ Verdict:
 - PASS / PASS WITH PATCHES / BLOCKED
 
 Next:
-- recommended next mission
+- if green, Phase 3.1 can be treated as clean PASS and Phase 3.2 planning may begin
 ```
 
 ---
 
 ## Stop condition
 
-Stop after writing the audit, running validation, committing, pushing, and reporting.
+Stop after tightening promotion threshold/provenance behavior, validating, committing, pushing, and reporting.
 
-Do not proceed into Phase 3.2 or any patch mission unless the user gives a new explicit instruction.
+Do not proceed into Phase 3.2 unless the user gives a new explicit instruction.
