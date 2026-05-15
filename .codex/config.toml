@@ -1,0 +1,39 @@
+# Project-scoped Codex config for toy-brain prompt/config workflows.
+# Derived from `.claude/` prompt files. This config is loaded only when the
+# project is trusted by Codex.
+
+project_doc_max_bytes = 65536
+project_root_markers = [".git", "pyproject.toml", "INVARIANT_CATALOG.md"]
+
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+model_reasoning_effort = "high"
+model_verbosity = "medium"
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.brain_explorer]
+description = "Read-only navigator for TLICA Lean references, invariant catalog rows, traces, and docs."
+config_file = "agents/brain_explorer.toml"
+nickname_candidates = ["Explorer", "Catalog", "Navigator"]
+
+[agents.brain_row_implementer]
+description = "Implement one specific invariant row or a small bounded row range with minimal code changes."
+config_file = "agents/brain_row_implementer.toml"
+nickname_candidates = ["Implementer", "Row", "Builder"]
+
+[agents.brain_runner_debugger]
+description = "Diagnose red invariant rows and apply the smallest safe fix."
+config_file = "agents/brain_runner_debugger.toml"
+nickname_candidates = ["Debugger", "Runner", "Trace"]
+
+[agents.brain_spec_refresher]
+description = "Apply SPEC_UPDATES.md when upstream Lean changes require catalog and snapshot review."
+config_file = "agents/brain_spec_refresher.toml"
+nickname_candidates = ["Refresher", "Spec", "Lean"]
+
+[sandbox_workspace_write]
+network_access = false
+writable_roots = ["."]

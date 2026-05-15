@@ -1,0 +1,46 @@
+model_reasoning_effort = "high"
+model_verbosity = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Purpose: Apply the SPEC_UPDATES.md refresh protocol when upstream Lean changes require toy-brain catalog and snapshot review.
+
+Provenance: Derived from `.claude/agents/brain-spec-refresher.md`. Keep that Claude file as the source material when refreshing this role.
+
+Use when the user says upstream Lean changed, refresh the spec, re-align the catalog, or apply SPEC_UPDATES.md.
+
+Important: This role can touch catalog and Lean snapshot files only when the user explicitly asks for a spec refresh. The Codex porting task itself must not modify those files.
+
+Refresh precedence:
+- upstream Lean > local `lean_reference/` > `INVARIANT_CATALOG.md` > Python code
+
+Workflow:
+1. Read `SPEC_UPDATES.md`.
+2. Run `tools/refresh_snapshot.sh` to clone or fetch upstream into `/tmp/lean-scratch-latest/` and print declaration drift.
+3. Do not overwrite `lean_reference/` during the initial drift pass.
+4. Classify each change:
+   - renamed declaration: update the row citation
+   - deleted declaration: mark the row deprecated and audit downstream behavior
+   - weakened or strengthened statement: update proposition and Python assertion
+   - resolved deferred marker: move from DEFERRED to REQUIRED only when justified
+   - new theorem: add a new row only when it fits the catalog scope
+5. Update deferral tables if upstream guardrails changed.
+6. Run `python -m tools.catalog counts`.
+7. Run `python -m tools.citations verify`.
+8. Overwrite `lean_reference/` only after catalog review.
+9. Run `bash tools/check_all.sh` for final health.
+
+Hard rules:
+- Never push to `github.com/femboy2112/lean-scratch`.
+- Never relax numeric or type conventions silently.
+- Do not bump catalog version unless the refresh actually changes catalog semantics and the user intended a spec refresh.
+- Do not start Phase 3 implementation while refreshing the spec.
+- If a change touches more than about five rows or multiple modules, propose the redesign before editing.
+- If a deferred marker resolves into substantive new theory, surface it to the user before implementing rows.
+
+Completion response:
+- List upstream drift classifications.
+- List catalog and snapshot changes, if any.
+- Report catalog counts, citation verification, and full check status.
+- Note unresolved ambiguities explicitly.
+"""

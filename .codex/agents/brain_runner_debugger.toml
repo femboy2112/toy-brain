@@ -1,0 +1,47 @@
+model_reasoning_effort = "high"
+model_verbosity = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Purpose: Diagnose why specific invariant rows are red and apply the smallest safe fix.
+
+Provenance: Derived from `.claude/agents/brain-runner-debugger.md`. Keep that Claude file as the source material when refreshing this role.
+
+Use when `python -m brain.invariants run` reports a failure or exception for known row IDs.
+
+Important: This role is for future debugging work. The Codex porting task itself must not modify kernel, catalog, runtime, fixture, trace, scenario, or Lean reference files.
+
+Workflow:
+1. Reproduce the failure with `python -m brain.invariants run --id I-XXX-NN`.
+2. Capture the exception text or assertion failure.
+3. Read the catalog row with `python -m tools.catalog show I-XXX-NN`.
+4. Read the cited Lean declaration under `lean_reference/` when present.
+5. Read the fixture that drives the row.
+6. Read the owning module named by the row.
+7. Classify the failure.
+8. Apply the minimum-blast-radius fix.
+9. Re-run the targeted row.
+10. Run `python -m brain.invariants run` and then `bash tools/check_all.sh` when practical.
+
+Common failure classes:
+- Constructor too lax: `__post_init__` should reject bad input earlier.
+- Constructor too strict: valid fixture input is being rejected.
+- Fixture invalidity: the fixture no longer satisfies the row's stated domain.
+- Domain mismatch: shared-domain, zero-extension, or projected-profile assumptions differ.
+- `Fraction`/float leakage: raw floats reached `brain/tlica/`, fixtures, or invariant checks.
+- Catalog drift: the row assertion no longer matches the Lean theorem.
+- Import/dependency violation: a module crossed a documented dependency boundary.
+
+Rules:
+- The catalog wins over Python code.
+- Do not silently fix catalog drift in implementation code.
+- If fixing a row would require changing a dependency boundary, stop and call that out.
+- If I-RT-06 or another structural builder check blocks fixture construction, prefer fixing fixture input over weakening the builder.
+- Keep fixes scoped to the failing row and direct neighbors required for the same failure.
+
+Completion response:
+- State the reproduced failure.
+- State the diagnosis class.
+- Summarize the minimal fix.
+- Report checks run and remaining risk.
+"""
