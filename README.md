@@ -30,8 +30,31 @@ Implement from the current `INVARIANT_CATALOG.md` exactly; the catalog is canoni
 | `lean_reference/TLICA/` | Every TLICA module the catalog cites. |
 | `lean_reference/TOCE_Core.lean` | The TOCE Boolean classifier layer (separate from TLICA proper). |
 | `brain/` | The Python kernel: TLICA layer, LLM seam, trace seam, tick orchestration, fixtures. |
+| `brain/ui/` | Operator TUI: read-only snapshots, pure renderer, command router, curses wrapper, and `python3 -m brain.ui` CLI entrypoint. |
 | `scenarios/` | Locked scenario JSON files (e.g. `first_scenario_v1.json`). |
 | `tools/` | Catalog parser, citation verifier, import audit, snapshot diff, runner wrappers. |
+
+## Operator TUI
+
+The Operator TUI is an inspection / bottom-up-injection console for
+`BrainState`, `TickRecord`, and the Phase 3.1–3.4 developmental
+histories. It is an operator surface, not a new cognitive layer.
+
+```bash
+python3 -m brain.ui --check-terminal   # probe terminal usability
+python3 -m brain.ui --print-once       # render one deterministic frame to stdout
+python3 -m brain.ui                    # launch the curses wrapper (TTY required)
+```
+
+Behaviour rules (enforced by the `I-UI-*` catalog rows):
+
+- read-only snapshots over kernel state (no mutation paths);
+- pure renderer is deterministic and free of file / network / shell I/O;
+- the only mutation route is `tick(...)` driven from a bounded operator
+  event queue;
+- no real LLM, no subprocess, no shell, no network, no filesystem
+  writes outside an explicit reviewed save / export policy (none in
+  this campaign).
 
 ## Catalog history
 

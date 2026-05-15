@@ -77,6 +77,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.render_view",
     "brain.ui.fixtures.command_router",
     "brain.ui.fixtures.bottom_up_tick",
+    "brain.ui.fixtures.tui_smoke",
 ]
 
 
@@ -413,11 +414,11 @@ _OPERATOR_TUI_PENDING_ROWS: dict[str, str] = {
     # (REQUIRED failure-isolation), I-UI-10 (STRUCTURAL resource-free
     # session), and I-UI-13 (STRUCTURAL bounded UI status text) via
     # brain.ui.fixtures.command_router and brain.ui.fixtures.bottom_up_tick.
-    # The remaining rows below stay pending until Step 9 (curses wrapper +
-    # entrypoint + tui_smoke) replaces them with real fixture-backed checks.
-    "I-UI-07": "REQUIRED",
-    "I-UI-11": "STRUCTURAL",
-    "I-UI-12": "STRUCTURAL",
+    # Step 9 landed I-UI-07 (REQUIRED no-host-execution UI audit),
+    # I-UI-11 (STRUCTURAL curses-wrapper thinness), I-UI-12 (STRUCTURAL
+    # fail-closed entrypoint), and I-UI-14 (OBSERVED aggregate session
+    # walk) via brain.ui.tui, brain.ui.__main__, and
+    # brain.ui.fixtures.tui_smoke. No pending Operator TUI rows remain.
 }
 
 
