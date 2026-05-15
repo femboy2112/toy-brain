@@ -78,6 +78,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.command_router",
     "brain.ui.fixtures.bottom_up_tick",
     "brain.ui.fixtures.tui_smoke",
+    "brain.ui.fixtures.agent_layout",
 ]
 
 
@@ -445,13 +446,17 @@ _OPERATOR_TUI_PENDING_ROWS: dict[str, str] = {
 
 
 _OPERATOR_TUI_AGENT_LAYOUT_PENDING_ROWS: dict[str, str] = {
-    "I-UI-16": "REQUIRED",
+    # Step 7 of the Operator TUI Agent-Style Layout campaign landed
+    # I-UI-16 (REQUIRED), I-UI-20 (STRUCTURAL), and I-UI-22 (STRUCTURAL)
+    # via brain.ui.layout, brain.ui.render (render_agent), and
+    # brain.ui.fixtures.agent_layout. Step 8 (composer + parser) will
+    # remove I-UI-17 and I-UI-18; Step 9 (transcript) will remove
+    # I-UI-19; Step 10 (curses wrapper integration) will remove
+    # I-UI-21 and register I-UI-23 (OBSERVED).
     "I-UI-17": "REQUIRED",
     "I-UI-18": "REQUIRED",
     "I-UI-19": "REQUIRED",
-    "I-UI-20": "STRUCTURAL",
     "I-UI-21": "STRUCTURAL",
-    "I-UI-22": "STRUCTURAL",
 }
 
 

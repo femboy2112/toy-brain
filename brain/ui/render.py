@@ -425,6 +425,196 @@ def render(view: TuiViewModel) -> tuple[str, ...]:
     return bounded
 
 
+# ---------------------------------------------------------------------------
+# Agent-style layout-aware renderer.
+#
+# The agent-style renderer composes per-pane bodies into a single tuple of
+# rows whose length equals ``view.height`` and whose every line is bounded
+# to ``view.width``. It walks an ``AgentLayout`` (a pure function of
+# ``(width, height)``) and dispatches a per-pane renderer for each pane. The
+# function performs no curses calls, no file/network/shell I/O, and no
+# ``tick()`` invocation; it is a pure function of the supplied view model.
+#
+# Drives ``I-UI-16`` (pane composition matches the layout) and contributes
+# to ``I-UI-20`` (the agent-layout view model + per-pane records are
+# terminal-agnostic frozen dataclasses).
+# ---------------------------------------------------------------------------
+
+
+def _pad_or_truncate(line: str, width: int) -> str:
+    """Truncate over-long lines and right-pad short lines to ``width``."""
+    truncated = _truncate(line, width)
+    if len(truncated) < width:
+        truncated = truncated + " " * (width - len(truncated))
+    return truncated
+
+
+def _legacy_view_for_pane(
+    view: "AgentTuiViewModel", active_view: str
+) -> TuiViewModel:
+    """Reuse the legacy ``TuiViewModel`` body renderers for compatible panes.
+
+    The agent-layout renderer reuses the existing per-pane bodies for the
+    ``STATE``, ``INSPECTOR``, ``TRANSCRIPT``-adjacent helpers, and friends.
+    Building a temporary legacy view model with the same ``brain`` /
+    ``development`` snapshots keeps the body output identical to the
+    legacy renderer for the duration of the campaign (decision E retires
+    the legacy view model at Step 10).
+    """
+    # Width is the pane width; height is bounded high enough to keep the
+    # body renderer from truncating, with the layout-aware composer doing
+    # the final truncation per pane.
+    return TuiViewModel(
+        active_view=active_view,
+        width=max(MIN_WIDTH, view.width),
+        height=max(MIN_HEIGHT, view.height),
+        brain=view.brain,
+        development=view.development,
+        queued_event_summary=view.queued_event_summary,
+        status_message=view.status_message,
+        error_message=view.error_message,
+        keyboard_help=view.keyboard_help or DEFAULT_KEYBOARD_HELP,
+        pane_titles=view.pane_titles or DEFAULT_PANE_TITLES,
+    )
+
+
+def _render_agent_header(view: "AgentTuiViewModel", pane) -> tuple[str, ...]:
+    label = (
+        f" toy-brain operator · view={view.active_view} "
+        f"· tick={view.tick_counter} · queue={len(view.queued_event_summary)}"
+    )
+    return (label,)
+
+
+def _render_agent_state(view: "AgentTuiViewModel", pane) -> tuple[str, ...]:
+    legacy = _legacy_view_for_pane(view, "state")
+    return _render_state(legacy)
+
+
+def _render_agent_inspector(view: "AgentTuiViewModel", pane) -> tuple[str, ...]:
+    # Pick the renderer matching the active view; ``state`` is already
+    # rendered by the left pane so the inspector defaults to ``tick`` when
+    # the operator's active view is ``state``.
+    active = view.active_view
+    if active == "state":
+        active = "tick"
+    legacy = _legacy_view_for_pane(view, active)
+    renderer = _RENDERERS.get(active, _render_tick)
+    return renderer(legacy)
+
+
+def _render_agent_transcript(view: "AgentTuiViewModel", pane) -> tuple[str, ...]:
+    lines: list[str] = [_frame_header("transcript", pane.width)]
+    entries = view.transcript.entries
+    if not entries:
+        lines.append(EMPTY_DISPLAY)
+        return tuple(lines)
+    # Show the newest entries first when there is not enough room for all
+    # of them. The layout pane will pad / truncate to the final pane height.
+    visible = entries[-(pane.height - 1) :] if pane.height > 1 else ()
+    for entry in visible:
+        lines.append(f"[{entry.kind}@{entry.tick_at_event}] {entry.text}")
+    return tuple(lines)
+
+
+def _render_agent_composer(view: "AgentTuiViewModel", pane) -> tuple[str, ...]:
+    composer = view.composer
+    # Place a visible cursor marker. We use ``_`` (underscore) so the
+    # cursor renders deterministically on any terminal — the curses
+    # wrapper handles the actual cursor positioning at paint time.
+    prefix = "> "
+    visible_buffer = composer.buffer
+    cursor_marker_at = len(prefix) + composer.cursor
+    edit_line = prefix + visible_buffer
+    if cursor_marker_at >= len(edit_line):
+        edit_line = edit_line + "_"
+    else:
+        edit_line = (
+            edit_line[:cursor_marker_at]
+            + "|"
+            + edit_line[cursor_marker_at + 1 :]
+        )
+    status_field = composer.status_line or view.status_message
+    meta = (
+        f"mode={composer.mode}  cursor={composer.cursor}  "
+        f"history={composer.history_size}"
+    )
+    if status_field:
+        meta = meta + f"  status={status_field}"
+    return (edit_line, meta)
+
+
+def _render_agent_footer(view: "AgentTuiViewModel", pane) -> tuple[str, ...]:
+    if view.error_message:
+        hint = f"error: {view.error_message}"
+    else:
+        hint = (
+            "keys: enter submit  ^u clear  ^p prev  ^n next  "
+            "/help full keymap"
+        )
+    return (hint,)
+
+
+_AGENT_PANE_RENDERERS = {
+    "header": _render_agent_header,
+    "state": _render_agent_state,
+    "inspector": _render_agent_inspector,
+    "transcript": _render_agent_transcript,
+    "composer": _render_agent_composer,
+    "footer": _render_agent_footer,
+}
+
+
+def render_agent(view: "AgentTuiViewModel") -> tuple[str, ...]:
+    """Render an :class:`~brain.ui.layout.AgentTuiViewModel` deterministically.
+
+    Returns exactly ``view.height`` rows, each padded or truncated to
+    ``view.width``. Pure function: no curses, no clock, no file I/O,
+    no network, no ``tick()`` invocation. Reuses the legacy per-pane
+    body renderers (``_render_state``, ``_render_tick``, etc.) for
+    compatibility with the existing fixtures.
+
+    Drives ``I-UI-16`` (layout composition) and contributes to
+    ``I-UI-20`` (terminal-agnostic contract).
+    """
+    # Local import to avoid a module-level cycle between render.py and
+    # layout.py (layout.py imports MIN_WIDTH / MIN_HEIGHT from this module).
+    from brain.ui.layout import AgentTuiViewModel  # noqa: PLC0415
+
+    if not isinstance(view, AgentTuiViewModel):
+        raise TypeError(
+            "render_agent expects an AgentTuiViewModel "
+            f"(got {type(view).__name__})"
+        )
+    layout = view.layout
+    # Build a per-row mutable buffer; each row starts blank and panes paste
+    # their (padded/truncated) per-cell content over their bounding rect.
+    grid: list[list[str]] = [[" "] * view.width for _ in range(view.height)]
+    for pane in layout.panes:
+        renderer = _AGENT_PANE_RENDERERS.get(pane.renderer)
+        if renderer is None:
+            raise ValueError(
+                "render_agent: unknown pane renderer key "
+                f"{pane.renderer!r}"
+            )
+        body = renderer(view, pane)
+        # Pad / truncate body rows to pane height and width.
+        padded_rows: list[str] = []
+        for i in range(pane.height):
+            raw = body[i] if i < len(body) else ""
+            padded_rows.append(_pad_or_truncate(raw, pane.width))
+        for r_offset, row_text in enumerate(padded_rows):
+            r = pane.row + r_offset
+            if r < 0 or r >= view.height:
+                continue
+            chars = list(row_text)
+            for c_offset, ch in enumerate(chars):
+                c = pane.col + c_offset
+                if 0 <= c < view.width:
+                    grid[r][c] = ch
+    return tuple("".join(row).rstrip() or "" for row in grid)
+
+
 __all__ = [
     "DEFAULT_WIDTH",
     "DEFAULT_HEIGHT",
@@ -435,4 +625,5 @@ __all__ = [
     "TuiViewModel",
     "build_view_model",
     "render",
+    "render_agent",
 ]
