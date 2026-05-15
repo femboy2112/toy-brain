@@ -2,6 +2,8 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
+> **Catalog version:** v0.9. Patches over v0.8 (Phase 3.4 Proto-BASIC REPL catalog expansion): +11 REQUIRED rows, +6 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for a finite Proto-BASIC grammar, total deterministic parse with partitioned categories, bounded edit-distance near-miss correction hints, exact bounded `ProtoBasicValence`, source-discipline-reusing `ProtoBasicFeedback`, valid-syntax-alone is non-strong, effective-execution-required strong positive feedback, agency/language/host-execution-free `ProtoBasicCommand` construction with registered token and learned-output support, partitioned `ProtoBasicExecutionResult` categories, copy-on-write `ProtoBasicHistory`, deterministic diminishing-returns anti-Goodhart for repeated no-ops, TLICA-runtime isolation, a one-line `ProtoBasicProgram` wrapper without control flow, and aggregate Proto-BASIC history summaries as OBSERVED local evidence. These rows are engineering hypotheses, not Lean theorem claims.
+>
 > **Catalog version:** v0.8. Patches over v0.7 (Phase 3.3 Minimal Worldlet catalog expansion): +6 REQUIRED rows, +5 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for finite worldlet state/object records, exact bounded worldlet valence, source-tagged local responses, copy-on-write worldlet history, learned-token-backed worldlet attempts, bounded deterministic consequence evidence, and local not-I pushback below external reality, agency, language, Mode B, and `PerceptEvent` / `tick()` promotion. These rows are engineering hypotheses, not Lean theorem claims.
 >
 > **Catalog version:** v0.7. Patches over v0.6 (Phase 3.2 Output Ladder catalog expansion): +7 REQUIRED rows, +4 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for source-tagged output impulses, output echo, recurrence-backed output patterns, token candidates, learned output tokens below language, and local proto-output-action readiness observation. These rows are engineering hypotheses, not Lean theorem claims.
@@ -420,6 +422,40 @@ promotion.
 | I-WLD-11 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Not-I pushback is local response evidence, not an external reality claim. | Pushback fixtures assert response reasons and provenance remain local harness evidence and expose no external-world truth, social teacher, language-understanding, affect-taxonomy, free-will branch, or Mode B planning fields. | `brain/development/worldlet.py` | `worldlet_consequence.py` | STRUCTURAL |
 | I-WLD-12 | Engineering hypothesis (Phase 3.3 Minimal Worldlet) | Aggregate local consequence history is inspectable. | The fixture records accepted/rejected/unavailable/missing-target response summaries for inspection; the row is OBSERVED and cannot fail the runner. | `brain/development/worldlet.py` | `worldlet_consequence.py` | OBSERVED |
 
+### Phase 3.4 Proto-BASIC REPL developmental invariants
+
+These rows are Phase 3.4 engineering hypotheses. They bind deterministic
+Python tests for a finite Proto-BASIC REPL surface that supplies a constrained
+local output-worldlet interface for syntax, near-miss correction, and bounded
+consequence. They are not Lean theorem claims and they remain below a real
+BASIC interpreter, host execution, language understanding, social/teacher
+correction, expression/readability, Mode B reflective planning, and
+`PerceptEvent` / `tick()` promotion. They build on Phase 3.2 learned output
+tokens and Phase 3.3 worldlet evidence as one-way support; Proto-BASIC history
+does not flow back into `OutputHistory`, `WorldletHistory`, or TLICA runtime
+state.
+
+| ID | Source | Proposition | Python assertion | Owning module | Fixture | Status |
+|---|---|---|---|---|---|---|
+| I-REPL-01 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicToken` is a finite enumeration with bounded text. | Construction requires a known `kind`, a printable bounded `text` (no whitespace-only, no empty, length cap), printable `token_id`, and the legal set is fixed at build time for a given `ProtoBasicGrammar` with no duplicate canonical text. | `brain/development/repl.py` | `repl_grammar.py` | STRUCTURAL |
+| I-REPL-02 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicLine` has bounded length and bounded token count. | Construction requires printable `line_id`, printable `raw_text` within a small fixed length cap, and a `tokens` tuple within a small fixed token-count cap; `tokenize(raw_text)` is total and deterministic for any well-formed `raw_text`. | `brain/development/repl.py` | `repl_grammar.py` | STRUCTURAL |
+| I-REPL-03 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicParseResult` is total over `ProtoBasicLine`. | For every `ProtoBasicLine`, `parse_line(line)` returns exactly one `ProtoBasicParseResult` and never raises; the same line under the same grammar yields the same result. | `brain/development/repl.py` | `repl_grammar.py` | REQUIRED |
+| I-REPL-04 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Parse categories partition outcomes deterministically without overlap. | Each `ProtoBasicParseResult.category` is exactly one of `valid`, `near-miss`, `syntax-invalid`, `semantic-invalid`, `tool-unavailable`, `resource-limit`, or `sandbox-fault`; no line is classified in more than one category and every line falls in exactly one. | `brain/development/repl.py` | `repl_grammar.py` | REQUIRED |
+| I-REPL-05 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Near-miss correction hints respect bounded edit distance. | A `ProtoBasicParseResult` with `category == near-miss` carries exactly one canonical `correction_hint` whose `edit_kind` is one of `SUBSTITUTE_TOKEN`, `INSERT_TOKEN`, `DELETE_TOKEN`, or `CASE_FOLD`, whose `edit_position` is within the line's token-count bound, whose `expected_token_id` (when present) references an enumerated `ProtoBasicToken`, and whose total edit distance from the nearest valid form is at most the grammar's declared bound; the hint generator does not invoke any external corrector, teacher, or language model. | `brain/development/repl.py` | `repl_grammar.py` | REQUIRED |
+| I-REPL-06 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicValence` is exact and bounded. | Construction requires a `Fraction` value satisfying `-1 <= value <= 1`; out-of-range values raise and no silent clamping occurs. | `brain/development/repl.py` | `repl_feedback.py` | REQUIRED |
+| I-REPL-07 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicFeedback` reuses existing source / provenance discipline. | `ProtoBasicFeedback` uses `FrameSourceKind`, `Fraction` confidence in `[0, 1]`, printable trace event IDs, and introduces no Proto-BASIC-specific source-kind enum member; the same source-tag audit accepts Proto-BASIC feedback without new exemptions. | `brain/development/repl.py` | `repl_feedback.py` | STRUCTURAL |
+| I-REPL-08 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Syntax-invalid, semantic-invalid, tool-unavailable, resource-limit, and sandbox-fault produce bounded negative valence. | For each non-near-miss non-valid `ProtoBasicParseResult` category and for each `tool-unavailable`, `resource-limit`, and `sandbox-fault` `ProtoBasicExecutionResult`, `score_feedback` returns a `ProtoBasicFeedback` whose `valence` is a `Fraction` strictly less than zero and within `[-1, 0)`; values are deterministic and exact. | `brain/development/repl.py` | `repl_feedback.py` | REQUIRED |
+| I-REPL-09 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Valid syntax alone does not grant strong positive feedback. | A `ProtoBasicParseResult` with `category == valid` whose corresponding `ProtoBasicExecutionResult.effective == False` (valid-ineffective) yields a `ProtoBasicFeedback.valence` whose magnitude is at most a small non-strong threshold (e.g. `<= Fraction(1, 10)`); near-miss feedback similarly cannot reach strong positive valence regardless of repetition. | `brain/development/repl.py` | `repl_feedback.py` | REQUIRED |
+| I-REPL-10 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Strong positive feedback requires `execution_result.effective == True`. | A `ProtoBasicFeedback.valence` greater than the non-strong threshold is produced only when the source `ProtoBasicExecutionResult.category == valid-effective` and `effective == True`; no path bypasses `effective` to grant strong positive valence. | `brain/development/repl.py` | `repl_feedback.py` | REQUIRED |
+| I-REPL-11 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicCommand` carries no agency, language, host-execution, or trace fields. | A `ProtoBasicCommand` exposes no `Act`, `ModeOp`, `AgencyWitness`, `PerceptEvent`, selected action, `feasibleProjectedPCE`, `tick` callback, real interpreter handle, subprocess handle, file descriptor, network socket, teacher utterance, social register, readability score, expression handle, or Mode B planning field. | `brain/development/repl.py` | `repl_execution.py` | STRUCTURAL |
+| I-REPL-12 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicCommand` construction requires valid parse plus registered token and learned-output support. | Construction rejects non-valid parse results, parse results with unknown tokens, references to non-enumerated `ProtoBasicToken`s, missing `LearnedOutputToken` support in `OutputHistory` for tokens that require it, reserved command identifiers, and non-printable command/source IDs; readiness or parse-validity alone is insufficient. | `brain/development/repl.py` | `repl_execution.py` | REQUIRED |
+| I-REPL-13 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicExecutionResult` exposes the declared category set. | A `ProtoBasicExecutionResult.category` is exactly one of `valid-effective`, `valid-ineffective`, `tool-unavailable`, `resource-limit`, or `sandbox-fault`; `effective` is `True` if and only if `category == valid-effective`; no result emits `PerceptEvent` or invokes host execution. | `brain/development/repl.py` | `repl_execution.py` | STRUCTURAL |
+| I-REPL-14 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicHistory` appends entries copy-on-write. | Appending a parse result, command, execution result, or feedback returns a new `ProtoBasicHistory`, preserves prior entries exactly, and updates only the new history's `emit_counts` and entry collections; no Proto-BASIC operation mutates existing history in place. | `brain/development/repl.py` | `repl_history.py` | REQUIRED |
+| I-REPL-15 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Repeated identical no-op commands receive diminishing returns. | For successive `valid-effective` `ProtoBasicExecutionResult` records sharing the same canonical command form, `score_feedback` returns valences whose strong-positive component is multiplied by a deterministic `diminishing_returns_factor`, a `Fraction` in `[0, 1]` that is non-increasing in `emit_counts` for that form, computed exactly, never silently clamped, and not reset by interleaving other commands; the resulting valence remains in `[-1, 1]`. | `brain/development/repl.py` | `repl_history.py` | REQUIRED |
+| I-REPL-16 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Proto-BASIC operations do not mutate TLICA runtime state. | Before and after any Proto-BASIC parse, command construction, execution, feedback, or history operation, profile / MSI / PtCns / content registry identities are unchanged, no `tick()` is called, no `PerceptEvent` is emitted, `OutputHistory` and `WorldletHistory` are unmodified, and no entries are written to scenario schemas or trace files. | `brain/development/repl.py` | `repl_history.py` | REQUIRED |
+| I-REPL-17 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | `ProtoBasicProgram`, if present, is a one-line wrapper with no control flow. | If `ProtoBasicProgram` exists in the build, it wraps exactly one `ProtoBasicLine`, exposes no GOTO/GOSUB, no line numbering with branching, no loop construct, no stored-program memory beyond `ProtoBasicHistory`, no nested block structure, and no multi-line program semantics. | `brain/development/repl.py` | `repl_grammar.py` | STRUCTURAL |
+| I-REPL-18 | Engineering hypothesis (Phase 3.4 Proto-BASIC REPL) | Aggregate Proto-BASIC history summaries are inspectable. | The fixture records counts of valid-effective, valid-ineffective, near-miss, syntax-invalid, semantic-invalid, tool-unavailable, resource-limit, and sandbox-fault outcomes, and a qualitative anti-Goodhart sketch under repeated emissions, for inspection; the row is OBSERVED and cannot fail the runner. | `brain/development/repl.py` | `repl_history.py` | OBSERVED |
+
 ### Meta / runner integrity (Phase 2 v1.2)
 
 > *I-CAT-01 has fixture `_meta` because the check is enforced at runner entry rather than by a fixture function alone. A stub `@register` entry inside `brain/invariants.py` re-runs the audit so the row also satisfies its own registration requirement. See "Validation procedure" below.*
@@ -483,8 +519,12 @@ promotion.
 | `worldlet_response.py` | I-WLD-02, I-WLD-03, I-WLD-05, I-WLD-06 |
 | `worldlet_attempt.py` | I-WLD-07, I-WLD-08 |
 | `worldlet_consequence.py` | I-WLD-09, I-WLD-10, I-WLD-11, I-WLD-12 (OBSERVED) |
+| `repl_grammar.py` | I-REPL-01, I-REPL-02, I-REPL-03, I-REPL-04, I-REPL-05, I-REPL-17 |
+| `repl_feedback.py` | I-REPL-06, I-REPL-07, I-REPL-08, I-REPL-09, I-REPL-10 |
+| `repl_execution.py` | I-REPL-11, I-REPL-12, I-REPL-13 |
+| `repl_history.py` | I-REPL-14, I-REPL-15, I-REPL-16, I-REPL-18 (OBSERVED) |
 
-28 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1, Phase 3.2, and Phase 3.3 fixture files are introduced incrementally by their campaigns; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green.
+32 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1, Phase 3.2, Phase 3.3, and Phase 3.4 fixture files are introduced incrementally by their campaigns; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green.
 
 ---
 
@@ -503,13 +543,13 @@ promotion.
 
 ## Summary counts
 
-- **REQUIRED v0.8 invariants:** 105
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 29
+- **REQUIRED v0.9 invariants:** 116
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 35
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
-- **OBSERVED row-level:** 4 (recorded in run summary, not gating)
+- **OBSERVED row-level:** 5 (recorded in run summary, not gating)
 
-Total tabular entries: 153. v0.8 success is gated by the 105 REQUIRED rows + 29 STRUCTURAL rows (OBSERVED rows are logged but do not gate; the I-CAT-01 runner audit gates separately at startup).
+Total tabular entries: 171. v0.9 success is gated by the 116 REQUIRED rows + 35 STRUCTURAL rows (OBSERVED rows are logged but do not gate; the I-CAT-01 runner audit gates separately at startup).
 
 ---
 

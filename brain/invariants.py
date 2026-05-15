@@ -340,6 +340,55 @@ for _row_id, _status in _PHASE3_3_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_3_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.4 Proto-BASIC REPL: pending row registrations.
+#
+# Step 6 applies the accepted v0.9 catalog patch before the Proto-BASIC REPL
+# runtime layer exists. These registrations keep I-CAT-01 coverage coherent
+# while making any attempted row execution fail explicitly. Later campaign
+# steps (Step 7, Step 8, Step 9) replace these with real fixture-backed
+# checks. I-REPL-18 is OBSERVED and is not pending here; it does not
+# participate in I-CAT-01 coverage and will be registered when its fixture
+# lands.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_4_PENDING_ROWS: dict[str, str] = {
+    "I-REPL-01": "STRUCTURAL",
+    "I-REPL-02": "STRUCTURAL",
+    "I-REPL-03": "REQUIRED",
+    "I-REPL-04": "REQUIRED",
+    "I-REPL-05": "REQUIRED",
+    "I-REPL-06": "REQUIRED",
+    "I-REPL-07": "STRUCTURAL",
+    "I-REPL-08": "REQUIRED",
+    "I-REPL-09": "REQUIRED",
+    "I-REPL-10": "REQUIRED",
+    "I-REPL-11": "STRUCTURAL",
+    "I-REPL-12": "REQUIRED",
+    "I-REPL-13": "STRUCTURAL",
+    "I-REPL-14": "REQUIRED",
+    "I-REPL-15": "REQUIRED",
+    "I-REPL-16": "REQUIRED",
+    "I-REPL-17": "STRUCTURAL",
+}
+
+
+def _make_phase3_4_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.4 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_4_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_4_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:

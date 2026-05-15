@@ -24,13 +24,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.8 expected counts — bumped by Phase 3.3 Minimal Worldlet catalog rows.
+# v0.9 expected counts — bumped by Phase 3.4 Proto-BASIC REPL catalog rows.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 105,
-    "STRUCTURAL": 29,
+    "REQUIRED": 116,
+    "STRUCTURAL": 35,
     "NOT-EXERCISED": 3,
     "DEFERRED": 12,
-    "OBSERVED": 4,
+    "OBSERVED": 5,
 }
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."
