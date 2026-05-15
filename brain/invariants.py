@@ -94,6 +94,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.readability_predictor_repetition_only",
     "brain.development.fixtures.readability_predictor_length_cap",
     "brain.development.fixtures.readability_predictor_determinism",
+    "brain.development.fixtures.expression_history_cow_bounded",
 ]
 
 
@@ -539,10 +540,11 @@ _PHASE3_5_PENDING_ROWS: dict[str, str] = {
     # readability_prediction_tagged, readability_predictor_empty_item,
     # readability_predictor_repetition_only,
     # readability_predictor_length_cap, and
-    # readability_predictor_determinism fixtures. I-EXP-06 remains
-    # pending until Step 9 lands the expression_history_cow_bounded
-    # fixture.
-    "I-EXP-06": "REQUIRED",
+    # readability_predictor_determinism fixtures. Step 9 landed
+    # I-EXP-06 via expression_history_cow_bounded. I-EXP-17 (OBSERVED)
+    # and I-EXP-18 (NOT-EXERCISED) do not participate in I-CAT-01
+    # coverage. No Phase 3.5 Expression + ReadabilityPredictor rows
+    # remain pending.
 }
 
 
