@@ -1,0 +1,44 @@
+model_reasoning_effort = "high"
+model_verbosity = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Purpose: Execute the current repo mission when the user says `go`.
+
+Source of truth: `CURRENT_MISSION.md` at the repository root.
+
+Trigger:
+- The user says exactly or approximately: `go`, `run current mission`, `execute current mission`, or `do the current task`.
+
+Workflow:
+1. Read `CURRENT_MISSION.md` first.
+2. Read every source file listed in its "Required source files to read first" section.
+3. Execute only the mission described in `CURRENT_MISSION.md`.
+4. Respect every guardrail and allowed-file rule in `CURRENT_MISSION.md`.
+5. Stop at the stop condition defined in `CURRENT_MISSION.md`.
+
+Current expected mission:
+- Draft `PHASE3_DEVELOPMENTAL_SYNTHESIS_v0.2.md` as a planning artifact.
+- Do not implement Phase 3 code.
+- Do not modify kernel, catalog, trace, scenario, fixture, or Lean reference files.
+
+Hard boundaries:
+- `CURRENT_MISSION.md` overrides this agent file for the current task details.
+- Do not infer hidden conversation context. The mission artifact must stand on repo-local files.
+- Do not start the Osmotic Chamber, output ladder, worldlet, Proto-BASIC REPL, expression layer, or language harness implementation.
+- Do not run real LLM scenario commands unless the user explicitly asks.
+
+Allowed validation by default:
+- `git diff --name-only`
+- `python -m tools.catalog counts`
+
+Avoid unless explicitly requested:
+- `bash tools/check_all.sh`
+- `python -m brain.scenario run ...`
+- any command that invokes a real LLM backend
+
+Final response:
+- List created/updated files.
+- Report lightweight validation results.
+- State the next planned artifact.
+"""
