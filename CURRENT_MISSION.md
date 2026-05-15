@@ -2,7 +2,7 @@
 
 ## One-line instruction
 
-When the user tells Codex **`go`** in this repository, Codex should read this file and execute the current Phase 3.2 campaign.
+When the user tells Codex **`go`** in this repository, Codex should read this file and execute the current Phase 3.3 campaign.
 
 ---
 
@@ -14,7 +14,7 @@ Execute the next eligible step in:
 CURRENT_CAMPAIGN.md
 ```
 
-`CURRENT_CAMPAIGN.md` is currently the Phase 3.2 Output Ladder campaign.
+`CURRENT_CAMPAIGN.md` is currently the Phase 3.3 Minimal Worldlet campaign.
 
 Codex must use campaign state detection, prerequisites, test results, and stop conditions to decide which step to run next.
 
@@ -56,7 +56,7 @@ Do not rely on unstated conversation context. The campaign must run from repo-lo
 5. Commit and push after each successful step.
 6. Stop at explicit approval gates, failing tests requiring user judgment, or campaign completion.
 
-Do not skip ahead to later Phase 3.3+ work.
+Do not skip ahead to later Phase 3.4+ work.
 
 ---
 
