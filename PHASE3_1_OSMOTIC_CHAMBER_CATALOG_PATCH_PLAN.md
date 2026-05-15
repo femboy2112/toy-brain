@@ -223,7 +223,7 @@ INVARIANT_CATALOG.md banner/history
 INVARIANT_CATALOG.md row table(s)
 summary counts
 tools/catalog.py EXPECTED_COUNTS
-brain/_catalog_ids.py via python -m tools.catalog generate-ids
+brain/_catalog_ids.py via python3 -m tools.catalog generate-ids
 brain/invariants.py FIXTURE_MODULES once fixtures exist
 ```
 
@@ -322,32 +322,25 @@ For this planning artifact:
 
 ```bash
 git diff --name-only
-python -m tools.catalog counts
-```
-
-If this environment lacks a `python` executable, use the equivalent repo-local
-entrypoint:
-
-```bash
 python3 -m tools.catalog counts
 ```
 
 For the future v0.6 implementation patch:
 
 ```bash
-python -m tools.catalog counts
-python -m brain.invariants run --id I-FRAME-01
-python -m brain.invariants run --id I-FRAME-02
-python -m brain.invariants run --id I-FRAME-03
-python -m brain.invariants run --id I-FRAME-04
-python -m brain.invariants run --id I-DEV-01
-python -m brain.invariants run --id I-DEV-02
-python -m brain.invariants run --id I-DEV-03
-python -m brain.invariants run --id I-DEV-04
-python -m brain.invariants run --id I-DEV-05
-python -m brain.invariants run --id I-DEV-06
-python -m brain.invariants run --id I-SBX-01
-python -m brain.invariants run --id I-SBX-02
+python3 -m tools.catalog counts
+python3 -m brain.invariants run --id I-FRAME-01
+python3 -m brain.invariants run --id I-FRAME-02
+python3 -m brain.invariants run --id I-FRAME-03
+python3 -m brain.invariants run --id I-FRAME-04
+python3 -m brain.invariants run --id I-DEV-01
+python3 -m brain.invariants run --id I-DEV-02
+python3 -m brain.invariants run --id I-DEV-03
+python3 -m brain.invariants run --id I-DEV-04
+python3 -m brain.invariants run --id I-DEV-05
+python3 -m brain.invariants run --id I-DEV-06
+python3 -m brain.invariants run --id I-SBX-01
+python3 -m brain.invariants run --id I-SBX-02
 bash tools/check_all.sh
 ```
 
