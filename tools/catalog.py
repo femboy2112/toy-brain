@@ -5,11 +5,11 @@ Reads the catalog's markdown tables into structured rows so other tooling
 status, module, or fixture without re-parsing the file each time.
 
 CLI:
-    python -m tools.catalog list [--status REQUIRED] [--module modes]
-                                 [--source-kind LEAN]
-    python -m tools.catalog show I-AGN-03
-    python -m tools.catalog counts
-    python -m tools.catalog generate-ids   # writes brain/_catalog_ids.py
+    python3 -m tools.catalog list [--status REQUIRED] [--module modes]
+                                  [--source-kind LEAN]
+    python3 -m tools.catalog show I-AGN-03
+    python3 -m tools.catalog counts
+    python3 -m tools.catalog generate-ids   # writes brain/_catalog_ids.py
 """
 from __future__ import annotations
 
@@ -24,14 +24,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.5 expected counts — bumped by Phase 2 v1.2 baseline hardening
-# and the pre-Phase-3.1 trace reserved-key micro-hardening row.
+# v0.6 expected counts — bumped by Phase 3.1 Osmotic Chamber catalog rows.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 84,
-    "STRUCTURAL": 16,
+    "REQUIRED": 92,
+    "STRUCTURAL": 20,
     "NOT-EXERCISED": 3,
     "DEFERRED": 12,
-    "OBSERVED": 1,
+    "OBSERVED": 2,
 }
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."
@@ -39,7 +38,7 @@ _MODULE_HEADER_RE = re.compile(r"^###\s+`([^`]+)`")
 # Row IDs look like I-XXX-NN
 _ROW_ID_RE = re.compile(r"^I-[A-Z]+-\d+[a-z]?$")
 # Banner counts at the summary block
-_REQUIRED_BANNER_RE = re.compile(r"\*\*REQUIRED v0 invariants:\*\*\s*(\d+)")
+_REQUIRED_BANNER_RE = re.compile(r"\*\*REQUIRED[^*]*\*\*\s*(\d+)")
 _STRUCTURAL_BANNER_RE = re.compile(r"\*\*STRUCTURAL[^*]*\*\*\s*(\d+)")
 _NOT_EXERCISED_BANNER_RE = re.compile(r"\*\*NOT-EXERCISED[^*]*\*\*\s*(\d+)")
 _DEFERRED_BANNER_RE = re.compile(r"\*\*DEFERRED[^*]*\*\*\s*(\d+)")
@@ -319,7 +318,7 @@ def _cmd_generate_ids(args: argparse.Namespace) -> int:
         "",
         "DO NOT EDIT BY HAND. Regenerate via:",
         "",
-        "    python -m tools.catalog generate-ids",
+        "    python3 -m tools.catalog generate-ids",
         "",
         "This file is the source of truth for I-CAT-01 (every REQUIRED or",
         "STRUCTURAL catalog row has a corresponding @register entry).",

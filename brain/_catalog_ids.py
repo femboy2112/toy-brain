@@ -2,7 +2,7 @@
 
 DO NOT EDIT BY HAND. Regenerate via:
 
-    python -m tools.catalog generate-ids
+    python3 -m tools.catalog generate-ids
 
 This file is the source of truth for I-CAT-01 (every REQUIRED or
 STRUCTURAL catalog row has a corresponding @register entry).
@@ -32,6 +32,13 @@ EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({
     "I-APRJ-05",
     "I-APRJ-06",
     "I-BHV-01",
+    "I-DEV-01",
+    "I-DEV-02",
+    "I-DEV-03",
+    "I-DEV-04",
+    "I-DEV-05",
+    "I-DEV-06",
+    "I-FRAME-03",
     "I-IBND-01",
     "I-IBND-02",
     "I-IBND-03",
@@ -83,6 +90,7 @@ EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({
     "I-PWS-09",
     "I-PWS-10",
     "I-RT-08",
+    "I-SBX-02",
     "I-TOCE-01",
     "I-TOCE-02",
     "I-TOCE-03",
@@ -98,6 +106,9 @@ EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({
 
 EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({
     "I-CAT-01",
+    "I-FRAME-01",
+    "I-FRAME-02",
+    "I-FRAME-04",
     "I-ISO-01",
     "I-ISO-02",
     "I-ISO-03",
@@ -110,6 +121,7 @@ EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({
     "I-RT-10",
     "I-RT-11",
     "I-RT-12",
+    "I-SBX-01",
     "I-TRACE-01",
     "I-TRACE-02",
     "I-TRACE-03",

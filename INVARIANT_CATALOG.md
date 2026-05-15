@@ -2,6 +2,8 @@
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 
+> **Catalog version:** v0.6. Patches over v0.5 (Phase 3.1 Osmotic Chamber catalog expansion): +8 REQUIRED rows, +4 STRUCTURAL rows, +1 OBSERVED row. Adds deterministic developmental-layer row families for source-tagged phenomenal frames, recurrence/proto-content behavior, salience/probe boundary discipline, and promotion through the existing `tick()` boundary. These rows are engineering hypotheses, not Lean theorem claims.
+>
 > **Catalog version:** v0.5. Patches over v0.4 (Phase 2 v1.2 baseline hardening): +5 STRUCTURAL rows (I-RT-11 single-event tick, I-RT-12 duplicate content_id, I-TRACE-02 trace fail-open, I-TRACE-03 trace reserved-key rejection, I-CAT-01 catalog↔registry coverage); six correctness patches (P1 SafeTracer, P2 single-event guard, P3 duplicate guard, P4 ambiguous-parse rejection, P5 FutureMSIModel runtime guard, P6 trace envelope reserved-key protection); `SourceKind` schema field inferred by `tools/catalog.py`; auto-generated `brain/_catalog_ids.py`; strict `tools.catalog counts` gate; README synced. No new fixtures; existing fixtures gain new rows.
 >
 > **Catalog version:** v0.4. Patches over v0.3 (Phase 2 v1.1): togglable `CognitionTracer` Protocol seam in `brain/trace.py`; three backends (`NullTracer`, `MemoryTracer`, `FileTracer`); +1 STRUCTURAL row (I-TRACE-01); +1 fixture (`trace_v1_1.py`). Observation-only — no semantic change to v0.3 invariants.
@@ -346,6 +348,29 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | I-RT-11 | Plan convention (Phase 2 v1.2 baseline hardening) | `tick()` rejects events list with length > 1 in v1 semantics. Multi-event mode aggregation is deferred. | `tick(state, [e1, e2], client)` raises `ValueError` naming I-RT-11. | `brain/tick.py` | `scenario_v1.py` | STRUCTURAL |
 | I-RT-12 | Plan convention (Phase 2 v1.2 baseline hardening) | `tick()` rejects `PerceptEvent` whose `content_id` is already in `state.profile.domain`. v1 promotion is one-shot per content. | `tick(state, [event_with_existing_id], client)` raises `ValueError` naming I-RT-12. | `brain/tick.py` | `scenario_v1.py` | STRUCTURAL |
 
+### Phase 3.1 Osmotic Chamber developmental invariants
+
+These rows are Phase 3.1 engineering hypotheses. They bind deterministic
+developmental substrate behavior to runtime checks without claiming new Lean
+theorems. Specific formulas and thresholds are parameterized simulation
+choices; the family of constraints is the commitment.
+
+| ID | Source | Proposition | Python assertion | Owning module | Fixture | Status |
+|---|---|---|---|---|---|---|
+| I-FRAME-01 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Every frame channel has exactly one source tag. | `PhenomenalFrame` construction requires `set(channels) == set(sources)` with one `FrameSource` per channel. | `brain/development/stream.py` | `source_tag_audit.py` | STRUCTURAL |
+| I-FRAME-02 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Source confidence is a `Fraction` in `[0, 1]`. | Every `FrameSource.confidence` is a `Fraction` and satisfies `0 <= confidence <= 1`. | `brain/development/stream.py` | `source_tag_audit.py` | STRUCTURAL |
+| I-FRAME-03 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Missing, extra, empty, or mismatched source tags raise at construction. | Constructing a frame with missing, extra, empty, or mismatched source tags raises `ValueError` naming I-FRAME-03. | `brain/development/stream.py` | `source_tag_audit.py` | REQUIRED |
+| I-FRAME-04 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Active source kinds distinguish `ENDOGENOUS`, `OPERATOR_INJECTION`, `PROBE_ECHO`, `EXTERNAL`, and `GENERATED`. | `FrameSourceKind` exposes exactly those active enum members for Phase 3.1. | `brain/development/stream.py` | `source_tag_audit.py` | STRUCTURAL |
+| I-DEV-01 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | A recurring signature creates or updates a `ProtoPattern`. | Repeated matching frame signatures create or update a deterministic `ProtoPattern` rather than a promoted content item. | `brain/development/proto_pattern.py` | `recurrence_detection.py` | REQUIRED |
+| I-DEV-02 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Unstable one-off noise does not become stable proto-content. | A single unstable signature leaves no stable `ProtoContent` eligible for promotion. | `brain/development/proto_content.py` | `unstable_noise_rejection.py` | REQUIRED |
+| I-DEV-03 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Salience alone does not promote. | Promotion rejects high-salience candidates that lack independent stability and prediction-gain support. | `brain/development/promotion.py` | `salience_is_not_truth.py` | REQUIRED |
+| I-DEV-04 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | `FOCUS_CONTACT` updates `ProbeUse` / policy history, accounts for focus budget, and does not promote by itself. | A focus-contact probe records use and budget effects without creating a promoted `PerceptEvent`. | `brain/development/probes.py` | `focus_contact_protocol.py` | REQUIRED |
+| I-DEV-05 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Proto-content promotion creates a valid `PerceptEvent` and enters TLICA runtime state only through `tick()`. | Promotion returns a valid `PerceptEvent`; runtime state changes only by feeding that event through `tick()`. | `brain/development/promotion.py` | `proto_content_promotion.py` | REQUIRED |
+| I-DEV-06 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Developmental content cannot produce `COGITO_ID`. | Promotion rejects candidates whose target content ID is `COGITO_ID` before any runtime event is emitted. | `brain/development/promotion.py` | `proto_content_promotion.py` | REQUIRED |
+| I-DEV-07 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Focused contact can stabilize under recurrence or remain unpromoted / dissolve without recurrence. | The fixture records both stabilized-under-recurrence and unpromoted-without-recurrence outcomes for inspection. | `brain/development/probes.py` | `focus_stabilizes_or_dissolves.py` | OBSERVED |
+| I-SBX-01 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Probe output is not knowledge by itself. | Probe echo can update substrate history but cannot mark content preserved or promoted without the other deterministic gates. | `brain/development/probes.py` | `salience_is_not_truth.py` | STRUCTURAL |
+| I-SBX-02 | Engineering hypothesis (Phase 3.1 Osmotic Chamber) | Salience drive is not truth and cannot bypass stability or prediction gain. | Promotion remains false when salience is high but stability or positive prediction gain is absent. | `brain/development/promotion.py` | `salience_is_not_truth.py` | REQUIRED |
+
 ### Meta / runner integrity (Phase 2 v1.2)
 
 > *I-CAT-01 has fixture `_meta` because the check is enforced at runner entry rather than by a fixture function alone. A stub `@register` entry inside `brain/invariants.py` re-runs the audit so the row also satisfies its own registration requirement. See "Validation procedure" below.*
@@ -395,14 +420,21 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 | `llm_protocol.py` | I-LLM-01, I-LLM-02 (OBSERVED), I-LLM-03, I-LLM-04 |
 | `scenario_v1.py` | I-RT-08, I-RT-09, I-RT-10, I-RT-11, I-RT-12, I-BHV-01 |
 | `trace_v1_1.py` | I-TRACE-01, I-TRACE-02, I-TRACE-03 |
+| `source_tag_audit.py` | I-FRAME-01, I-FRAME-02, I-FRAME-03, I-FRAME-04 |
+| `recurrence_detection.py` | I-DEV-01 |
+| `unstable_noise_rejection.py` | I-DEV-02 |
+| `salience_is_not_truth.py` | I-DEV-03, I-SBX-01, I-SBX-02 |
+| `focus_contact_protocol.py` | I-DEV-04 |
+| `focus_stabilizes_or_dissolves.py` | I-DEV-07 (OBSERVED) |
+| `proto_content_promotion.py` | I-DEV-05, I-DEV-06 |
 
-14 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`.
+21 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1 fixture files are introduced incrementally by the Osmotic Chamber campaign; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green.
 
 ---
 
 ## Validation procedure
 
-`python -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
+`python3 -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0.6 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
 
 ---
 
@@ -415,13 +447,13 @@ These are not Lean theorems but are needed for the runtime to be coherent. Owned
 
 ## Summary counts
 
-- **REQUIRED v0 invariants:** 84
-- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 16
+- **REQUIRED v0.6 invariants:** 92
+- **STRUCTURAL (constructor- or type-enforced, not per-tick asserted):** 20
 - **NOT-EXERCISED row-level:** 3 (plus 5 modules covered at module-level in "Modules with no v0-required invariants")
 - **DEFERRED row-level:** 12 (plus inherited deferrals table)
-- **OBSERVED row-level:** 1 (Phase 2 v1; recorded in run summary, not gating)
+- **OBSERVED row-level:** 2 (recorded in run summary, not gating)
 
-Total tabular entries: 116. v0.5 success is gated by the 84 REQUIRED rows + 16 STRUCTURAL rows (the OBSERVED row is logged but does not gate; the new I-CAT-01 runner audit gates separately at startup).
+Total tabular entries: 129. v0.6 success is gated by the 92 REQUIRED rows + 20 STRUCTURAL rows (OBSERVED rows are logged but do not gate; the I-CAT-01 runner audit gates separately at startup).
 
 ---
 

@@ -242,6 +242,48 @@ def check_I_ISO_03() -> None:
     assert chained.lhs is P and chained.rhs is P
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.1 Osmotic Chamber: pending row registrations.
+#
+# Step 1 of the campaign applies the accepted v0.6 catalog patch before the
+# runtime developmental layer exists. These registrations keep I-CAT-01
+# coverage coherent while making any attempted row execution fail explicitly.
+# Later campaign steps replace these with real fixture-backed checks.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_1_PENDING_ROWS: dict[str, str] = {
+    "I-FRAME-01": "STRUCTURAL",
+    "I-FRAME-02": "STRUCTURAL",
+    "I-FRAME-03": "REQUIRED",
+    "I-FRAME-04": "STRUCTURAL",
+    "I-DEV-01": "REQUIRED",
+    "I-DEV-02": "REQUIRED",
+    "I-DEV-03": "REQUIRED",
+    "I-DEV-04": "REQUIRED",
+    "I-DEV-05": "REQUIRED",
+    "I-DEV-06": "REQUIRED",
+    "I-DEV-07": "OBSERVED",
+    "I-SBX-01": "STRUCTURAL",
+    "I-SBX-02": "REQUIRED",
+}
+
+
+def _make_phase3_1_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.1 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_1_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_1_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
