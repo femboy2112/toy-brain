@@ -86,7 +86,10 @@ _ALLOWED_FROM_MODULES: frozenset[str] = frozenset({
 })
 
 
-_BRAIN_TICK_ALLOWED_NAMES: frozenset[str] = frozenset({"BrainState"})
+_BRAIN_TICK_ALLOWED_NAMES: frozenset[str] = frozenset({
+    "BrainState",
+    "assert_state_invariants",
+})
 
 
 _FORBIDDEN_CALL_NAMES: frozenset[str] = frozenset({
@@ -144,6 +147,13 @@ def _is_docstring(node: ast.stmt) -> bool:
     )
 
 
+def _is_forbidden_root(name: str) -> bool:
+    for forbidden in _FORBIDDEN_IMPORT_ROOTS:
+        if name == forbidden or name.startswith(forbidden + "."):
+            return True
+    return False
+
+
 def _audit_imports(tree: ast.Module) -> list[str]:
     errors: list[str] = []
     for node in ast.walk(tree):
@@ -151,48 +161,57 @@ def _audit_imports(tree: ast.Module) -> list[str]:
             for alias in node.names:
                 full = alias.name
                 root = full.split(".")[0]
-                for forbidden in _FORBIDDEN_IMPORT_ROOTS:
-                    if full == forbidden or full.startswith(forbidden + "."):
-                        errors.append(
-                            f"forbidden import {full!r} at line {node.lineno}"
-                        )
-                        break
-                else:
-                    if (
-                        full not in _ALLOWED_STDLIB_IMPORTS
-                        and root not in _ALLOWED_STDLIB_IMPORTS
-                    ):
-                        errors.append(
-                            f"unrecognized import {full!r} at line "
-                            f"{node.lineno}"
-                        )
-        elif isinstance(node, ast.ImportFrom):
-            module = node.module or ""
-            root = module.split(".")[0] if module else ""
-            for forbidden in _FORBIDDEN_IMPORT_ROOTS:
-                if module == forbidden or module.startswith(forbidden + "."):
+                # Explicit allowlist wins over forbidden roots so that
+                # specific sub-modules (e.g. brain.tlica.builders) can
+                # be permitted even when their parent root is otherwise
+                # blocked.
+                if full in _ALLOWED_FROM_MODULES:
+                    continue
+                if _is_forbidden_root(full):
                     errors.append(
-                        f"forbidden import from {module!r} at line "
-                        f"{node.lineno}"
+                        f"forbidden import {full!r} at line {node.lineno}"
                     )
-                    break
-            else:
+                    continue
                 if (
-                    module not in _ALLOWED_FROM_MODULES
+                    full not in _ALLOWED_STDLIB_IMPORTS
                     and root not in _ALLOWED_STDLIB_IMPORTS
                 ):
                     errors.append(
-                        f"unrecognized 'from {module!r} import ...' at line "
+                        f"unrecognized import {full!r} at line "
                         f"{node.lineno}"
                     )
-            if module == "brain.tick":
-                for alias in node.names:
-                    if alias.name not in _BRAIN_TICK_ALLOWED_NAMES:
-                        errors.append(
-                            f"forbidden 'from brain.tick import {alias.name}' "
-                            f"at line {node.lineno} (only BrainState is "
-                            "allowed; the tick callable is forbidden)"
-                        )
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            root = module.split(".")[0] if module else ""
+            if module in _ALLOWED_FROM_MODULES:
+                # Explicitly allowed; skip the forbidden-root scan so
+                # that, e.g., brain.tlica.builders is OK while
+                # brain.tlica.somethingelse falls through to either
+                # allowlist or forbidden-root rejection.
+                if module == "brain.tick":
+                    for alias in node.names:
+                        if alias.name not in _BRAIN_TICK_ALLOWED_NAMES:
+                            errors.append(
+                                f"forbidden 'from brain.tick import "
+                                f"{alias.name}' at line {node.lineno} (only "
+                                f"{sorted(_BRAIN_TICK_ALLOWED_NAMES)!r} "
+                                "are allowed; the tick callable is forbidden)"
+                            )
+                continue
+            if _is_forbidden_root(module):
+                errors.append(
+                    f"forbidden import from {module!r} at line "
+                    f"{node.lineno}"
+                )
+                continue
+            if (
+                module not in _ALLOWED_FROM_MODULES
+                and root not in _ALLOWED_STDLIB_IMPORTS
+            ):
+                errors.append(
+                    f"unrecognized 'from {module!r} import ...' at line "
+                    f"{node.lineno}"
+                )
     return errors
 
 

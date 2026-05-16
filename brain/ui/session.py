@@ -69,6 +69,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing-only imports
     from brain.io_types import TickRecord
     from brain.llm.client import LLMClient
     from brain.toce_core import ContentState
+    from brain.ui.persistence import SessionStoreConfig
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +198,7 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "stream_history",
     "stream_candidates",
     "stream_chunk_serial",
+    "session_store_config",
 })
 
 
@@ -248,6 +250,7 @@ class OperatorSession:
     stream_history: TextStreamHistory = field(default_factory=TextStreamHistory)
     stream_candidates: tuple[StreamPromotionCandidate, ...] = ()
     stream_chunk_serial: int = 0
+    session_store_config: Optional["SessionStoreConfig"] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -316,6 +319,19 @@ class OperatorSession:
                 "OperatorSession.stream_chunk_serial must be a non-negative int "
                 f"(got {self.stream_chunk_serial!r})"
             )
+        if self.session_store_config is not None:
+            # Local import avoids a brain.ui.session <-> brain.ui.persistence
+            # module-load cycle. SessionStoreConfig is a frozen / slotted
+            # record carrying only bounded primitives + a pathlib.Path
+            # (drives I-PERSIST-11 / I-PERSIST-14: no sqlite3.Connection
+            # may live on OperatorSession).
+            from brain.ui.persistence import SessionStoreConfig as _Config
+            if not isinstance(self.session_store_config, _Config):
+                raise TypeError(
+                    "OperatorSession.session_store_config must be a "
+                    "SessionStoreConfig or None "
+                    f"(got {type(self.session_store_config).__name__})"
+                )
         self._assert_no_unsafe_resources()
 
     # ------------------------------------------------------------------

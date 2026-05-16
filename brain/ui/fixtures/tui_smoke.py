@@ -256,7 +256,13 @@ def _collect_function_body_lines(tree: ast.Module) -> frozenset[int]:
     return frozenset(lines)
 
 
-def _audit_ui_source(path: Path, *, forbid_brain_internal: bool = True) -> list[_AuditFinding]:
+def _audit_ui_source(
+    path: Path,
+    *,
+    forbid_brain_internal: bool = True,
+    persistence_module: bool = False,
+    persistence_fixture: bool = False,
+) -> list[_AuditFinding]:
     """Walk a single Python source file and collect forbidden surfaces.
 
     ``forbid_brain_internal`` toggles whether ``brain.tlica.*`` and
@@ -264,6 +270,17 @@ def _audit_ui_source(path: Path, *, forbid_brain_internal: bool = True) -> list[
     them across all of ``brain/ui/``; this fixture's own source is
     exempt because it deliberately imports several kernel builders for
     its setup helpers (it is not a runtime UI surface).
+
+    ``persistence_module`` exempts ``brain/ui/persistence.py`` from
+    the brain.tlica.* forbiddance: the Phase 3.9 persistence module
+    legitimately imports the public kernel builders and is governed
+    by the more specific I-PERSIST-12 static audit.
+
+    ``persistence_fixture`` exempts a single fixture file from the
+    tempfile forbiddance: the Phase 3.9 persistence_*.py fixtures
+    open temporary directories to host throw-away SQLite databases
+    during the save / load round-trip checks. No runtime brain/ui/
+    code may import tempfile.
 
     Module-level imports of forbidden surfaces are rejected unconditionally.
     Imports inside ``if TYPE_CHECKING:`` blocks (typing-only) and lazy
@@ -306,15 +323,20 @@ def _audit_ui_source(path: Path, *, forbid_brain_internal: bool = True) -> list[
                 # Forbidden stdlib roots are forbidden everywhere
                 # (typing-only and lazy included): there is no
                 # legitimate UI use for `subprocess`, `socket`, etc.
+                # Persistence fixtures (persistence_*.py) are the
+                # documented exception for `tempfile` since they need
+                # throw-away SQLite paths.
                 if name in _FORBIDDEN_IMPORT_MODULES or root in _FORBIDDEN_IMPORT_MODULES:
-                    findings.append(
-                        _AuditFinding(
-                            file=str(path),
-                            line=node.lineno,
-                            kind="forbidden_import",
-                            detail=f"import {name}",
+                    is_tempfile = name == "tempfile" or root == "tempfile"
+                    if not (persistence_fixture and is_tempfile):
+                        findings.append(
+                            _AuditFinding(
+                                file=str(path),
+                                line=node.lineno,
+                                kind="forbidden_import",
+                                detail=f"import {name}",
+                            )
                         )
-                    )
                 if forbid_brain_internal and (
                     name == "brain.tlica"
                     or name.startswith("brain.tlica.")
@@ -322,10 +344,19 @@ def _audit_ui_source(path: Path, *, forbid_brain_internal: bool = True) -> list[
                     or name.startswith("brain.llm.")
                 ):
                     # Typing-only imports and lazy in-function imports
-                    # of the documented allowlist are tolerated.
+                    # of the documented allowlist are tolerated. The
+                    # Phase 3.9 persistence module additionally accepts
+                    # module-level imports of the same allowlist for
+                    # builder-routed load reconstruction (drives
+                    # I-PERSIST-12).
                     if _typing_only(node):
                         continue
                     if _lazy_allowed(node, name):
+                        continue
+                    if persistence_module and (
+                        name in _ALLOWED_LAZY_TLICA_SUFFIXES
+                        or name in _ALLOWED_LAZY_LLM_SUFFIXES
+                    ):
                         continue
                     findings.append(
                         _AuditFinding(
@@ -340,14 +371,16 @@ def _audit_ui_source(path: Path, *, forbid_brain_internal: bool = True) -> list[
             module = node.module or ""
             root = module.split(".")[0] if module else ""
             if module in _FORBIDDEN_IMPORT_MODULES or root in _FORBIDDEN_IMPORT_MODULES:
-                findings.append(
-                    _AuditFinding(
-                        file=str(path),
-                        line=node.lineno,
-                        kind="forbidden_import",
-                        detail=f"from {module} import ...",
+                is_tempfile = module == "tempfile" or root == "tempfile"
+                if not (persistence_fixture and is_tempfile):
+                    findings.append(
+                        _AuditFinding(
+                            file=str(path),
+                            line=node.lineno,
+                            kind="forbidden_import",
+                            detail=f"from {module} import ...",
+                        )
                     )
-                )
             if forbid_brain_internal and (
                 module == "brain.tlica"
                 or module.startswith("brain.tlica.")
@@ -357,6 +390,11 @@ def _audit_ui_source(path: Path, *, forbid_brain_internal: bool = True) -> list[
                 if _typing_only(node):
                     continue
                 if _lazy_allowed(node, module):
+                    continue
+                if persistence_module and (
+                    module in _ALLOWED_LAZY_TLICA_SUFFIXES
+                    or module in _ALLOWED_LAZY_LLM_SUFFIXES
+                ):
                     continue
                 findings.append(
                     _AuditFinding(
@@ -431,12 +469,27 @@ def check_I_UI_07_ui_has_no_forbidden_imports_or_host_execution() -> None:
     # while still applying every other forbidden-surface rule.
     self_path = Path(__file__).resolve()
     fixture_dir = self_path.parent
+    persistence_module_path = (fixture_dir.parent / "persistence.py").resolve()
 
     findings: list[_AuditFinding] = []
     for path in paths:
-        forbid_internal = not str(path).startswith(str(fixture_dir))
+        resolved = path.resolve()
+        is_fixture = str(path).startswith(str(fixture_dir))
+        is_persistence_module = resolved == persistence_module_path
+        # Phase 3.9 persistence fixtures legitimately import tempfile
+        # to host throw-away SQLite databases. The narrow per-fixture
+        # allowlist is documented in `_audit_ui_source`.
+        is_persistence_fixture = (
+            is_fixture and path.name.startswith("persistence_")
+        )
+        forbid_internal = not (is_fixture or is_persistence_module)
         findings.extend(
-            _audit_ui_source(path, forbid_brain_internal=forbid_internal)
+            _audit_ui_source(
+                path,
+                forbid_brain_internal=forbid_internal,
+                persistence_module=is_persistence_module,
+                persistence_fixture=is_persistence_fixture,
+            )
         )
 
     if findings:

@@ -67,7 +67,6 @@ _EXPECTED_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("chunk_id", "TEXT"),
         ("source", "TEXT"),
         ("text", "TEXT"),
-        ("tick_at_event", "INTEGER"),
         ("provenance_tag", "TEXT"),
     ),
     "stream_candidates": (
