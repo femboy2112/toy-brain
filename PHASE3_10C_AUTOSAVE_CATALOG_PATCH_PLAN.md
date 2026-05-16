@@ -58,11 +58,12 @@ PHASE3_10C_AUTOSAVE_CORRIGENDA.md
 ## 3. Patch Impact
 
 ```text
-+11 REQUIRED      (corrigenda section 13; including 1 replacement
-                   row for the retired I-PERSIST-16 placeholder)
-+ 3 STRUCTURAL
++11 REQUIRED      (corrigenda section 13)
++ 4 STRUCTURAL    (3 new I-AUTOSAVE STRUCTURAL rows + 1 from the
+                   I-PERSIST-16 reclassification NOT-EXERCISED ->
+                   STRUCTURAL)
 + 1 OBSERVED
-- 1 NOT-EXERCISED (I-PERSIST-16 retired at this patch)
+- 1 NOT-EXERCISED (I-PERSIST-16 reclassified, not retired)
 + 0 DEFERRED
 ```
 
@@ -71,11 +72,11 @@ Expected counts after the accepted Phase 3.10c patch:
 ```text
 Catalog version:  v0.19
 REQUIRED:        212
-STRUCTURAL:       82
+STRUCTURAL:       83
 NOT-EXERCISED:     9
 DEFERRED:         12
 OBSERVED:         15
-Total tabular:   330
+Total tabular:   331
 ```
 
 One new row family contributes 15 rows total:
@@ -85,12 +86,16 @@ I-AUTOSAVE-01..15   (Phase 3.10c: 11 REQUIRED + 3 STRUCTURAL +
                      1 OBSERVED)
 ```
 
-The Phase 3.9 I-PERSIST-16 row is RETIRED in this patch
-(NOT-EXERCISED -> removed). Its autosave-absence semantics are
-absorbed by the new I-AUTOSAVE-11 row (single save path), the
-existing I-PERSIST-12 static audit on `brain/ui/persistence.py`,
-and the Phase 3.10a/b defensive autosave-absent audits
-(I-OPSHARDEN-11, I-OBSERVE-10).
+The Phase 3.9 I-PERSIST-16 row is RECLASSIFIED (NOT-EXERCISED ->
+STRUCTURAL) in this patch with a narrower proposition (see
+Section 5.4). Its row ID is preserved; its position in the Phase
+3.9 row table is preserved; only its Status column and its
+Proposition / Python-assertion text change. The
+brain/ui/persistence.py module retains the structural assertion
+that it owns no autosave trigger or background autosave hook; the
+new I-AUTOSAVE-11 row asserts the complementary positive property
+(autosave is owned only by brain/ui/autosave.py and routes through
+the existing save_session helper).
 
 No other existing row is modified by this patch.
 
@@ -270,8 +275,13 @@ I-AUTOSAVE-11  Autosave reuses save_session; no second save
                 and contains no other save helper definition or
                 import; the audit also confirms no second
                 save_session helper exists in brain/ui/persistence.py
-                or anywhere else in brain/. (This row replaces the
-                Phase 3.9 I-PERSIST-16 NOT-EXERCISED placeholder.)
+                or anywhere else in brain/. (This row is the
+                positive complement to the reclassified
+                I-PERSIST-16 structural row: I-PERSIST-16 asserts
+                brain/ui/persistence.py owns no autosave hook,
+                while I-AUTOSAVE-11 asserts brain/ui/autosave.py
+                is the sole owner that routes through the existing
+                save_session helper.)
                 Fixture: autosave_single_save_path.py
 ```
 
@@ -356,22 +366,61 @@ I-AUTOSAVE-15  Phase 3.10c autosave dry run is inspectable.
                          Step 19 dry-run document.
 ```
 
-### 5.4 NOT-EXERCISED rows (0 new; 1 retired)
+### 5.4 I-PERSIST-16 reclassification (NOT-EXERCISED -> STRUCTURAL)
 
 ```text
-I-PERSIST-16 is RETIRED in this patch. The autosave-absence
-position is preserved at the structural level by:
+I-PERSIST-16  brain/ui/persistence.py owns no autosave trigger.
+                Reclassified from NOT-EXERCISED to STRUCTURAL in
+                this patch. The row ID, the row's position in the
+                "Phase 3.9 Persistent Session Store invariants"
+                section, and the row's owning module column are
+                preserved. The Proposition and Python-assertion
+                columns are narrowed to:
+                  Proposition: "brain/ui/persistence.py owns no
+                                autosave trigger or background
+                                autosave hook; runtime autosave is
+                                owned only by I-AUTOSAVE-* and
+                                brain/ui/autosave.py."
+                  Python assertion: "Static AST audit over
+                                brain/ui/persistence.py confirms no
+                                @atexit.register, no threading /
+                                asyncio / signal handler, no
+                                module-level save_session call, no
+                                tick-adjacent post-dispatch
+                                save_session call site, and no
+                                callable hook registered to fire
+                                from any dispatch path; the file
+                                contains the typed save_session
+                                helper definition itself but no
+                                autosave invocation. Runtime
+                                autosave lives exclusively in
+                                brain/ui/autosave.py, audited by
+                                the I-AUTOSAVE-11 / I-AUTOSAVE-13
+                                static rows."
+                Owning module: brain/ui/persistence.py
+                Fixture: persistence_static_audit.py (unchanged
+                  fixture file; the existing static audit already
+                  enforces the narrowed proposition; a small
+                  docstring update in Step 17/18 acknowledges the
+                  reclassification).
+                Status: STRUCTURAL (was NOT-EXERCISED in v0.18).
+
+The companion structural assertions remain unchanged:
   - I-PERSIST-12 (the existing Phase 3.9 persistence static audit
-    on brain/ui/persistence.py, which continues to reject
-    save_session call sites under tick-adjacent paths);
+    on brain/ui/persistence.py).
   - I-OPSHARDEN-11 (Phase 3.10a defensive autosave-absent audit
-    on brain/ui/persistence_ops.py);
+    on brain/ui/persistence_ops.py).
   - I-OBSERVE-10 (Phase 3.10b defensive autosave-absent audit on
-    brain/ui/persistence_observe.py);
+    brain/ui/persistence_observe.py).
   - I-AUTOSAVE-11 (the new REQUIRED row asserting brain/ui/
     autosave.py is the only autosave entry point and reuses
     save_session).
-No new NOT-EXERCISED row is added in this patch.
+
+No new NOT-EXERCISED row is added in this patch; the v0.18
+NOT-EXERCISED count drops by 1 (10 -> 9) and the v0.18 STRUCTURAL
+count gains 1 from the reclassification (in addition to the 3 new
+I-AUTOSAVE STRUCTURAL rows). The row ID I-PERSIST-16 is preserved
+in the catalog and in brain/_catalog_ids.py after regeneration.
 ```
 
 ---
@@ -396,9 +445,18 @@ I-AUTOSAVE-14  autosave_resource_audit.py
 I-AUTOSAVE-15  OBSERVED; autosave_dry_run.py or audit-cited
 ```
 
-Fixture file delta: **10** new fixture modules, serving 14 of the
+Fixture file delta: **11** new fixture modules, serving 14 of the
 15 new rows. The OBSERVED row (I-AUTOSAVE-15) is cited from the
-Step 19 dry-run document rather than runner-gated.
+Step 19 dry-run document rather than runner-gated. The roster
+collapses `autosave_no_background.py` and the no-tick-call AST
+check into `autosave_static_audit.py` per corrigenda section 13;
+the kickoff Section 12 sketch listed 13 fixture files, which the
+consolidation reduces to 11 without losing coverage.
+
+Fixture total: **120 (v0.18 baseline) -> 131 (v0.19)** after this
+patch lands. The Phase 3.9 `persistence_static_audit.py` fixture
+is reused for the reclassified I-PERSIST-16; no new fixture is
+needed for the reclassification.
 
 ```text
 brain/ui/fixtures/autosave_default_off.py
@@ -413,14 +471,6 @@ brain/ui/fixtures/autosave_trigger_set.py
 brain/ui/fixtures/autosave_static_audit.py
 brain/ui/fixtures/autosave_resource_audit.py
 ```
-
-Wait — that lists 11 files. The roster collapses
-`autosave_no_background.py` into `autosave_static_audit.py` per
-the corrigenda section 13; the no-tick-call AST check also lives
-in `autosave_static_audit.py`. The actual on-disk count is **11
-new fixture modules** (the corrigenda kickoff sketch listed 13
-fixtures; the consolidation here reduces the file count without
-losing coverage).
 
 Row-to-fixture subsumption summary (no fixture serves more than
 three rows; rows 04 + 06 + 08 share one fixture; rows 01 + 05
@@ -447,22 +497,33 @@ Modified files for Step 17 catalog patch:
 INVARIANT_CATALOG.md             v0.18 -> v0.19 banner; new
                                  "Phase 3.10c Autosave Policy
                                  invariants" section with
-                                 I-AUTOSAVE-01..15; mark
-                                 I-PERSIST-16 as retired in
-                                 the v0.19 banner and remove
-                                 it from the row table; update
-                                 fixture roster (102 -> 130
-                                 +  10 = 130; verify the actual
-                                 count after writing).
-tools/catalog.py                 EXPECTED_COUNTS to 212/82/9/12/15.
+                                 I-AUTOSAVE-01..15; reclassify
+                                 I-PERSIST-16 in place (Status
+                                 NOT-EXERCISED -> STRUCTURAL;
+                                 narrowed proposition per
+                                 Section 5.4; row ID and position
+                                 preserved); update fixture
+                                 roster from 120 -> 131 (11 new
+                                 autosave_* fixture entries; no
+                                 fixture file is added for the
+                                 I-PERSIST-16 reclassification
+                                 because the existing
+                                 persistence_static_audit.py is
+                                 the cited fixture).
+tools/catalog.py                 EXPECTED_COUNTS to 212/83/9/12/15.
 brain/_catalog_ids.py            regenerated via tools.catalog
-                                 generate-ids.
+                                 generate-ids; I-PERSIST-16 stays
+                                 present and moves into the
+                                 STRUCTURAL ID set.
 brain/invariants.py              _PHASE3_10C_PENDING_ROWS for
                                  I-AUTOSAVE-01..14 (15 is
-                                 OBSERVED, not pending); remove
-                                 I-PERSIST-16 from the catalog
-                                 expectations via the regenerated
-                                 brain/_catalog_ids.py.
+                                 OBSERVED, not pending);
+                                 register I-PERSIST-16 against
+                                 persistence_static_audit.py if
+                                 it is not already registered
+                                 (the audit body is unchanged;
+                                 the registration line is the
+                                 only addition).
 brain/ui/autosave.py             empty placeholder marker.
 README.md                        v0.19 banner; catalog history
                                  line; companion-docs section.
@@ -505,13 +566,18 @@ brain/ui/fixtures/composer_input.py           add "autosave-enable" to
                                               the argument-verb map
                                               (it takes one positional
                                               mode token).
-brain/ui/fixtures/persistence_static_audit.py update audit references
-                                              to acknowledge
-                                              I-PERSIST-16 retirement
-                                              and point at
-                                              I-AUTOSAVE-11; the
-                                              persistence-side audit
-                                              checks remain unchanged.
+brain/ui/fixtures/persistence_static_audit.py acknowledge the
+                                              I-PERSIST-16 STRUCTURAL
+                                              reclassification (docstring
+                                              and / or the @register line
+                                              so I-PERSIST-16 reports
+                                              green through this fixture).
+                                              The audit body is unchanged;
+                                              the existing static AST
+                                              check already enforces the
+                                              narrowed proposition (no
+                                              autosave hook in
+                                              brain/ui/persistence.py).
 brain/ui/fixtures/autosave_default_off.py
 brain/ui/fixtures/autosave_mode_closed.py
 brain/ui/fixtures/autosave_requires_db.py
@@ -571,30 +637,53 @@ brain/ui/persistence_observe.py (no change in 3.10c)
    under a new section:
      "### Phase 3.10c Autosave Policy invariants"
 
-2. Add a v0.19 catalog-version banner above v0.18 documenting the
-   +11 REQUIRED / +3 STRUCTURAL / +1 OBSERVED / -1 NOT-EXERCISED
-   expansion (delta total = 14; one new family I-AUTOSAVE-01..15;
-   one row retired: I-PERSIST-16).
+2. Reclassify I-PERSIST-16 in place inside the existing "Phase 3.9
+   Persistent Session Store invariants" row table:
+     - The row ID stays I-PERSIST-16.
+     - The Status column changes from NOT-EXERCISED to STRUCTURAL.
+     - The Proposition and Python-assertion columns are narrowed
+       per Section 5.4 (brain/ui/persistence.py owns no autosave
+       trigger or background autosave hook; runtime autosave is
+       owned only by I-AUTOSAVE-* and brain/ui/autosave.py).
+     - The Owning module column stays brain/ui/persistence.py.
+     - The Fixture column changes from "(none)" to
+       persistence_static_audit.py (the existing Phase 3.9 fixture
+       already enforces the narrowed proposition).
+   Do NOT remove the row, do NOT change its ID, and do NOT change
+   its position in the row table.
 
-3. Remove the I-PERSIST-16 row from the "Phase 3.9 Persistent
-   Session Store invariants" row table. Note the retirement in
-   the v0.19 banner with a pointer to I-AUTOSAVE-11 as the
-   replacement.
+3. Add a v0.19 catalog-version banner above v0.18 documenting the
+   +11 REQUIRED / +4 STRUCTURAL / +1 OBSERVED / -1 NOT-EXERCISED
+   expansion (15 new I-AUTOSAVE-01..15 rows + 1 reclassified row
+   I-PERSIST-16; net delta to the row table: +15 rows added, 0
+   removed, 1 row's Status column changed). The banner explicitly
+   notes the I-PERSIST-16 reclassification (NOT-EXERCISED ->
+   STRUCTURAL) and the narrowed proposition.
 
 4. Update the summary counts in INVARIANT_CATALOG.md to:
-   REQUIRED 212, STRUCTURAL 82, NOT-EXERCISED 9, DEFERRED 12,
+   REQUIRED 212, STRUCTURAL 83, NOT-EXERCISED 9, DEFERRED 12,
    OBSERVED 15.
 
 5. Update tools/catalog.py EXPECTED_COUNTS to the same values and
    refresh the banner-comment block to cite Phase 3.10c v0.19.
 
 6. Run `python3 -m tools.catalog generate-ids` to refresh
-   brain/_catalog_ids.py with the new I-AUTOSAVE-* entries and
-   the I-PERSIST-16 removal.
+   brain/_catalog_ids.py. The new IDs I-AUTOSAVE-01..15 are
+   added; I-PERSIST-16 stays present and moves from
+   EXPECTED_NOT_EXERCISED_IDS (or wherever NOT-EXERCISED is
+   tracked) into EXPECTED_STRUCTURAL_IDS. The row's ID string
+   is unchanged.
 
 7. Add _PHASE3_10C_PENDING_ROWS in brain/invariants.py with
    I-AUTOSAVE-01..14 (15 is OBSERVED and does not participate
-   in I-CAT-01 coverage; 11 + 3 STRUCTURAL = 14 pending rows).
+   in I-CAT-01 coverage; 11 REQUIRED + 3 STRUCTURAL = 14 pending
+   rows). I-PERSIST-16 is NOT pending: its proposition is already
+   enforced by the existing persistence_static_audit.py fixture;
+   the reclassification just promotes the row to participate in
+   I-CAT-01 coverage. If the existing persistence_static_audit.py
+   does not register I-PERSIST-16, add a single register line so
+   the runner reports the row green (the audit body is unchanged;
+   only the registration is added).
 
 8. Add an empty brain/ui/autosave.py marker file declaring the
    Phase 3.10c hard boundaries via docstring.
@@ -602,7 +691,8 @@ brain/ui/persistence_observe.py (no change in 3.10c)
 9. Update README.md catalog-version block to v0.19 and the
    catalog-history line; the companion-docs section gets the
    Phase 3.10c synthesis / kickoff / corrigenda / catalog patch
-   plan entries.
+   plan entries. The catalog history line for v0.19 explicitly
+   notes the I-PERSIST-16 reclassification.
 
 10. Update CURRENT_MISSION.md and CURRENT_CAMPAIGN.md catalog-
     version banners to v0.19.
@@ -618,7 +708,8 @@ brain/ui/persistence_observe.py (no change in 3.10c)
 
     The runner will show 14 pending failures (the I-AUTOSAVE
     rows). This is expected per the Phase 3.9 / Phase 3.10a/b
-    Step 7 pattern.
+    Step 7 pattern. The reclassified I-PERSIST-16 row reports
+    green via persistence_static_audit.py (no pending state).
 
 12. Step 17 should commit and push after count validation only.
     It should not implement autosave behavior, parser verbs, CLI
@@ -780,6 +871,8 @@ Step 17 - Apply Phase 3.10c autosave catalog patch
 ```
 
 The Phase 3.10c catalog patch transitions the catalog from v0.18
-(201 / 79 / 10 / 12 / 14) to v0.19 (212 / 82 / 9 / 12 / 15) by
-adding the I-AUTOSAVE-01..15 row family and retiring I-PERSIST-16.
-No runtime / fixture code is written until Step 18.
+(201 / 79 / 10 / 12 / 14) to v0.19 (212 / 83 / 9 / 12 / 15) by
+adding the I-AUTOSAVE-01..15 row family and reclassifying
+I-PERSIST-16 from NOT-EXERCISED to STRUCTURAL with a narrowed
+proposition (the row ID is preserved). No runtime / fixture code
+is written until Step 18.
