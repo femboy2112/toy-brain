@@ -24,7 +24,11 @@ from brain.ui.session import _ALLOWED_SESSION_ATTRS, OperatorSession
 
 
 #: Phase 3.9 session attribute set (snapshot before Phase 3.10a). The
-#: fixture asserts that Phase 3.10a did NOT widen this set.
+#: fixture asserts that Phase 3.10a did NOT widen this set. Phase 3.10c
+#: (Autosave Policy) is explicitly authorized to add the two
+#: ``autosave_config`` and ``last_autosave_status`` fields per the
+#: accepted v0.19 catalog patch; the assertion below treats those as
+#: a known Phase 3.10c addition rather than a Phase 3.10a drift.
 _PHASE_3_9_SESSION_ATTRS: frozenset[str] = frozenset({
     "state",
     "latest_tick",
@@ -41,6 +45,17 @@ _PHASE_3_9_SESSION_ATTRS: frozenset[str] = frozenset({
     "stream_candidates",
     "stream_chunk_serial",
     "session_store_config",
+})
+
+
+#: Phase 3.10c (Autosave Policy) additions to the OperatorSession
+#: attribute surface. The fixture allows these names through the
+#: I-OPSHARDEN-13 check because the v0.19 catalog patch authorizes
+#: them; the I-AUTOSAVE-14 resource audit fixture asserts the
+#: positive shape of these fields.
+_PHASE_3_10C_SESSION_ATTRS: frozenset[str] = frozenset({
+    "autosave_config",
+    "last_autosave_status",
 })
 
 
@@ -77,10 +92,13 @@ def _assert_session_resource_free(session: OperatorSession, *, tag: str) -> None
 
 @register("I-OPSHARDEN-13", status="STRUCTURAL")
 def check_i_opsharden_13_session_resource_audit() -> None:
-    # Phase 3.10a must not widen the OperatorSession attribute surface.
-    if frozenset(_ALLOWED_SESSION_ATTRS) != _PHASE_3_9_SESSION_ATTRS:
-        added = set(_ALLOWED_SESSION_ATTRS) - _PHASE_3_9_SESSION_ATTRS
-        dropped = _PHASE_3_9_SESSION_ATTRS - set(_ALLOWED_SESSION_ATTRS)
+    # Phase 3.10a must not widen the OperatorSession attribute surface
+    # beyond the Phase 3.9 baseline plus the Phase 3.10c (Autosave
+    # Policy) additions authorized by the v0.19 catalog patch.
+    allowed = _PHASE_3_9_SESSION_ATTRS | _PHASE_3_10C_SESSION_ATTRS
+    if frozenset(_ALLOWED_SESSION_ATTRS) != allowed:
+        added = set(_ALLOWED_SESSION_ATTRS) - allowed
+        dropped = allowed - set(_ALLOWED_SESSION_ATTRS)
         raise AssertionError(
             "I-OPSHARDEN-13 violated: OperatorSession attribute surface "
             f"drifted (added={sorted(added)!r}, dropped={sorted(dropped)!r})"
@@ -95,7 +113,7 @@ def check_i_opsharden_13_session_resource_audit() -> None:
         save_session(session, config)
 
         # Re-check attribute surface after configuring the session.
-        if set(session.__slots__) != _PHASE_3_9_SESSION_ATTRS:
+        if set(session.__slots__) != allowed:
             raise AssertionError(
                 "I-OPSHARDEN-13 violated: configured session __slots__ "
                 "drifted"

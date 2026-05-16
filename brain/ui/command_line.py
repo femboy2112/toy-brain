@@ -118,6 +118,9 @@ LOCAL_COMMAND_VERBS: tuple[str, ...] = (
     "profile-summary",
     "stream-db-summary",
     "db-diff",
+    "autosave-status",
+    "autosave-enable",
+    "autosave-disable",
 )
 
 
@@ -317,6 +320,16 @@ class LocalCommandLine:
             return self._parse_no_args(
                 verb, remainder, OperatorCommand.DB_DIFF
             )
+        if verb == "autosave-status":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.AUTOSAVE_STATUS
+            )
+        if verb == "autosave-disable":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.AUTOSAVE_DISABLE
+            )
+        if verb == "autosave-enable":
+            return self._parse_autosave_enable(remainder)
         # Unreachable: every verb in LOCAL_COMMAND_VERBS is handled above.
         raise AssertionError(  # pragma: no cover - enumeration is closed
             f"I-UI-18 violated: unrouted typed verb /{verb}"
@@ -492,6 +505,52 @@ class LocalCommandLine:
             return LocalCommandError(f"/db-backup rejected: {exc}")
         return command
 
+    def _parse_autosave_enable(self, remainder: str) -> ParseResult:
+        """Parse ``/autosave-enable <mode>``.
+
+        Accepts exactly one positional argument; the token must equal
+        one of the closed :class:`brain.ui.autosave.AutosaveMode` value
+        strings (``"off"`` or ``"after-successful-mutation"``). No
+        shell expansion, glob expansion, or variable substitution is
+        performed.
+
+        Drives ``I-AUTOSAVE-04`` (closed-arg shape for the
+        ``/autosave-enable`` verb).
+        """
+        text = remainder.strip()
+        if not text:
+            return LocalCommandError(
+                "/autosave-enable requires <mode>"
+            )
+        tokens = text.split()
+        if len(tokens) != 1:
+            return LocalCommandError(
+                "/autosave-enable requires exactly one <mode> argument"
+            )
+        mode_token = tokens[0]
+        # Lazy import: keeps the brain.ui.command_line -> brain.ui.autosave
+        # ordering shallow.
+        from brain.ui.autosave import (  # noqa: PLC0415
+            AutosaveMode,
+            SUPPORTED_AUTOSAVE_MODES,
+        )
+        try:
+            mode = AutosaveMode(mode_token)
+        except ValueError:
+            return LocalCommandError(
+                "/autosave-enable mode must be in "
+                f"{sorted(m.value for m in SUPPORTED_AUTOSAVE_MODES)!r} "
+                f"(got {mode_token!r})"
+            )
+        try:
+            command = make_command(
+                OperatorCommand.AUTOSAVE_ENABLE,
+                autosave_mode=mode,
+            )
+        except (TypeError, ValueError) as exc:
+            return LocalCommandError(f"/autosave-enable rejected: {exc}")
+        return command
+
 
 # ---------------------------------------------------------------------------
 # Help-text rendering helper.
@@ -526,6 +585,9 @@ LOCAL_COMMAND_HELP: tuple[tuple[str, str], ...] = (
     ("/profile-summary", "list saved profile values (exact 'num/den')"),
     ("/stream-db-summary", "head + tail summary of saved stream chunks"),
     ("/db-diff", "diff the live session against the saved DB"),
+    ("/autosave-status", "show bounded autosave configuration + last attempt"),
+    ("/autosave-enable <mode>", "opt in to autosave (mode: off|after-successful-mutation)"),
+    ("/autosave-disable", "disable autosave (idempotent)"),
 )
 
 

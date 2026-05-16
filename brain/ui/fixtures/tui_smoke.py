@@ -492,10 +492,17 @@ def check_I_UI_07_ui_has_no_forbidden_imports_or_host_execution() -> None:
             persistence_observe_module_path,
         )
         # Phase 3.9 persistence fixtures legitimately import tempfile
-        # to host throw-away SQLite databases. The narrow per-fixture
-        # allowlist is documented in `_audit_ui_source`.
+        # to host throw-away SQLite databases. The Phase 3.10c autosave
+        # fixtures need the same exemption because they exercise
+        # save_session (and thus a temporary SQLite DB) via the typed
+        # autosave helpers. The narrow per-fixture allowlist is
+        # documented in `_audit_ui_source`.
         is_persistence_fixture = (
-            is_fixture and path.name.startswith("persistence_")
+            is_fixture
+            and (
+                path.name.startswith("persistence_")
+                or path.name.startswith("autosave_")
+            )
         )
         forbid_internal = not (is_fixture or is_persistence_module)
         findings.extend(

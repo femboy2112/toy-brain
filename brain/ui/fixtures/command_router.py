@@ -153,6 +153,10 @@ _EXPECTED_COMMAND_VALUES = frozenset({
     "profile_summary",
     "stream_db_summary",
     "db_diff",
+    # Phase 3.10c Autosave Policy verbs.
+    "autosave_status",
+    "autosave_enable",
+    "autosave_disable",
 })
 
 

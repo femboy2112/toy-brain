@@ -165,6 +165,17 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.persistence_observe_resource_audit",
     "brain.ui.fixtures.persistence_observe_default_caps",
     "brain.ui.fixtures.persistence_observe_static_audit",
+    "brain.ui.fixtures.autosave_default_off",
+    "brain.ui.fixtures.autosave_mode_closed",
+    "brain.ui.fixtures.autosave_requires_db",
+    "brain.ui.fixtures.autosave_status_after_event",
+    "brain.ui.fixtures.autosave_failure_preserves",
+    "brain.ui.fixtures.autosave_no_after_failure",
+    "brain.ui.fixtures.autosave_no_after_read_only",
+    "brain.ui.fixtures.autosave_single_save_path",
+    "brain.ui.fixtures.autosave_trigger_set",
+    "brain.ui.fixtures.autosave_static_audit",
+    "brain.ui.fixtures.autosave_resource_audit",
 ]
 
 
@@ -919,20 +930,19 @@ for _row_id, _status in _PHASE3_10_OBSERVE_PENDING_ROWS.items():
 
 
 _PHASE3_10C_PENDING_ROWS: dict[str, str] = {
-    "I-AUTOSAVE-01": "REQUIRED",
-    "I-AUTOSAVE-02": "REQUIRED",
-    "I-AUTOSAVE-03": "REQUIRED",
-    "I-AUTOSAVE-04": "REQUIRED",
-    "I-AUTOSAVE-05": "REQUIRED",
-    "I-AUTOSAVE-06": "REQUIRED",
-    "I-AUTOSAVE-07": "REQUIRED",
-    "I-AUTOSAVE-08": "REQUIRED",
-    "I-AUTOSAVE-09": "REQUIRED",
-    "I-AUTOSAVE-10": "REQUIRED",
-    "I-AUTOSAVE-11": "REQUIRED",
-    "I-AUTOSAVE-12": "STRUCTURAL",
-    "I-AUTOSAVE-13": "STRUCTURAL",
-    "I-AUTOSAVE-14": "STRUCTURAL",
+    # Step 18 drained I-AUTOSAVE-01..14 via the eleven
+    # brain/ui/fixtures/autosave_*.py fixtures registered in
+    # FIXTURE_MODULES. The runtime lives in brain/ui/autosave.py
+    # (default-OFF opt-in autosave that hooks the central
+    # OperatorSession.dispatch post-mutation site and routes through
+    # the existing brain.ui.persistence.save_session helper). The
+    # autosave Phase 3.10c verbs (/autosave-status, /autosave-enable,
+    # /autosave-disable) and the --autosave-mode CLI flag are wired in
+    # brain/ui/commands.py, brain/ui/command_line.py,
+    # brain/ui/__main__.py, and brain/ui/session.py. I-AUTOSAVE-15
+    # (OBSERVED) is documented in Step 19's
+    # PHASE3_10C_AUTOSAVE_DRY_RUN.md and does not participate in
+    # I-CAT-01 coverage.
 }
 
 

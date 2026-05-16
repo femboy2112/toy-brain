@@ -405,6 +405,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "destination file."
         ),
     )
+    # Phase 3.10c Autosave Policy flag. The default is "off" regardless
+    # of any ambient environment variable (no BRAIN_AUTOSAVE_MODE; the
+    # flag is the only knob). Non-off requires --session-db; the
+    # rejection happens immediately after parse_args via parser.error
+    # so the exit code is the argparse-standard 2 (drives I-AUTOSAVE-03).
+    parser.add_argument(
+        "--autosave-mode",
+        default="off",
+        choices=("off", "after-successful-mutation"),
+        help=(
+            "Phase 3.10c: autosave mode. Default 'off'. Non-off "
+            "requires --session-db; the autosave fires AFTER a "
+            "successful /step or /stream-promote dispatch and routes "
+            "through the existing save_session helper."
+        ),
+    )
     return parser
 
 
@@ -441,6 +457,16 @@ def main(
 
     parser = build_arg_parser()
     args = parser.parse_args(argv)
+
+    # Phase 3.10c: reject --autosave-mode != off without --session-db
+    # immediately after parse so the exit code is argparse-standard 2
+    # (drives I-AUTOSAVE-03). The check happens before any of the
+    # short-circuit branches below so the rejection wins.
+    if args.autosave_mode != "off" and args.session_db is None:
+        parser.error(
+            "--autosave-mode after-successful-mutation requires "
+            "--session-db"
+        )
 
     if args.check_terminal:
         check = detect_terminal(stdin=stdin, stdout=stdout_, env=env)
@@ -496,6 +522,14 @@ def main(
 
     # Tactile feedback: print the resolved mode line to stdout (ruling F).
     print(format_startup_mode_line(llm_config), file=stdout_)
+
+    # Phase 3.10c: bounded startup line announces the resolved autosave
+    # mode (drives I-AUTOSAVE-01: default OFF on cold start; the line
+    # always prints, regardless of whether autosave is enabled).
+    print(
+        f"brain.ui: autosave mode = {args.autosave_mode}",
+        file=stdout_,
+    )
 
     # Usable terminal: import the curses wrapper lazily and hand off.
     # The wrapper is responsible for the actual screen lifecycle; we
@@ -575,6 +609,28 @@ def main(
             "brain.ui: session db = not configured",
             file=stdout_,
         )
+
+    # Phase 3.10c: attach the resolved autosave config when non-OFF.
+    # We already rejected non-OFF without --session-db above (argparse
+    # error code 2), so reaching here with a non-OFF mode implies a
+    # configured DB; route through the typed helper so the static
+    # audit-locked validation runs.
+    if args.autosave_mode != "off":
+        from brain.ui.autosave import (  # noqa: PLC0415
+            AutosaveMode,
+            autosave_enable,
+        )
+        from brain.ui.persistence import (  # noqa: PLC0415
+            PersistenceError as _PersistenceError,
+        )
+        try:
+            autosave_enable(session, AutosaveMode(args.autosave_mode))
+        except _PersistenceError as exc:
+            print(
+                f"brain.ui: autosave config rejected: {exc}",
+                file=stderr_,
+            )
+            return 1
 
     try:
         run_curses(

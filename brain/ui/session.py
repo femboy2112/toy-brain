@@ -70,6 +70,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing-only imports
     from brain.io_types import TickRecord
     from brain.llm.client import LLMClient
     from brain.toce_core import ContentState
+    from brain.ui.autosave import AutosaveConfig, AutosaveStatusReport
     from brain.ui.persistence import SessionStoreConfig
 
 
@@ -200,6 +201,8 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "stream_candidates",
     "stream_chunk_serial",
     "session_store_config",
+    "autosave_config",
+    "last_autosave_status",
 })
 
 
@@ -252,6 +255,8 @@ class OperatorSession:
     stream_candidates: tuple[StreamPromotionCandidate, ...] = ()
     stream_chunk_serial: int = 0
     session_store_config: Optional["SessionStoreConfig"] = None
+    autosave_config: Optional["AutosaveConfig"] = None
+    last_autosave_status: Optional["AutosaveStatusReport"] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -332,6 +337,32 @@ class OperatorSession:
                     "OperatorSession.session_store_config must be a "
                     "SessionStoreConfig or None "
                     f"(got {type(self.session_store_config).__name__})"
+                )
+        if self.autosave_config is not None:
+            # Local import keeps the brain.ui.session <-> brain.ui.autosave
+            # ordering acyclic. AutosaveConfig is a frozen / slotted
+            # record carrying only bounded primitives (drives I-AUTOSAVE-14:
+            # no sqlite3.Connection, Cursor, callable, socket, subprocess
+            # handle, file object, curses object, or LLM client appears
+            # in the autosave fields).
+            from brain.ui.autosave import AutosaveConfig as _AutosaveConfig
+            if not isinstance(self.autosave_config, _AutosaveConfig):
+                raise TypeError(
+                    "OperatorSession.autosave_config must be an "
+                    "AutosaveConfig or None "
+                    f"(got {type(self.autosave_config).__name__})"
+                )
+        if self.last_autosave_status is not None:
+            from brain.ui.autosave import (
+                AutosaveStatusReport as _AutosaveStatusReport,
+            )
+            if not isinstance(
+                self.last_autosave_status, _AutosaveStatusReport
+            ):
+                raise TypeError(
+                    "OperatorSession.last_autosave_status must be an "
+                    "AutosaveStatusReport or None "
+                    f"(got {type(self.last_autosave_status).__name__})"
                 )
         self._assert_no_unsafe_resources()
 
@@ -446,6 +477,14 @@ class OperatorSession:
         # visible in the transcript/footer.
         self.error_message = ""
 
+        # Outcome-detection contract (drives I-AUTOSAVE-14): a Phase
+        # 3.10c-eligible dispatcher returns True iff it mutated kernel /
+        # stream state, False iff it failed, None for read-only paths.
+        # The central dispatch reads this return value to decide whether
+        # to fire the post-dispatch autosave hook; it never scans status
+        # / error strings.
+        mutation_outcome: Optional[bool] = None
+
         kind = command.kind
         if kind in INSPECT_VIEW_MAP:
             self.set_active_view(INSPECT_VIEW_MAP[kind])
@@ -453,7 +492,7 @@ class OperatorSession:
         elif kind is OperatorCommand.QUEUE_PERCEPT:
             self._dispatch_queue(command.payload)
         elif kind is OperatorCommand.STEP_TICK:
-            self._dispatch_step(client)
+            mutation_outcome = self._dispatch_step(client)
         elif kind is OperatorCommand.CLEAR_STATUS:
             self.clear_status()
         elif kind is OperatorCommand.HELP:
@@ -469,7 +508,9 @@ class OperatorSession:
         elif kind is OperatorCommand.STREAM_APPEND:
             self._dispatch_stream_append(command.payload)
         elif kind is OperatorCommand.STREAM_PROMOTE:
-            self._dispatch_stream_promote(command.payload)
+            mutation_outcome = self._dispatch_stream_promote(
+                command.payload
+            )
         elif kind is OperatorCommand.SAVE_SESSION:
             self._dispatch_save_session()
         elif kind is OperatorCommand.LOAD_SESSION:
@@ -490,10 +531,26 @@ class OperatorSession:
             self._dispatch_stream_db_summary()
         elif kind is OperatorCommand.DB_DIFF:
             self._dispatch_db_diff()
+        elif kind is OperatorCommand.AUTOSAVE_STATUS:
+            self._dispatch_autosave_status()
+        elif kind is OperatorCommand.AUTOSAVE_ENABLE:
+            self._dispatch_autosave_enable(command.payload)
+        elif kind is OperatorCommand.AUTOSAVE_DISABLE:
+            self._dispatch_autosave_disable()
         else:  # pragma: no cover - the enum is closed
             raise AssertionError(
                 f"I-UI-03 violated: unrouted OperatorCommand {kind!r}"
             )
+
+        # Post-dispatch autosave trigger (drives I-AUTOSAVE-08,
+        # I-AUTOSAVE-09, I-AUTOSAVE-10). Fires only when:
+        #   (a) autosave_config is configured and non-OFF,
+        #   (b) command kind is in the Phase 3.10c-eligible trigger set,
+        #   (c) the sub-dispatcher returned True (mutated kernel state),
+        #   (d) session_store_config is configured.
+        # The returned typed report (or None) is stored on
+        # session.last_autosave_status. The helper itself never raises.
+        self._maybe_autosave_after_dispatch(kind, mutation_outcome)
 
         # Self-audit after every dispatch so a buggy handler cannot
         # widen the session's resource surface unnoticed.
@@ -527,7 +584,7 @@ class OperatorSession:
             f"(queue size = {len(self.event_queue)})"
         )
 
-    def _dispatch_step(self, client: Optional["LLMClient"]) -> None:
+    def _dispatch_step(self, client: Optional["LLMClient"]) -> Optional[bool]:
         """Single-tick router. Drives ``I-UI-05`` and ``I-UI-06``.
 
         Pops one queued payload, rebuilds the :class:`PerceptEvent`,
@@ -536,10 +593,16 @@ class OperatorSession:
         :class:`BrainState` with the new state. Any exception during
         validation or tick is captured as local UI status / error;
         no kernel container is mutated on the failure path.
+
+        Returns ``True`` iff the step succeeded (BrainState mutated +
+        tick_counter advanced); returns ``False`` on any failure path.
+        The central :meth:`dispatch` reads this return value to decide
+        whether to fire the post-dispatch autosave hook (drives
+        ``I-AUTOSAVE-14`` outcome-detection contract).
         """
         if client is None:
             self.set_error("STEP_TICK requires an LLM client argument")
-            return
+            return False
         # Capture the pre-tick session snapshot so a failure path can
         # assert no kernel-side mutation occurred (drives I-UI-06).
         prior_state = self.state
@@ -548,7 +611,7 @@ class OperatorSession:
 
         if prior_queue_size == 0:
             self.set_error("STEP_TICK with empty event queue")
-            return
+            return False
 
         payload = self.event_queue.peek()
         assert payload is not None  # peek returned because queue not empty
@@ -564,7 +627,7 @@ class OperatorSession:
             assert self.state is prior_state
             assert self.latest_tick is prior_latest_tick
             assert len(self.event_queue) == prior_queue_size
-            return
+            return False
 
         try:
             new_state, record = tick(
@@ -586,7 +649,7 @@ class OperatorSession:
             assert len(self.event_queue) == prior_queue_size, (
                 "I-UI-06 violated: event_queue size changed on tick failure"
             )
-            return
+            return False
 
         # Success: consume the queued payload (one dequeue), update
         # state, store record. Drives I-UI-05.
@@ -599,6 +662,7 @@ class OperatorSession:
             f"tick {self.tick_counter} ok "
             f"({record.triggered_mode.name if record.triggered_mode else 'noop'})"
         )
+        return True
 
     # ------------------------------------------------------------------
     # Stream-command handlers (Phase 3.8)
@@ -685,10 +749,18 @@ class OperatorSession:
 
     def _dispatch_stream_promote(
         self, payload: Optional[StreamPromotePayload]
-    ) -> None:
+    ) -> Optional[bool]:
+        """Promote one stream candidate onto the event queue.
+
+        Returns ``True`` iff the promotion succeeded (event_queue
+        grew); returns ``False`` on any failure path. The central
+        :meth:`dispatch` reads this return value to decide whether to
+        fire the post-dispatch autosave hook (drives ``I-AUTOSAVE-14``
+        outcome-detection contract).
+        """
         if not isinstance(payload, StreamPromotePayload):
             self.set_error("STREAM_PROMOTE requires a StreamPromotePayload")
-            return
+            return False
 
         prior_history = self.stream_history
         prior_candidates = self.stream_candidates
@@ -710,7 +782,7 @@ class OperatorSession:
             assert len(self.event_queue) == prior_queue_size
             assert self.tick_counter == prior_tick_counter
             assert self.stream_chunk_serial == prior_serial
-            return
+            return False
 
         if self.event_queue.is_full():
             self.set_error(
@@ -723,7 +795,7 @@ class OperatorSession:
             assert len(self.event_queue) == prior_queue_size
             assert self.tick_counter == prior_tick_counter
             assert self.stream_chunk_serial == prior_serial
-            return
+            return False
 
         try:
             queue_payload = QueuePerceptPayload(
@@ -741,7 +813,7 @@ class OperatorSession:
             assert len(self.event_queue) == prior_queue_size
             assert self.tick_counter == prior_tick_counter
             assert self.stream_chunk_serial == prior_serial
-            return
+            return False
 
         try:
             self.event_queue.enqueue(queue_payload)
@@ -754,7 +826,7 @@ class OperatorSession:
             assert len(self.event_queue) == prior_queue_size
             assert self.tick_counter == prior_tick_counter
             assert self.stream_chunk_serial == prior_serial
-            return
+            return False
 
         # Success: leave stream state intact except for view/status; the
         # /step path consumes the queued payload through the existing
@@ -765,6 +837,7 @@ class OperatorSession:
             f"promoted stream candidate {candidate.candidate_id!r} "
             f"(queue size = {len(self.event_queue)})"
         )
+        return True
 
     # ------------------------------------------------------------------
     # /save-session and /load-session — explicit persistence dispatchers
@@ -1041,6 +1114,114 @@ class OperatorSession:
                 f"db-diff: diff_count={report.diff_count}"
                 + (" (truncated)" if report.truncated else "")
             )
+
+    # ------------------------------------------------------------------
+    # Phase 3.10c autosave dispatchers. None of these routes call tick();
+    # none stores a sqlite3.Connection on the session; each catches
+    # PersistenceError and surfaces it as bounded local error_message
+    # text. The /autosave-enable / /autosave-disable handlers mutate
+    # session.autosave_config but never invoke save_session — the
+    # post-dispatch trigger (_maybe_autosave_after_dispatch) is the
+    # SOLE save_session entry point in this module.
+    # ------------------------------------------------------------------
+
+    def _dispatch_autosave_status(self) -> None:
+        from brain.ui.autosave import autosave_status  # noqa: PLC0415
+        report = autosave_status(self)
+        self.set_status(
+            "autosave-status: "
+            f"mode={report.mode.value} "
+            f"db={report.db_path_str!r} "
+            f"last_tick={report.last_attempt_tick} "
+            f"last_outcome={report.last_attempt_outcome!r} "
+            f"last_trigger={report.last_attempt_trigger!r} "
+            f"last_at={report.last_attempt_at!r}"
+        )
+
+    def _dispatch_autosave_enable(self, payload) -> None:
+        from brain.ui.autosave import autosave_enable  # noqa: PLC0415
+        from brain.ui.commands import (  # noqa: PLC0415
+            AutosaveEnablePayload,
+        )
+        from brain.ui.persistence import PersistenceError  # noqa: PLC0415
+        if not isinstance(payload, AutosaveEnablePayload):
+            self.set_error(
+                "AUTOSAVE_ENABLE requires an AutosaveEnablePayload"
+            )
+            return
+        try:
+            report = autosave_enable(self, payload.mode)
+        except PersistenceError as exc:
+            self.set_error(f"/autosave-enable failed: {exc}")
+            return
+        self.set_status(
+            f"autosave-enable ok: mode={report.mode.value} "
+            f"db={report.db_path_str!r}"
+        )
+
+    def _dispatch_autosave_disable(self) -> None:
+        from brain.ui.autosave import autosave_disable  # noqa: PLC0415
+        report = autosave_disable(self)
+        self.set_status(
+            f"autosave-disable ok: mode={report.mode.value}"
+        )
+
+    def _maybe_autosave_after_dispatch(
+        self,
+        kind: OperatorCommand,
+        mutation_outcome: Optional[bool],
+    ) -> None:
+        """Post-dispatch autosave trigger site.
+
+        Drives ``I-AUTOSAVE-08`` / ``I-AUTOSAVE-09`` / ``I-AUTOSAVE-10``.
+        Fires :func:`maybe_autosave_after_mutation` exactly when:
+
+          (a) ``session.autosave_config`` is configured and non-OFF,
+          (b) ``command.kind`` is in
+              {``STEP_TICK``, ``STREAM_PROMOTE``},
+          (c) the sub-dispatcher returned ``True`` (kernel / stream
+              state mutated successfully),
+          (d) ``session.session_store_config`` is configured.
+
+        The returned typed report (or ``None``) is stored on
+        :attr:`OperatorSession.last_autosave_status`. The helper itself
+        never raises; any :class:`PersistenceError` is absorbed into
+        the typed report.
+        """
+        config = self.autosave_config
+        if config is None:
+            return
+        # Lazy import keeps the brain.ui.session <-> brain.ui.autosave
+        # ordering acyclic.
+        from brain.ui.autosave import (  # noqa: PLC0415
+            AutosaveMode,
+            AutosaveTrigger,
+            maybe_autosave_after_mutation,
+        )
+        if config.mode is AutosaveMode.OFF:
+            return
+        if self.session_store_config is None:
+            return
+        if mutation_outcome is not True:
+            return
+        if kind is OperatorCommand.STEP_TICK:
+            trigger = AutosaveTrigger.STEP_TICK
+        elif kind is OperatorCommand.STREAM_PROMOTE:
+            trigger = AutosaveTrigger.STREAM_PROMOTE
+        else:
+            return
+        report = maybe_autosave_after_mutation(
+            self, triggered_by=trigger
+        )
+        if report is not None:
+            self.last_autosave_status = report
+            if report.last_attempt_outcome == "error":
+                # Surface the autosave error as bounded local error
+                # text. The mutating dispatcher's success status
+                # message is preserved on status_message.
+                self.set_error(
+                    f"autosave failed: {report.last_error_text}"
+                )
 
     # ------------------------------------------------------------------
     # Bounded display contracts (used by the renderer / smoke tests)
