@@ -1,4 +1,4 @@
-# CURRENT_CAMPAIGN.md — Fast Safe Text Interaction Campaign
+# CURRENT_CAMPAIGN.md — Phase 3.9 Persistent Session Store Campaign
 
 ## Campaign status
 
@@ -6,18 +6,20 @@
 DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / FINAL-PR
 ```
 
-This campaign replaces the completed Phase 3.5 Expression + ReadabilityPredictor campaign. It defines the fastest safe route from the current v0.12 repo to a bounded text-stream interaction loop, while preserving the existing catalog, identity, event, and tick-boundary disciplines.
+This campaign replaces the completed Fast Safe Text Interaction campaign. The repo can now run a bounded operator text-stream loop with an explicit LLM runtime toggle, but that loop is still process-local: cold start recreates a fresh default session instead of restoring the accumulated profile, registry, text-stream history, tick counter, and session-local state.
+
+Phase 3.9 adds explicit, invariant-checked persistence for session/profile continuity.
 
 Preferred campaign branch:
 
 ```text
-campaign/fast-safe-text-interaction
+campaign/persistent-session-store
 ```
 
 Preferred final PR title:
 
 ```text
-phase3: fast safe text interaction campaign
+phase3.9: persistent session store
 ```
 
 Rules:
@@ -31,6 +33,8 @@ never push campaign work directly to main
 never merge without explicit user approval
 ```
 
+This file may have been installed directly on `main` by explicit user instruction. That exception applies only to mission/campaign installation, not to campaign execution.
+
 ---
 
 ## Mandatory files to read
@@ -42,148 +46,305 @@ CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
-PHASE3_5_EXPRESSION_READABILITY_AUDIT.md
-PHASE3_8B_LLM_TOGGLE_AMENDMENT.md
+PHASE3_TEXT_INTERACTION_DRY_RUN.md
+PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md
+PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md
+brain/ui/__main__.py
+brain/ui/session.py
+brain/tick.py
 ```
 
-The LLM toggle amendment is mandatory context. It must be incorporated before final interactive testing is considered complete.
+Then read whichever files the next campaign step names. Do not rely on chat memory; use repo-local files and the current catalog.
 
 ---
 
 ## Strategic target
 
-Target user-visible loop:
+Target user-visible capability:
+
+```bash
+python3 -m brain.ui --session-db brain/session.sqlite3 --load-session
+```
+
+Inside the operator TUI:
 
 ```text
-/stream <text>
-/stream-summary
-/stream-candidates
-/stream-promote <candidate_id>
+/stream hello world
+/stream-promote promo-strm-chunk-1
 /step
-/tick
-/state
+/save-session
+/quit
 ```
 
-Meaning:
+Then, after process restart:
+
+```bash
+python3 -m brain.ui --session-db brain/session.sqlite3 --load-session
+```
+
+Expected restored state:
 
 ```text
-/stream            appends bounded text to local stream history
-/stream-summary    displays read-only stream statistics
-/stream-candidates displays read-only candidate structure
-/stream-promote    validates and queues one explicit candidate
-/step              remains the route that advances tick processing
+BrainState.profile values restored exactly
+MSI contents and threshold restored exactly
+PtCns eval_map restored exactly
+ContentRegistry texts restored exactly
+OperatorSession.tick_counter restored
+TextStreamHistory restored
+stream_chunk_serial restored
+stream candidates either restored or deterministically rebuilt
+no LLM client persisted
+no curses object persisted
 ```
-
-Final testing must also support an explicit runtime client mode toggle:
-
-```text
-offline       default deterministic mode
-mock          deterministic canned-response mode
-anthropic-api explicit model-backed API mode
-claude-cli    explicit local CLI-backed mode
-```
-
-The default must remain:
-
-```text
-offline
-```
-
-Model-backed modes must be opt-in and must reuse the existing `LLMClient` protocol and existing `tick(..., client, ...)` seam. This campaign does not authorize a second classification path.
 
 ---
 
 ## Baseline
 
-Expected starting state:
+Expected current state:
 
 ```text
-Catalog: v0.12
-Counts: 139 REQUIRED / 48 STRUCTURAL / 5 NOT-EXERCISED / 12 DEFERRED / 8 OBSERVED
-Latest complete campaign: Phase 3.5 Expression + ReadabilityPredictor
-Latest audit: PHASE3_5_EXPRESSION_READABILITY_AUDIT.md
-Audit verdict: PASS
-Recommended next mission: Phase 3.6 Reflective Inspection
+Catalog: v0.16
+Counts:
+  REQUIRED:        178
+  STRUCTURAL:       64
+  NOT-EXERCISED:     9
+  DEFERRED:         12
+  OBSERVED:         12
+Latest completed campaign: Fast Safe Text Interaction through Phase 3.8b LLM Runtime Toggle and Step 26 dry-run documentation
+Latest audits:
+  PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md      PASS
+  PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md             PASS
+Latest dry run:
+  PHASE3_TEXT_INTERACTION_DRY_RUN.md
 ```
 
-Known repo-state drift to address first:
+Known gap:
 
 ```text
-README.md contains older catalog-count language
-current mission/campaign files previously pointed at completed Phase 3.5 work
-standalone roadmap file should exist and agree with this campaign
+build_default_session() constructs a fresh deterministic session every launch.
+No durable BrainState/profile/session persistence exists yet.
+Existing save/export rows are placeholders or cache-specific, not profile persistence.
 ```
 
 ---
 
-## Guardrails
+## Persistence design thesis
 
-Preserve these constraints throughout:
+Phase 3.9 should use SQLite through the Python standard library `sqlite3` module.
 
-```text
-COGITO_ID remains reserved
-raw text never maps to COGITO_ID
-raw text never mutates BrainState directly
-developmental histories remain local until explicit promotion
-tick() remains the only formal runtime transition route
-single-event tick discipline remains intact
-Expression remains local evidence only
-Readability remains local readability evidence only
-Reflective Inspection remains read-only and below Mode B
-operator commands remain finite, typed, bounded, and inspectable
-model-backed testing remains explicit opt-in and defaults offline
-```
+The persistence layer is not an arbitrary object dump. It is a typed store with explicit schema versioning, transactional writes, and load-time reconstruction through existing builders and constructors.
 
-Guarded paths may be touched only when a step explicitly allows them:
+Recommended database path:
 
 ```text
-brain/tlica/
-lean_reference/
-traces/first_scenario_real.jsonl
-traces/RUN_SUMMARY.md
-scenarios/
-brain/tick.py
-brain/llm/
+brain/session.sqlite3
 ```
+
+Recommended CLI flags:
+
+```text
+--session-db <path>
+--load-session
+--no-load-session
+```
+
+Recommended operator commands:
+
+```text
+/save-session
+/load-session
+```
+
+Initial campaign should prefer explicit save/load. Autosave is deferred unless a later catalog row and policy explicitly authorize it.
+
+---
+
+## Non-negotiable boundaries
+
+```text
+no pickle
+no shelve
+no arbitrary object graph serialization
+no direct assignment of loaded dicts into BrainState
+no load that bypasses public builders / constructors
+no load that skips assert_state_invariants
+no persistence of LLM clients, sockets, file handles, subprocess handles, callables, curses objects, or open database connections on OperatorSession
+no model output written to traces / scenarios / source histories by this campaign
+no implicit autosave before an autosave policy exists
+no save/export path outside the configured session database
+no raw text -> BrainState direct mutation
+no raw text -> COGITO_ID
+no change to tick() semantics
+```
+
+Durable persistence may write only to the explicitly configured session database path. The SQLite connection itself must be scoped to save/load operations or a resource-safe persistence helper, not stored in BrainState.
+
+---
+
+## Minimum persisted state
+
+The first accepted persistence layer should store and restore:
+
+```text
+BrainState:
+  ScalarProfile domain and Fraction values
+  MSI contents and threshold
+  PtCns eval_map
+  ContentRegistry texts
+
+OperatorSession:
+  tick_counter
+  latest_tick summary or latest_tick absent marker
+  stream_history
+  stream_chunk_serial
+  stream_candidates if accepted, otherwise deterministic rebuild
+
+Metadata:
+  schema version
+  catalog version expected by the store
+  created_at / updated_at timestamps
+```
+
+Optional / later:
+
+```text
+full TickRecord history
+OperatorTranscript
+OutputHistory / WorldletHistory / ProtoBasicHistory / ExpressionHistory / ReflectiveInspectionSummary
+full event log replay
+autosave policy
+multi-profile support
+```
+
+---
+
+## Exactness rules
+
+Fractions must persist exactly. Use one of these forms:
+
+```text
+num INTEGER + den INTEGER
+```
+
+or:
+
+```text
+canonical string "num/den"
+```
+
+The campaign should prefer `num INTEGER + den INTEGER` for queryability. Do not store kernel numeric values as float.
+
+---
+
+## Suggested SQLite schema sketch
+
+The kickoff and catalog patch plan may revise exact table names, but the accepted design should cover this shape:
+
+```sql
+meta(
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+)
+
+content_registry(
+  content_id TEXT PRIMARY KEY,
+  text TEXT NOT NULL
+)
+
+profile_values(
+  content_id TEXT PRIMARY KEY,
+  rho_num INTEGER NOT NULL,
+  rho_den INTEGER NOT NULL
+)
+
+msi_contents(
+  content_id TEXT PRIMARY KEY
+)
+
+ptcns_eval(
+  content_id TEXT PRIMARY KEY,
+  eval TEXT NOT NULL
+)
+
+session_state(
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+)
+
+stream_chunks(
+  ordinal INTEGER PRIMARY KEY,
+  chunk_id TEXT NOT NULL UNIQUE,
+  source TEXT NOT NULL,
+  text TEXT NOT NULL,
+  tick_at_event INTEGER NOT NULL,
+  provenance_tag TEXT NOT NULL
+)
+
+stream_candidates(
+  ordinal INTEGER PRIMARY KEY,
+  candidate_id TEXT NOT NULL UNIQUE,
+  target_content_id TEXT NOT NULL,
+  chunk_id TEXT NOT NULL,
+  pattern_id TEXT,
+  source TEXT NOT NULL,
+  text TEXT NOT NULL,
+  provenance_tag TEXT NOT NULL
+)
+
+persistence_events(
+  event_id INTEGER PRIMARY KEY,
+  event_kind TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  detail TEXT NOT NULL
+)
+```
+
+No table may store executable code, import paths for execution, shell commands, callable names for later invocation, raw pickle blobs, or opaque Python object reprs as authoritative state.
 
 ---
 
 ## Macro sequence
 
 ```text
-Step 1        Repo-state sync
-Steps 2-9     Phase 3.6 Reflective Inspection
-Steps 10-18   Phase 3.7 Text Stream Ingress
-Steps 19-24   Phase 3.8 Operator Stream Interaction
-Steps 24A-24G Phase 3.8b LLM Runtime Toggle
-Steps 25-27   Final audit, dry run, and PR preparation
+Step 1      Repo-state sync for Phase 3.9
+Step 2      Persistence synthesis
+Step 3      Persistence kickoff
+Step 4      Persistence corrigenda
+Step 5      Persistence catalog patch plan
+Step 6      Review gate
+Step 7      Apply accepted catalog patch
+Step 8      Implement SQLite schema + typed persistence records
+Step 9      Implement save/load reconstruction through builders
+Step 10     Add CLI flags and explicit /save-session / /load-session commands
+Step 11     Cold-start continuity dry run
+Step 12     Full persistence audit
+Step 13     Final PR preparation
 ```
-
-Every step that changes files must be committed and pushed to the campaign branch.
 
 ---
 
 # Step 1 — Repo-state sync
 
-Purpose: remove operational drift before new runtime work.
+Purpose: remove stale completed-campaign language and ensure the repo entrypoint points to Phase 3.9.
 
 Allowed files:
 
 ```text
-README.md
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-PHASE3_FAST_SAFE_TEXT_INTERACTION_ROADMAP.md
+README.md
+PHASE3_9_PERSISTENT_SESSION_STORE_ROADMAP.md
 ```
 
 Required work:
 
 ```text
-sync README with catalog v0.12
-make mission/campaign point to this macro-campaign
-ensure roadmap agrees with this campaign
-state that Phase 3.5 is complete and Phase 3.6 is next
-state branch/push/PR workflow explicitly
+update mission/campaign files to v0.16 baseline
+state the completed Fast Safe Text Interaction campaign is merged
+state Phase 3.9 is current
+add or refresh the Phase 3.9 roadmap
+preserve branch-first workflow for campaign execution
 ```
 
 Validation:
@@ -199,28 +360,26 @@ Commit and push.
 
 ---
 
-# Step 2 — Phase 3.6 synthesis
+# Step 2 — Persistence synthesis
 
 Create:
 
 ```text
-PHASE3_6_REFLECTIVE_INSPECTION_SYNTHESIS.md
+PHASE3_9_PERSISTENT_SESSION_STORE_SYNTHESIS.md
 ```
 
 Required content:
 
 ```text
-v0.12 baseline
-why Phase 3.6 follows the Phase 3.5 audit
-Reflective Inspection thesis
-read-only summary over existing developmental histories
-why this is not Mode B
-why this is not language/social communication
-why this is not truth scoring
-why this is not agency
-non-goals
-risks
-next artifact: kickoff
+v0.16 baseline
+why persistence follows Phase 3.8b
+why current interaction is process-local
+why SQLite is preferred over pickle / arbitrary JSON dumps
+what state should persist first
+what remains deferred
+how persistence preserves constructor / invariant discipline
+how failed save/load behaves
+why autosave is deferred
 ```
 
 Validation:
@@ -233,65 +392,67 @@ Commit and push.
 
 ---
 
-# Step 3 — Phase 3.6 kickoff
+# Step 3 — Persistence kickoff
 
 Create:
 
 ```text
-PHASE3_6_REFLECTIVE_INSPECTION_KICKOFF.md
+PHASE3_9_PERSISTENT_SESSION_STORE_KICKOFF.md
 ```
 
-Define only local read-only structures, likely:
+Define likely structures:
 
 ```text
-ReflectiveSource
-ReflectiveSummaryItem
-ReflectiveInspectionSnapshot
-ReflectiveInspectionSummary
-ReflectionHistory or InspectionHistory if needed, copy-on-write only
+SessionStoreConfig
+SessionStoreSchemaVersion
+PersistentSessionSnapshot
+PersistentBrainStateSnapshot
+PersistentStreamSnapshot
+SaveSessionResult
+LoadSessionResult
+PersistenceError
 ```
 
-Required exclusions:
+Define likely module:
 
 ```text
-no Mode B planning
-no self-modification
-no natural-language teacher
-no social model
-no model-backed scoring
-no direct tick promotion
-no TLICA mutation
-no UI integration unless later accepted
+brain/ui/persistence.py
 ```
 
-Validation:
+or, if corrigenda prefers a non-UI location:
 
-```bash
-python3 -m tools.catalog counts
+```text
+brain/persistence/session_store.py
 ```
+
+The kickoff must decide or explicitly leave for corrigenda whether persistence is UI-owned, app-owned, or a new top-level subsystem.
 
 Commit and push.
 
 ---
 
-# Step 4 — Phase 3.6 corrigenda
+# Step 4 — Persistence corrigenda
 
 Create:
 
 ```text
-PHASE3_6_REFLECTIVE_INSPECTION_CORRIGENDA.md
+PHASE3_9_PERSISTENT_SESSION_STORE_CORRIGENDA.md
 ```
 
-Check:
+Audit and lock:
 
 ```text
-reflection vs Mode B
-inspection vs agency
-summary vs truth
-read-only locality
-bounded exact counts/statistics
-source-history non-mutation
-whether UI integration is deferred
+SQLite vs file snapshot
+schema versioning
+exact Fraction persistence
+COGITO_ID reservation on load
+constructor-only reconstruction
+load failure isolation
+save transaction behavior
+no pickle / no object repr authority
+session resource-free property
+whether DB connection may be long-lived or operation-scoped
+whether autosave is deferred
 which rows should be REQUIRED / STRUCTURAL / OBSERVED / NOT-EXERCISED
 ```
 
@@ -299,37 +460,50 @@ Commit and push.
 
 ---
 
-# Step 5 — Phase 3.6 catalog patch plan
+# Step 5 — Persistence catalog patch plan
 
 Create:
 
 ```text
-PHASE3_6_REFLECTIVE_INSPECTION_CATALOG_PATCH_PLAN.md
+PHASE3_9_PERSISTENT_SESSION_STORE_CATALOG_PATCH_PLAN.md
 ```
 
 Likely row family:
 
 ```text
-I-REF-*
+I-PERSIST-*
 ```
 
 Likely row themes:
 
 ```text
-finite source enumeration
-bounded read-only summary records
-deterministic exact aggregate counts
-summary construction does not mutate source histories
-summary construction does not mutate BrainState/MSI/PtCns/registry
-no Mode B / agency / truth / language claims
-OBSERVED aggregate inspection walk
+schema version explicit
+SQLite schema finite and closed
+Fractions persist exactly
+load reconstructs through builders / constructors
+load runs invariants before activation
+COGITO_ID cannot be overwritten by persisted data
+failed load does not replace live session
+failed save does not mutate live session
+save transaction is atomic
+session DB stores no LLM client / callable / handle / socket / subprocess / curses object
+explicit /save-session command is bounded and local
+explicit /load-session command is bounded and local
+autosave is NOT-EXERCISED unless explicitly accepted
+cold-start continuity dry run is OBSERVED
 ```
 
-Stop at review gate after committing and pushing this plan. Do not apply catalog changes until the plan is accepted.
+Stop at review gate after committing and pushing this plan. Do not apply catalog rows until the plan is accepted.
 
 ---
 
-# Step 6 — Apply Phase 3.6 catalog patch
+# Step 6 — Review gate
+
+Stop unless Step 5 is explicitly accepted.
+
+---
+
+# Step 7 — Apply accepted catalog patch
 
 Allowed files:
 
@@ -340,239 +514,16 @@ brain/_catalog_ids.py
 brain/invariants.py
 ```
 
-Optional package marker if accepted:
+Optional marker file only if accepted:
 
 ```text
-brain/development/reflective.py
-brain/development/fixtures/reflective_*.py
+brain/ui/persistence.py
 ```
 
-Apply accepted rows only. Register pending checks where needed.
-
-Validation:
-
-```bash
-python3 -m tools.catalog counts
-python3 -m tools.catalog generate-ids
-python3 -m tools.catalog counts
-```
-
-Commit and push.
-
----
-
-# Step 7 — Implement Phase 3.6 core
-
-Allowed files per accepted plan, likely:
+or:
 
 ```text
-brain/development/reflective.py
-brain/development/fixtures/reflective_core.py
-brain/invariants.py
-```
-
-Required behavior:
-
-```text
-frozen/slots records
-bounded source enumeration
-read-only summary construction
-no mutation of source histories
-no mutation of BrainState/MSI/PtCns/registry
-```
-
-Validation:
-
-```bash
-python3 -m brain.invariants run --id I-REF
-bash tools/check_all.sh
-```
-
-Commit and push.
-
----
-
-# Step 8 — Phase 3.6 full gate and audit
-
-Create:
-
-```text
-PHASE3_6_REFLECTIVE_INSPECTION_AUDIT.md
-```
-
-Verdict must be PASS / PASS WITH PATCHES / BLOCKED.
-
-Audit:
-
-```text
-row registration
-read-only behavior
-source-history non-mutation
-kernel boundary
-Mode B boundary
-truth/language/social boundary
-full gate
-recommended next mission: Phase 3.7 Text Stream Ingress
-```
-
-Validation:
-
-```bash
-python3 -m tools.catalog counts
-python3 -m tools.citations verify
-python3 -m tools.import_audit
-python3 -m brain.invariants run
-bash tools/check_all.sh
-```
-
-Commit and push.
-
----
-
-# Step 9 — Phase 3.6 review gate
-
-Stop unless the Phase 3.6 audit is PASS or the user explicitly accepts PASS WITH PATCHES.
-
-If accepted, continue to Phase 3.7.
-
----
-
-# Step 10 — Phase 3.7 text-stream synthesis
-
-Create:
-
-```text
-PHASE3_7_TEXT_STREAM_INGRESS_SYNTHESIS.md
-```
-
-Required thesis:
-
-```text
-TextStreamChunk = bounded local raw/operator text evidence
-TextStreamHistory = copy-on-write bounded local history
-SegmentCandidate = structural span/delimiter candidate, not a language parse
-StreamPattern = recurrence-backed structural pattern, not truth/PRESERVE
-StreamPromotionCandidate = explicit candidate, not yet PerceptEvent
-```
-
-Validation:
-
-```bash
-python3 -m tools.catalog counts
-```
-
-Commit and push.
-
----
-
-# Step 11 — Phase 3.7 kickoff
-
-Create:
-
-```text
-PHASE3_7_TEXT_STREAM_INGRESS_KICKOFF.md
-```
-
-Define likely structures:
-
-```text
-TextStreamSource
-TextStreamChunk
-TextStreamHistory
-StreamFeatureVector
-SegmentCandidate
-StreamPattern
-StreamPromotionCandidate
-```
-
-Hard constraints:
-
-```text
-bounded printable text
-exact deterministic counts/statistics
-copy-on-write histories
-no direct tick call
-no BrainState mutation
-no COGITO_ID collision
-no language/truth/social/agency claim
-```
-
-Commit and push.
-
----
-
-# Step 12 — Phase 3.7 corrigenda
-
-Create:
-
-```text
-PHASE3_7_TEXT_STREAM_INGRESS_CORRIGENDA.md
-```
-
-Check:
-
-```text
-raw stream vs PerceptEvent
-chunk text vs language meaning
-segment candidate vs parse
-stream pattern vs truth/PRESERVE
-promotion candidate vs event queue
-bounds and anti-growth rules
-source/provenance rules
-COGITO_ID defenses
-```
-
-Commit and push.
-
----
-
-# Step 13 — Phase 3.7 catalog patch plan
-
-Create:
-
-```text
-PHASE3_7_TEXT_STREAM_INGRESS_CATALOG_PATCH_PLAN.md
-```
-
-Likely row family:
-
-```text
-I-STRM-*
-```
-
-Likely rows:
-
-```text
-bounded TextStreamChunk
-TextStreamHistory copy-on-write and bounded
-deterministic feature extraction
-SegmentCandidate is structural only
-StreamPattern requires recurrence
-promotion candidate requires explicit provenance and non-reserved ID
-no BrainState/source-history mutation
-no direct tick route
-anti-growth behavior for repeated or huge chunks
-```
-
-Stop at review gate after committing and pushing this plan.
-
----
-
-# Step 14 — Apply Phase 3.7 catalog patch
-
-Allowed files:
-
-```text
-INVARIANT_CATALOG.md
-tools/catalog.py
-brain/_catalog_ids.py
-brain/invariants.py
-```
-
-Optional package marker if accepted:
-
-```text
-brain/development/text_stream.py
+brain/persistence/session_store.py
 ```
 
 Validation:
@@ -587,30 +538,31 @@ Commit and push.
 
 ---
 
-# Step 15 — Implement text stream core
+# Step 8 — Implement SQLite schema + typed persistence records
 
 Allowed files per accepted plan, likely:
 
 ```text
-brain/development/text_stream.py
-brain/development/fixtures/text_stream_core.py
+brain/ui/persistence.py
+brain/ui/fixtures/persistence_schema.py
 brain/invariants.py
 ```
 
 Required behavior:
 
 ```text
-bounded chunk construction
-bounded copy-on-write history
-exact deterministic feature vector
-non-reserved IDs
-no mutation outside TextStreamHistory
+creates schema transactionally
+stores schema version in meta
+rejects unknown schema version
+stores Fractions exactly
+stores no pickles
+stores no executable object repr as authoritative state
 ```
 
 Validation:
 
 ```bash
-python3 -m brain.invariants run --id I-STRM
+python3 -m brain.invariants run --id I-PERSIST
 bash tools/check_all.sh
 ```
 
@@ -618,456 +570,106 @@ Commit and push.
 
 ---
 
-# Step 16 — Implement segment/pattern/promotion-candidate layer
+# Step 9 — Implement save/load reconstruction through builders
 
 Allowed files per accepted plan.
 
 Required behavior:
 
 ```text
-segment candidates are structural spans only
-patterns require recurrence
-promotion candidates require explicit source/provenance/evidence
-promotion candidates are not PerceptEvents
-promotion candidates do not call tick
-```
-
-Validation:
-
-```bash
-python3 -m brain.invariants run --id I-STRM
-bash tools/check_all.sh
-```
-
-Commit and push.
-
----
-
-# Step 17 — Phase 3.7 full audit
-
-Create:
-
-```text
-PHASE3_7_TEXT_STREAM_INGRESS_AUDIT.md
-```
-
-Audit:
-
-```text
-boundedness
-copy-on-write behavior
-COGITO_ID defenses
-no direct tick route
-no language/truth/social/agency claims
-full gate
-recommended next mission: Phase 3.8 Operator Stream Interaction
-```
-
-Commit and push.
-
----
-
-# Step 18 — Phase 3.7 review gate
-
-Stop unless Phase 3.7 audit is PASS or user accepts PASS WITH PATCHES.
-
----
-
-# Step 19 — Phase 3.8 operator stream synthesis
-
-Create:
-
-```text
-PHASE3_8_OPERATOR_STREAM_INTERACTION_SYNTHESIS.md
-```
-
-Target commands:
-
-```text
-/stream <text>
-/stream-summary
-/stream-candidates
-/stream-promote <candidate_id>
-```
-
-Rules:
-
-```text
-/stream appends to TextStreamHistory only
-/stream-summary is read-only
-/stream-candidates is read-only
-/stream-promote validates and queues one explicit candidate
-/stream-promote does not call tick
-/step remains the tick route
-```
-
-Commit and push.
-
----
-
-# Step 20 — Phase 3.8 kickoff
-
-Create:
-
-```text
-PHASE3_8_OPERATOR_STREAM_INTERACTION_KICKOFF.md
-```
-
-Plan changes to:
-
-```text
-brain/ui/command_line.py
-brain/ui/commands.py
-brain/ui/session.py
-brain/ui/render.py
-brain/ui/fixtures/...
-README.md
-```
-
-Only include exact files if accepted by the later catalog plan.
-
-Commit and push.
-
----
-
-# Step 21 — Phase 3.8 corrigenda
-
-Create:
-
-```text
-PHASE3_8_OPERATOR_STREAM_INTERACTION_CORRIGENDA.md
-```
-
-Check:
-
-```text
-finite command parser
-bounded input length
-stream command does not tick
-promotion command only queues
-failure isolation is local UI status only
-session resource-free property remains true
-read-only render path remains deterministic
-```
-
-Commit and push.
-
----
-
-# Step 22 — Phase 3.8 catalog patch plan
-
-Create:
-
-```text
-PHASE3_8_OPERATOR_STREAM_INTERACTION_CATALOG_PATCH_PLAN.md
-```
-
-Likely row family:
-
-```text
-I-UI-STRM-* or I-UI-* continuation
-```
-
-Stop at review gate after committing and pushing.
-
----
-
-# Step 23 — Apply Phase 3.8 catalog patch
-
-Allowed files per accepted plan, likely:
-
-```text
-INVARIANT_CATALOG.md
-tools/catalog.py
-brain/_catalog_ids.py
-brain/invariants.py
-```
-
-Commit and push after catalog count validation.
-
----
-
-# Step 24 — Implement stream commands
-
-Allowed files per accepted plan, likely:
-
-```text
-brain/ui/commands.py
-brain/ui/command_line.py
-brain/ui/session.py
-brain/ui/render.py
-brain/ui/fixtures/stream_commands.py
-brain/invariants.py
-```
-
-Required behavior:
-
-```text
-finite parser extension
-bounded text field
-stream history append through session only
-summary/candidate views read-only
-promotion command queues one candidate
-/step remains the only tick route
-```
-
-Validation:
-
-```bash
-python3 -m brain.invariants run --id I-UI
-python3 -m brain.invariants run --id I-STRM
-bash tools/check_all.sh
-```
-
-Commit and push.
-
----
-
-# Step 24A — LLM runtime toggle synthesis
-
-Create:
-
-```text
-PHASE3_8B_LLM_RUNTIME_TOGGLE_SYNTHESIS.md
-```
-
-Use `PHASE3_8B_LLM_TOGGLE_AMENDMENT.md` as mandatory source context.
-
-Required thesis:
-
-```text
-offline mode remains the default
-model-backed mode is explicit opt-in
-client selection reuses the existing LLMClient protocol
-selected client enters through the existing tick client argument
-no second classification path is introduced
-fixtures remain deterministic unless explicitly OBSERVED/manual
-```
-
-Commit and push.
-
----
-
-# Step 24B — LLM runtime toggle kickoff
-
-Create:
-
-```text
-PHASE3_8B_LLM_RUNTIME_TOGGLE_KICKOFF.md
-```
-
-Define:
-
-```text
-LlmRuntimeMode
-LlmRuntimeConfig
-build_llm_client_from_config(...)
-CLI/env precedence
-cache policy
-startup failure behavior
-fixture policy
-```
-
-Likely accepted modes:
-
-```text
-offline
-mock
-anthropic-api
-claude-cli
-```
-
-Commit and push.
-
----
-
-# Step 24C — LLM runtime toggle corrigenda
-
-Create:
-
-```text
-PHASE3_8B_LLM_RUNTIME_TOGGLE_CORRIGENDA.md
-```
-
-Check:
-
-```text
-finite mode parsing
-default deterministic behavior
-explicit opt-in semantics
-credential/tool availability behavior
-cache behavior
-trace/summary wording
-fixture status mapping
-UI import-audit implications
-```
-
-Commit and push.
-
----
-
-# Step 24D — LLM runtime toggle catalog patch plan
-
-Create:
-
-```text
-PHASE3_8B_LLM_RUNTIME_TOGGLE_CATALOG_PATCH_PLAN.md
-```
-
-Likely row family:
-
-```text
-I-LLMTOG-*
-```
-
-Likely rows:
-
-```text
-default client mode is offline
-accepted modes are finite and closed
-model-backed modes require explicit opt-in
-unavailable backend fails locally before launch
-deterministic fixtures do not require model-backed mode
-model-backed smoke is OBSERVED/manual, not REQUIRED
-client factory returns an LLMClient-compatible object
-selected client enters through the existing tick client argument
-```
-
-Stop at review gate after committing and pushing. Do not implement until the plan is accepted.
-
----
-
-# Step 24E — Apply accepted LLM toggle catalog patch
-
-Allowed files:
-
-```text
-INVARIANT_CATALOG.md
-tools/catalog.py
-brain/_catalog_ids.py
-brain/invariants.py
-```
-
-Optional marker files only if accepted by the patch plan:
-
-```text
-brain/ui/llm_runtime.py
-brain/ui/fixtures/llm_runtime_toggle.py
-```
-
-Commit and push after catalog count validation.
-
----
-
-# Step 24F — Implement LLM runtime toggle
-
-Likely files:
-
-```text
-brain/ui/llm_runtime.py
-brain/ui/__main__.py
-brain/ui/fixtures/llm_runtime_toggle.py
-brain/invariants.py
-README.md
-```
-
-Required behavior:
-
-```text
-closed LlmRuntimeMode enumeration
-config object with CLI/env-derived fields
-factory returning LLMClient-compatible client
-offline default
-model-backed modes explicit only
-optional cache wrapping if configured
-clear local error on unavailable backend
-run_curses receives selected client
---print-once remains independent of selected client
+save BrainState/profile/MSI/PtCns/registry/session stream fields
+load reconstructs through public constructors / builders
+load runs invariants before replacing session
+failed load preserves existing session
+failed save preserves existing session
+COGITO_ID cannot be overwritten
 ```
 
 Commit and push after targeted and full validation.
 
 ---
 
-# Step 24G — LLM runtime toggle audit
+# Step 10 — Add CLI flags and explicit save/load commands
+
+Likely files:
+
+```text
+brain/ui/__main__.py
+brain/ui/commands.py
+brain/ui/command_line.py
+brain/ui/session.py
+brain/ui/render.py
+brain/ui/fixtures/persistence_commands.py
+README.md
+```
+
+Required behavior:
+
+```text
+--session-db <path>
+--load-session / --no-load-session
+/save-session
+/load-session
+explicit save/load only
+default launch still works without persistence
+invalid DB path or schema failure is local error
+no autosave unless separately authorized
+```
+
+Commit and push after validation.
+
+---
+
+# Step 11 — Cold-start continuity dry run
 
 Create:
 
 ```text
-PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md
+PHASE3_9_PERSISTENCE_DRY_RUN.md
+```
+
+Required scenario:
+
+```text
+launch with session DB
+/stream hello world
+/stream-promote promo-strm-chunk-1
+/step
+/save-session
+quit
+relaunch with same DB and --load-session
+verify profile / registry / MSI / PtCns / tick_counter / stream_history restored
+verify /stream-summary and /tick reflect restored state
+```
+
+Commit and push.
+
+---
+
+# Step 12 — Full persistence audit
+
+Create:
+
+```text
+PHASE3_9_PERSISTENT_SESSION_STORE_AUDIT.md
 ```
 
 Audit:
 
 ```text
-default offline behavior
-explicit model-backed opt-in
-client factory behavior
-fixture determinism
-OBSERVED/manual smoke status
-full gate result
-interaction with final Phase 3.8 audit
-```
-
-Commit and push.
-
----
-
-# Step 25 — Phase 3.8 audit
-
-Create:
-
-```text
-PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md
-```
-
-Audit complete interaction path:
-
-```text
-/stream -> TextStreamHistory only
-/stream-summary -> read-only
-/stream-candidates -> read-only
-/stream-promote -> queue only
-/step -> existing tick path
-LLM toggle default remains offline
-LLM toggle model-backed modes are explicit opt-in
-failure isolation
+schema and migration behavior
+exact Fraction persistence
+constructor-only load
+invariant checks before activation
+COGITO_ID protections
+failed save/load isolation
+no forbidden persisted resources
+explicit command behavior
 full gate
+remaining deferred work
 ```
 
-Commit and push.
-
----
-
-# Step 26 — End-to-end dry run documentation
-
-Create or update:
-
-```text
-PHASE3_TEXT_INTERACTION_DRY_RUN.md
-```
-
-Document deterministic local session:
-
-```text
-/stream hello world
-/stream hello world
-/stream-summary
-/stream-candidates
-/stream-promote <candidate_id>
-/step
-/tick
-```
-
-Also document optional model-backed launch examples after the toggle exists.
-
-Commit and push.
-
----
-
-# Step 27 — Final PR preparation
-
-Required final validation:
+Validation:
 
 ```bash
 python3 -m tools.catalog counts
@@ -1077,10 +679,16 @@ python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-Open a PR to `main` with title:
+Commit and push.
+
+---
+
+# Step 13 — Final PR preparation
+
+Open a PR to main with title:
 
 ```text
-phase3: fast safe text interaction campaign
+phase3.9: persistent session store
 ```
 
 PR body must include:
@@ -1089,10 +697,10 @@ PR body must include:
 completed steps
 catalog version/count transition
 validation results
-interaction loop achieved
-LLM runtime toggle status and offline-default confirmation
-remaining deferred work
-confirmation that main was not pushed directly
+cold-start continuity achieved
+persistence storage path and schema version
+remaining deferred work, especially autosave if still deferred
+confirmation that main was not pushed directly during campaign execution
 confirmation that PR is not merged
 ```
 
