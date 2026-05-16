@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.17)
+# brain — TLICA-constrained Python kernel (catalog v0.18)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -283,6 +283,7 @@ Behaviour rules (enforced by the `I-UI-*` catalog rows):
 - **v0.15** — +I-UISTRM-01..17 (Phase 3.8 Operator Stream Interaction `/stream`, `/stream-summary`, `/stream-candidates`, `/stream-promote` typed routes over the Phase 3.7 substrate; `/step` remains the only `tick()` route).
 - **v0.16** — +I-LLMTOG-01..15 (Phase 3.8b LLM Runtime Toggle: explicit `--llm-mode {offline,mock,anthropic-api,claude-cli}` opt-in over the existing `LLMClient` protocol; `offline` remains the default).
 - **v0.17** — +I-PERSIST-01..16 (Phase 3.9 Persistent Session Store: explicit typed transactional SQLite-backed `/save-session` / `/load-session` over `BrainState` + `OperatorSession` at `brain/ui/persistence.py`; Fractions persist exactly as integer pairs; load reconstructs through public builders; failed save / load preserves the live session; autosave is NOT-EXERCISED).
+- **v0.18** — +I-OPSHARDEN-01..14 + I-OBSERVE-01..11 (Phase 3.10 Operational Hardening + Persistence Observability, tracks A + B only; track C autosave is deferred to a later catalog patch). Phase 3.10a adds read-only `/session-status`, read-only `/db-status` (sqlite3 uri `mode=ro`), candidate-DROPPING `/db-verify` that reuses `load_session` and runs invariants without swapping the live session, and byte-faithful `/db-backup` via `sqlite3.Connection.backup()` with `--force` overwrite gate and URI-scheme rejection (`sqlite:`, `file:`, `http:`, `https:`, `ftp:`, `ws:`, `wss:`, `data:`, `gopher:`, `ssh:`, `git:`). New one-shot CLI flags `--db-status` / `--db-verify` / `--db-backup PATH` / `--db-backup-force` are mutually exclusive at argparse time and short-circuit after `--check-terminal` / `--print-once` but before `parse_llm_runtime_args`; exit code 0 on success, 1 on failure. Phase 3.10b adds bounded read-only `/db-summary`, COGITO-first deterministically-sorted exact-`Fraction`-`"num/den"` `/profile-summary`, head+tail-bounded `/stream-db-summary` (`STREAM_TEXT_PREVIEW_MAX_LEN = 64`), and finite-field-enumeration `/db-diff` with explicit `"<missing>"` markers on one-sided absence. Observability commands never activate saved state and never mutate live `BrainState`. Default row caps: `PROFILE_SUMMARY_ROW_CAP = 64`, `STREAM_DB_SUMMARY_HEAD_CAP = 8`, `STREAM_DB_SUMMARY_TAIL_CAP = 8`, `DB_DIFF_ROW_CAP = 32`, `OPS_REPORT_TEXT_MAX_LEN = 256`. New typed `OperatorCommand` kinds (`SESSION_STATUS`, `DB_STATUS`, `DB_VERIFY`, `DB_BACKUP`, `DB_SUMMARY`, `PROFILE_SUMMARY`, `STREAM_DB_SUMMARY`, `DB_DIFF`) plus `DbBackupPayload`. New owning modules `brain/ui/persistence_ops.py` and `brain/ui/persistence_observe.py`; one narrow extension to `brain/ui/persistence.py` promoting `_snapshot_session` to the public `snapshot_session` helper. No autosave, no second save path, no new `OperatorSession` fields in 3.10a/b.
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
@@ -304,7 +305,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.17**. Confirmation numbers: **187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED · 102 fixtures** (Phase 3.9 fixtures land incrementally; pending registrations hold `I-PERSIST-01..14` coverage coherent until Step 8-10). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.18**. Confirmation numbers: **201 REQUIRED · 79 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 14 OBSERVED · 120 fixtures** (Phase 3.10a/b fixtures land incrementally; pending registrations hold `I-OPSHARDEN-01..14` and `I-OBSERVE-01..10` coverage coherent until Step 8-10). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -402,8 +403,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.17, the expected count is:
-**187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED**.
+For catalog v0.18, the expected count is:
+**201 REQUIRED · 79 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 14 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage

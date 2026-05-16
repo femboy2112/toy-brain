@@ -24,15 +24,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.17 expected counts — bumped by the Phase 3.9 Persistent Session
-# Store catalog patch (I-PERSIST-01..16): +9 REQUIRED, +5 STRUCTURAL,
-# +1 NOT-EXERCISED, +1 OBSERVED.
+# v0.18 expected counts — bumped by the Phase 3.10 Operational Hardening +
+# Persistence Observability catalog patch (tracks A + B only;
+# I-OPSHARDEN-01..14 + I-OBSERVE-01..11): +14 REQUIRED, +10 STRUCTURAL,
+# +1 OBSERVED. Phase 3.10c autosave is deferred to a later catalog patch.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 187,
-    "STRUCTURAL": 69,
+    "REQUIRED": 201,
+    "STRUCTURAL": 79,
     "NOT-EXERCISED": 10,
     "DEFERRED": 12,
-    "OBSERVED": 13,
+    "OBSERVED": 14,
 }
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."

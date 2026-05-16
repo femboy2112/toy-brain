@@ -816,6 +816,77 @@ for _row_id, _status in _PHASE3_9_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_9_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.10a Operational Hardening + Phase 3.10b Persistence Observability
+# pending rows. Step 7 of the Phase 3.10 campaign applies the accepted v0.18
+# catalog patch (I-OPSHARDEN-01..14 + I-OBSERVE-01..11; tracks A + B only;
+# track C autosave is gated behind its own review gate and is not in this
+# patch) before the Phase 3.10 runtime modules (brain/ui/persistence_ops.py
+# and brain/ui/persistence_observe.py) and their eighteen fixture files
+# exist. These pending registrations keep I-CAT-01 coverage coherent while
+# making any attempted row execution fail explicitly. Steps 8-10 replace
+# I-OPSHARDEN-01..14 and I-OBSERVE-01..10 with real fixture-backed checks
+# (Step 8 lands the operational-hardening core: session_status, db_status,
+# db_verify, db_backup helpers + persistence_ops fixtures; Step 9 lands the
+# observability summaries + diff: db_summary, profile_summary,
+# stream_db_summary, db_diff helpers + persistence_observe fixtures;
+# Step 10 lands the explicit backup-command docs / README updates).
+# I-OBSERVE-11 (OBSERVED, ops/observability dry run) is documented in
+# Step 11's PHASE3_10_OPS_OBSERVABILITY_DRY_RUN.md and does not
+# participate in I-CAT-01 coverage.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_10_OPS_PENDING_ROWS: dict[str, str] = {
+    "I-OPSHARDEN-01": "REQUIRED",
+    "I-OPSHARDEN-02": "REQUIRED",
+    "I-OPSHARDEN-03": "REQUIRED",
+    "I-OPSHARDEN-04": "REQUIRED",
+    "I-OPSHARDEN-05": "REQUIRED",
+    "I-OPSHARDEN-06": "REQUIRED",
+    "I-OPSHARDEN-07": "REQUIRED",
+    "I-OPSHARDEN-08": "REQUIRED",
+    "I-OPSHARDEN-09": "REQUIRED",
+    "I-OPSHARDEN-10": "STRUCTURAL",
+    "I-OPSHARDEN-11": "STRUCTURAL",
+    "I-OPSHARDEN-12": "STRUCTURAL",
+    "I-OPSHARDEN-13": "STRUCTURAL",
+    "I-OPSHARDEN-14": "STRUCTURAL",
+}
+
+
+_PHASE3_10_OBSERVE_PENDING_ROWS: dict[str, str] = {
+    "I-OBSERVE-01": "REQUIRED",
+    "I-OBSERVE-02": "REQUIRED",
+    "I-OBSERVE-03": "REQUIRED",
+    "I-OBSERVE-04": "REQUIRED",
+    "I-OBSERVE-05": "REQUIRED",
+    "I-OBSERVE-06": "STRUCTURAL",
+    "I-OBSERVE-07": "STRUCTURAL",
+    "I-OBSERVE-08": "STRUCTURAL",
+    "I-OBSERVE-09": "STRUCTURAL",
+    "I-OBSERVE-10": "STRUCTURAL",
+}
+
+
+def _make_phase3_10_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.10 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_10_OPS_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_10_pending_check(_row_id))
+
+for _row_id, _status in _PHASE3_10_OBSERVE_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_10_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
