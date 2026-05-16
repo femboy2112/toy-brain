@@ -11,10 +11,19 @@ modules, add fixtures, change generated catalog IDs, alter
 `INVARIANT_CATALOG.md`, change `brain/invariants.py`, or update
 README as though implementation exists.
 
-Verdict for the Step 24D review gate:
+Verdict for the Step 24D review gate after the review patch:
 
 ```text
-COHERENT - READY FOR REVIEW GATE
+COHERENT - READY FOR REVIEW GATE AFTER REQUIRED PATCHES
+```
+
+Review patch disposition:
+
+```text
+PATCHED: env resolution belongs only to parse_llm_runtime_args(...).
+PATCHED: build_llm_client_from_config(...) never reads os.environ.
+PATCHED: Anthropic key precedence is CLI > BRAIN_ANTHROPIC_API_KEY > ANTHROPIC_API_KEY.
+PATCHED: CLAUDE_CLI factory-per-mode fixtures may use sys.executable and must not invoke eval_consistency.
 ```
 
 ## 2. Baseline
@@ -96,9 +105,20 @@ NOT modify `brain/tick.py` or `brain/llm/client.py`.
 
 Default mode is offline. The factory returns `OfflineStandInClient`
 for `LlmRuntimeConfig()`. Model-backed modes require explicit opt-in
-via `--llm-mode` or the `BRAIN_LLM_MODE` env override. Credential /
-tool availability checks happen at factory time and raise
-`LlmRuntimeError` before any session or curses initialization.
+via `--llm-mode` or the `BRAIN_LLM_MODE` env override.
+
+Environment resolution happens only inside parse_llm_runtime_args(argv,
+env). That parser resolves mode and per-mode config values from the
+provided argv / env inputs and returns an explicit LlmRuntimeConfig.
+build_llm_client_from_config(config) never reads os.environ; it only
+validates and builds from the supplied config.
+
+Credential / tool availability checks happen at factory time against
+fields already present on the config. The factory raises
+`LlmRuntimeError` before any session or curses initialization when the
+explicit config is insufficient (for example, ANTHROPIC_API with
+api_key=None, CLAUDE_CLI with a missing executable, or MOCK with no
+responses).
 
 Cache wrapping is opt-in via `--llm-enable-cache` and is honored only
 for `anthropic-api` and `claude-cli`. Cache writes happen only inside
@@ -109,9 +129,9 @@ The selected client enters the kernel through the existing
 introduced. `/step` remains the only route that calls `tick()`.
 
 Standard fixtures remain deterministic. Every REQUIRED and
-STRUCTURAL row passes with no `ANTHROPIC_API_KEY` and no `claude`
-executable on PATH. Any real model-backed smoke walk is OBSERVED
-and cannot fail the runner.
+STRUCTURAL row passes with no `ANTHROPIC_API_KEY`, no
+`BRAIN_ANTHROPIC_API_KEY`, and no `claude` executable on PATH. Any
+real model-backed smoke walk is OBSERVED and cannot fail the runner.
 ```
 
 ## 5. Row table
@@ -146,22 +166,38 @@ I-LLMTOG-03  Each accepted mode returns the expected concrete client
               ClaudeCLIClient), or a CachedClient wrapping the
               backend when caching is enabled. No HTTP / subprocess
               call is performed at factory time.
+
+              Fixture note: for CLAUDE_CLI construction checks,
+              llm_runtime_factory_per_mode.py may pass
+              claude_cli_executable=sys.executable or another
+              guaranteed-present executable so CI does not require the
+              real Claude CLI. The fixture asserts construction only;
+              it must not invoke eval_consistency.
               Fixture: llm_runtime_factory_per_mode.py
 
 I-LLMTOG-04  Model-backed modes require explicit opt-in.
               parse_llm_runtime_args(argv=[], env={}) returns a
               config whose mode is OFFLINE regardless of whether
-              ANTHROPIC_API_KEY or `claude` is present in the
-              ambient environment; only --llm-mode (or
-              BRAIN_LLM_MODE) selects a non-offline mode.
+              ANTHROPIC_API_KEY, BRAIN_ANTHROPIC_API_KEY, or
+              `claude` is present in the ambient environment; only
+              --llm-mode (or BRAIN_LLM_MODE) selects a non-offline
+              mode.
               Fixture: llm_runtime_explicit_opt_in.py
 
-I-LLMTOG-05  ANTHROPIC_API without credentials raises before launch.
-              build_llm_client_from_config(LlmRuntimeConfig(
-                mode=LlmRuntimeMode.ANTHROPIC_API)) raises
-              LlmRuntimeError naming the missing API key when neither
-              config.api_key nor ANTHROPIC_API_KEY is set; no
-              AnthropicAPIClient instance is returned.
+I-LLMTOG-05  ANTHROPIC_API without a resolved api_key raises before
+              launch.
+              parse_llm_runtime_args resolves api_key in this order:
+                1. CLI --llm-anthropic-api-key
+                2. BRAIN_ANTHROPIC_API_KEY from the supplied env
+                3. ANTHROPIC_API_KEY from the supplied env
+              The returned LlmRuntimeConfig.api_key contains the
+              resolved value or None. build_llm_client_from_config(
+                LlmRuntimeConfig(
+                  mode=LlmRuntimeMode.ANTHROPIC_API,
+                  api_key=None,
+                )
+              ) raises LlmRuntimeError naming the missing API key.
+              The factory does not consult os.environ.
               Fixture: llm_runtime_anthropic_requires_key.py
 
 I-LLMTOG-06  CLAUDE_CLI without executable raises before launch.
@@ -420,7 +456,11 @@ landing fixture-backed checks in a controlled order:
    build_llm_client_from_config.
 2. Extend brain/ui/__main__.py:
      - extend build_arg_parser with the new flags
-     - read BRAIN_LLM_MODE / BRAIN_ANTHROPIC_API_KEY env from main()
+     - pass argv and env into parse_llm_runtime_args
+     - resolve api_key inside parse_llm_runtime_args using:
+         CLI --llm-anthropic-api-key
+         then BRAIN_ANTHROPIC_API_KEY
+         then ANTHROPIC_API_KEY
      - build the config from CLI + env, fail before session
      - print the startup mode line on the normal launch path
      - keep --print-once / --check-terminal independent
@@ -429,7 +469,10 @@ landing fixture-backed checks in a controlled order:
      - llm_runtime_mode_closed.py (drives I-LLMTOG-02, I-LLMTOG-12)
      - llm_runtime_config_frozen.py (drives I-LLMTOG-11)
      - llm_runtime_default_offline.py (drives I-LLMTOG-01)
-     - llm_runtime_factory_per_mode.py (drives I-LLMTOG-03)
+     - llm_runtime_factory_per_mode.py (drives I-LLMTOG-03;
+       uses sys.executable or another guaranteed-present executable
+       for CLAUDE_CLI construction checks and does not invoke
+       eval_consistency)
      - llm_runtime_explicit_opt_in.py (drives I-LLMTOG-04)
      - llm_runtime_anthropic_requires_key.py (drives I-LLMTOG-05)
      - llm_runtime_claude_cli_requires_executable.py (I-LLMTOG-06)
@@ -477,6 +520,7 @@ match the kickoff and corrigenda numbers.
 no new LLMClient implementations beyond the four shipped backends
 no non-offline default
 no automatic credential / tool detection without opt-in
+no environment read inside build_llm_client_from_config
 no model-backed scoring of stream evidence
 no model output reaching traces / scenarios / source histories
 no new tick() argument signatures
@@ -500,13 +544,13 @@ Do not add brain/ui/llm_runtime.py.
 Do not edit brain/ui/__main__.py.
 Do not add llm_runtime_* fixtures.
 Do not update README to advertise --llm-mode.
-Do not proceed to Step 24E until this plan is explicitly accepted.
+Do not proceed to Step 24E until this patched plan is explicitly accepted.
 ```
 
 ## Conclusion
 
-This plan is coherent and ready for review. The next campaign step,
-if accepted, is:
+This plan is coherent after the required review-gate patches. The next
+campaign step, if accepted, is:
 
 ```text
 Step 24E - Apply accepted LLM toggle catalog patch
