@@ -1,7 +1,7 @@
 ---
 name: brain-current-mission
-description: Execute the current repo mission from CURRENT_MISSION.md when the user says go, run current mission, execute current mission, or do the current task. Uses CURRENT_CAMPAIGN.md state detection, validation, commit, and push rules.
-tools: Read, Edit, Write, Bash, Grep, Glob
+description: Execute the current repo mission from CURRENT_MISSION.md when the user says go, run current mission, execute current mission, or do the current task. Uses CURRENT_CAMPAIGN.md state detection, validation, commit, and push rules. Orchestrates preflight in parallel by spawning brain-campaign-state and brain-catalog-lint alongside the gate commands.
+tools: Read, Edit, Write, Bash, Grep, Glob, Agent
 ---
 
 You execute the current repo mission when the user says `go` or uses an
@@ -26,18 +26,68 @@ references to Codex in these files as applying to Claude Code too.
 
 ## Workflow
 
-1. Read `CURRENT_MISSION.md`.
-2. Read every source file listed in the mission's required-read section.
-3. Run the campaign preflight before selecting a step.
-4. Determine the next incomplete eligible step from repo state and validation
-   results.
-5. Execute only the selected step's allowed scope.
+1. Read `CURRENT_MISSION.md` (sequential — everything else depends on it).
+
+2. **Parallel preflight burst.** Issue every item below in ONE message:
+   - `Read` every file named in the mission's required-read section
+     (one `Read` call per file, all in the same message).
+   - `Read` `CURRENT_CAMPAIGN.md` if `CURRENT_MISSION.md` points to it.
+   - `Bash` calls in parallel:
+     - `python3 -m tools.catalog counts`
+     - `python3 -m tools.citations verify`
+     - `python3 -m tools.import_audit`
+     - `python3 -m brain.invariants run`
+     - `git status`
+     - `git log --oneline -10`
+     - `git log --merges --oneline origin/main | head -10`
+   - `Agent` spawns (parallel):
+     - `brain-campaign-state` (verdict: READY / STOP / USER-JUDGMENT)
+     - `brain-catalog-lint` (C1/C2/C3/C4 punch list)
+
+3. **Synthesize the burst.** Do not pick a step until every result is in:
+   - If `brain-campaign-state` returns `STOP` or `USER-JUDGMENT`, surface
+     the verdict and stop. Do NOT proceed.
+   - If any gate command failed, surface the failure and stop unless that
+     failure is exactly the situation the next campaign step is supposed
+     to fix.
+   - If `brain-catalog-lint` returns FAIL on C1 or C2, treat as a blocker
+     unless the next campaign step covers it. Include FAIL on C3 or C4 in
+     the report as user-judgment items.
+
+4. Determine the next incomplete eligible step from the `READY` verdict plus
+   the campaign macro sequence.
+
+5. **Execute only the selected step's allowed scope.** Within the step:
+   - Read all allowed-scope files in parallel.
+   - Batch independent edits in single messages where they target different
+     files.
+   - Batch independent validation commands in parallel.
+
 6. If tests fail, fix only within that step's allowed scope. If a fix requires
    files outside scope, stop and report.
-7. Commit and push the intended files after a successful step when files
-   changed.
-8. Stop at explicit review gates, failures requiring user judgment, or campaign
+
+7. After the step succeeds, run the step's validation. Batch independent
+   validation commands in a single message.
+
+8. Commit and push the intended files (sequential — order-sensitive). Never
+   push to `main`; use the campaign branch.
+
+9. Stop at explicit review gates, failures requiring user judgment, or campaign
    completion.
+
+## Parallel-orchestration rules
+
+- Parallelize freely when calls have NO data dependency on each other:
+  multiple `Read`s, multiple read-only `Bash`es, the two diagnostic
+  agents, independent file edits.
+- DO NOT parallelize when one call's output is required input for another:
+  step-selection depends on preflight synthesis; commit depends on
+  validation; push depends on commit.
+- Spawned helper agents are read-only by contract (`brain-campaign-state`,
+  `brain-catalog-lint`). Do not spawn an agent that could edit files outside
+  the current step's allowed scope.
+- If a spawned agent returns an unexpected error, do not retry blindly —
+  surface the error and stop.
 
 ## Local Command Rule
 

@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m tools.catalog:*)",
+      "Bash(python3 -m tools.citations:*)",
+      "Bash(python3 -m tools.import_audit)",
+      "Bash(python3 -m tools.import_audit:*)",
+      "Bash(python3 -m brain.invariants:*)",
+      "Bash(python3 -m tools.snapshot_diff:*)",
+      "Bash(python3 -m tools.decl_index:*)",
+      "Bash(bash tools/check_all.sh)",
+      "Bash(bash tools/refresh_snapshot.sh)",
+      "Bash(bash tools/run_invariants.sh)",
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git remote:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find ./brain:*)",
+      "Bash(find ./tools:*)",
+      "Bash(find ./lean_reference:*)",
+      "Bash(find ./.claude:*)",
+      "Bash(find ./scenarios:*)",
+      "Bash(find ./traces:*)"
+    ]
+  }
+}
