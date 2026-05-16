@@ -137,6 +137,10 @@ _EXPECTED_COMMAND_VALUES = frozenset({
     "help",
     "quit",
     "noop",
+    "stream_append",
+    "inspect_stream_summary",
+    "inspect_stream_candidates",
+    "stream_promote",
 })
 
 

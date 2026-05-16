@@ -95,6 +95,47 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.readability_predictor_length_cap",
     "brain.development.fixtures.readability_predictor_determinism",
     "brain.development.fixtures.expression_history_cow_bounded",
+    "brain.development.fixtures.reflective_source_enum_closed",
+    "brain.development.fixtures.reflective_summary_item_bounded",
+    "brain.development.fixtures.reflective_snapshot_deterministic",
+    "brain.development.fixtures.reflective_no_brainstate_mutation",
+    "brain.development.fixtures.reflective_no_source_history_mutation",
+    "brain.development.fixtures.reflective_no_aggregate_score",
+    "brain.development.fixtures.reflective_static_audit",
+    "brain.development.fixtures.text_stream_source_enum_closed",
+    "brain.development.fixtures.text_stream_chunk_bounded",
+    "brain.development.fixtures.text_stream_history_cow_bounded",
+    "brain.development.fixtures.text_stream_feature_vector_exact",
+    "brain.development.fixtures.text_stream_no_brainstate_mutation",
+    "brain.development.fixtures.text_stream_no_source_history_mutation",
+    "brain.development.fixtures.text_stream_no_tick",
+    "brain.development.fixtures.text_stream_static_audit",
+    "brain.development.fixtures.text_stream_anti_growth",
+    "brain.development.fixtures.text_stream_segment_candidate",
+    "brain.development.fixtures.text_stream_pattern_recurrence",
+    "brain.development.fixtures.text_stream_promotion_candidate",
+    "brain.ui.fixtures.stream_command_parser",
+    "brain.ui.fixtures.stream_session_append",
+    "brain.ui.fixtures.stream_summary_candidates",
+    "brain.ui.fixtures.stream_promotion_queue",
+    "brain.ui.fixtures.stream_tick_boundary",
+    "brain.ui.fixtures.stream_failure_isolation",
+    "brain.ui.fixtures.stream_snapshot_render",
+    "brain.ui.fixtures.stream_static_audit",
+    "brain.ui.fixtures.stream_session_resource_audit",
+    "brain.ui.fixtures.stream_constant_parity",
+    "brain.ui.fixtures.llm_runtime_default_offline",
+    "brain.ui.fixtures.llm_runtime_mode_closed",
+    "brain.ui.fixtures.llm_runtime_factory_per_mode",
+    "brain.ui.fixtures.llm_runtime_explicit_opt_in",
+    "brain.ui.fixtures.llm_runtime_anthropic_requires_key",
+    "brain.ui.fixtures.llm_runtime_claude_cli_requires_executable",
+    "brain.ui.fixtures.llm_runtime_mock_requires_responses",
+    "brain.ui.fixtures.llm_runtime_cache_gated",
+    "brain.ui.fixtures.llm_runtime_tick_seam",
+    "brain.ui.fixtures.llm_runtime_print_once_independent",
+    "brain.ui.fixtures.llm_runtime_config_frozen",
+    "brain.ui.fixtures.llm_runtime_static_audit",
 ]
 
 
@@ -561,6 +602,156 @@ def _make_phase3_5_pending_check(row_id: str) -> Callable[[], None]:
 
 for _row_id, _status in _PHASE3_5_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_5_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.6 Reflective Inspection: pending row registrations.
+#
+# Step 6 of the Phase 3.6 campaign applies the accepted v0.13 catalog patch
+# (I-REF-01..I-REF-14) before the reflective runtime layer
+# (brain/development/reflective.py) and its fixtures exist. These pending
+# registrations keep I-CAT-01 coverage coherent while making any attempted
+# row execution fail explicitly. Step 7 (reflective core + fixtures)
+# replaces them with real fixture-backed checks. I-REF-13 (OBSERVED) and
+# I-REF-14 (NOT-EXERCISED) do not participate in I-CAT-01 coverage and are
+# not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_6_PENDING_ROWS: dict[str, str] = {
+    # Step 7 landed I-REF-01..12 via brain.development.reflective and the
+    # seven reflective_* fixtures (one shared reflective_static_audit.py
+    # fixture covering I-REF-09, I-REF-11, I-REF-12 per the catalog patch
+    # plan's bundling allowance, and one shared
+    # reflective_summary_item_bounded.py fixture covering I-REF-02, I-REF-03,
+    # I-REF-04, and I-REF-10). I-REF-13 (OBSERVED) and I-REF-14
+    # (NOT-EXERCISED) do not participate in I-CAT-01 coverage and are not
+    # pending here. No Phase 3.6 Reflective Inspection rows remain pending.
+}
+
+
+def _make_phase3_6_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.6 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_6_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_6_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.7 Text Stream Ingress: pending row registrations.
+#
+# Step 14 of the Phase 3.7 campaign applies the accepted v0.14 catalog patch
+# (I-STRM-01..I-STRM-17) before the text-stream runtime layer
+# (brain/development/text_stream.py) and its fixtures exist. These pending
+# registrations keep I-CAT-01 coverage coherent while making any attempted
+# row execution fail explicitly. Step 15 (text-stream core + fixtures)
+# replaces I-STRM-01..04, I-STRM-08..15 with real fixture-backed checks, and
+# Step 16 (segment / pattern / promotion-candidate layer) replaces
+# I-STRM-05, I-STRM-06, and I-STRM-07. I-STRM-16 (OBSERVED) and I-STRM-17
+# (NOT-EXERCISED) do not participate in I-CAT-01 coverage and are not
+# pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_7_PENDING_ROWS: dict[str, str] = {
+    # Step 15 landed I-STRM-01..04 and I-STRM-08..15. Step 16 landed
+    # I-STRM-05 (text_stream_segment_candidate), I-STRM-06
+    # (text_stream_pattern_recurrence), and I-STRM-07
+    # (text_stream_promotion_candidate). I-STRM-16 (OBSERVED) and
+    # I-STRM-17 (NOT-EXERCISED) do not participate in I-CAT-01 coverage
+    # and are not pending here. No Phase 3.7 Text Stream Ingress rows
+    # remain pending.
+}
+
+
+def _make_phase3_7_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.7 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_7_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_7_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.8 Operator Stream Interaction: pending row registrations.
+#
+# Step 23 of the Phase 3.8 campaign applies the accepted v0.15 catalog patch
+# (I-UISTRM-01..I-UISTRM-17) before the Phase 3.8 operator stream runtime
+# (brain/ui/commands.py, brain/ui/command_line.py, brain/ui/session.py,
+# brain/ui/snapshot.py, brain/ui/render.py) and its fixtures exist. These
+# pending registrations keep I-CAT-01 coverage coherent while making any
+# attempted row execution fail explicitly. Step 24 (stream commands +
+# fixtures) replaces I-UISTRM-01..15 with real fixture-backed checks.
+# I-UISTRM-16 (OBSERVED) and I-UISTRM-17 (NOT-EXERCISED) do not participate
+# in I-CAT-01 coverage and are not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_8_PENDING_ROWS: dict[str, str] = {
+    # Step 24 landed I-UISTRM-01..15 via brain/ui/{commands,command_line,
+    # session,snapshot,render}.py plus the ten stream_* fixtures.
+    # I-UISTRM-16 (OBSERVED) and I-UISTRM-17 (NOT-EXERCISED) do not
+    # participate in I-CAT-01 coverage and are not pending here. No
+    # Phase 3.8 Operator Stream Interaction rows remain pending.
+}
+
+
+def _make_phase3_8_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.8 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_8_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_8_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.8b LLM Runtime Toggle pending rows. Step 24F landed
+# brain/ui/llm_runtime.py, extended brain/ui/__main__.py, and added the
+# twelve llm_runtime_* fixtures. I-LLMTOG-14 (OBSERVED) and
+# I-LLMTOG-15 (NOT-EXERCISED) do not participate in I-CAT-01 coverage
+# and are not pending here. No Phase 3.8b LLM Runtime Toggle rows
+# remain pending.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_8B_PENDING_ROWS: dict[str, str] = {}
+
+
+def _make_phase3_8b_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.8b catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_8B_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_8b_pending_check(_row_id))
 
 
 def _import_fixtures(report: RunReport) -> None:

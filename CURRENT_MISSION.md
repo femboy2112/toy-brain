@@ -22,6 +22,7 @@ Campaign target:
 Phase 3.6  Reflective Inspection       — minimal read-only developmental summary layer
 Phase 3.7  Text Stream Ingress          — raw text chunks below promotion boundary
 Phase 3.8  Operator Stream Interaction  — typed TUI route to feed chunks and promote only explicit candidates
+Phase 3.8b LLM Runtime Toggle           — explicit opt-in model-backed testing mode, default offline
 ```
 
 The intended path is:
@@ -31,6 +32,7 @@ repo-state sync
   -> minimal reflective inspection
   -> bounded text stream substrate
   -> explicit operator-facing stream commands
+  -> optional model-backed testing toggle
   -> promotion candidates only through PerceptEvent + tick()
 ```
 
@@ -77,9 +79,12 @@ CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
 PHASE3_5_EXPRESSION_READABILITY_AUDIT.md
+PHASE3_8B_LLM_TOGGLE_AMENDMENT.md
 ```
 
 Then read whichever files the next campaign step names. Do not rely on chat memory; use repo-local files and the current catalog.
+
+The LLM toggle amendment is mandatory campaign context. A repo-capable agent must not pass final Phase 3.8 interaction testing unless that amendment has either been incorporated into `CURRENT_CAMPAIGN.md` or explicitly superseded by a later accepted campaign document.
 
 ---
 
@@ -112,9 +117,12 @@ Expression evidence remains local-only
 Reflective Inspection remains read-only and below Mode B
 Text Stream evidence remains developmental evidence until explicit promotion
 operator commands remain finite, typed, bounded, and inspectable
+model-backed testing remains explicit opt-in and defaults to offline mode
 ```
 
-Do not add unrestricted host access, unrestricted code evaluation, real LLM calls, social/language harnesses, Mode B planning, or direct TLICA mutation from developmental histories.
+Do not add unrestricted host access, unrestricted code evaluation, unbounded model-backed behavior, social/language harnesses, Mode B planning, or direct TLICA mutation from developmental histories.
+
+The only model-backed behavior authorized by this mission is the later explicit LLM Runtime Toggle subcampaign described in `PHASE3_8B_LLM_TOGGLE_AMENDMENT.md`. It must remain non-default and must use the existing `LLMClient` / `tick(..., client, ...)` seam.
 
 Guarded paths may be touched only when the current campaign step explicitly allows it:
 

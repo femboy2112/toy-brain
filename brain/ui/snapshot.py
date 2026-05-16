@@ -47,6 +47,8 @@ ACTIVE_VIEWS: tuple[str, ...] = (
     "queue",
     "status",
     "help",
+    "stream_summary",
+    "stream_candidates",
 )
 
 
@@ -301,11 +303,195 @@ def build_development_snapshot(
     )
 
 
+# ---------------------------------------------------------------------------
+# Stream snapshots (Phase 3.8 Operator Stream Interaction)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class StreamSummarySnapshot:
+    """Immutable read-only summary of the session-local TextStreamHistory.
+
+    Drives ``I-UISTRM-04`` (read-only summary view), ``I-UISTRM-09``
+    (deterministic snapshot construction), and ``I-UISTRM-12``
+    (immutable display record). Fields are bounded primitives, tuples
+    of bounded primitives, or strings for exact `Fraction` display
+    values. No callable, file handle, socket, or LLM client may appear
+    on this record.
+    """
+
+    chunk_count: int = 0
+    history_capacity: int = 0
+    total_text_length: int = 0
+    distinct_chunk_ids: int = 0
+    source_counts: tuple[tuple[str, int], ...] = ()
+    latest_chunk_id: Optional[str] = None
+    latest_chunk_text_preview: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class StreamCandidateSnapshot:
+    """Immutable read-only snapshot of a single promotion candidate.
+
+    Drives ``I-UISTRM-05``, ``I-UISTRM-09``, ``I-UISTRM-12``. Each
+    snapshot is a bounded printable display record carrying no callable
+    or resource handle.
+    """
+
+    candidate_id: str
+    target_content_id: str
+    chunk_id: str
+    source: str
+    provenance: str
+    text_preview: str
+
+
+@dataclass(frozen=True, slots=True)
+class StreamCandidatesSnapshot:
+    """Bounded immutable collection of candidate snapshots."""
+
+    candidates: tuple[StreamCandidateSnapshot, ...] = ()
+    candidate_count: int = 0
+    candidate_capacity: int = 0
+
+
 __all__ = [
     "ACTIVE_VIEWS",
     "EMPTY_DISPLAY",
     "BrainSnapshot",
     "DevelopmentSnapshot",
+    "StreamSummarySnapshot",
+    "StreamCandidateSnapshot",
+    "StreamCandidatesSnapshot",
     "build_brain_snapshot",
     "build_development_snapshot",
+    "build_stream_summary_snapshot",
+    "build_stream_candidates_snapshot",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Stream snapshot builders
+# ---------------------------------------------------------------------------
+
+
+_STREAM_TEXT_PREVIEW_MAX_LEN: int = 80
+
+
+def _bounded_text_preview(text: str, *, max_len: int = _STREAM_TEXT_PREVIEW_MAX_LEN) -> str:
+    if not isinstance(text, str):
+        return ""
+    # Collapse internal newlines and tabs into spaces so the preview is a
+    # single bounded printable line suitable for the renderer's per-row
+    # display path.
+    flattened = text.replace("\n", " ").replace("\t", " ")
+    if len(flattened) <= max_len:
+        return flattened
+    return flattened[: max_len - 1] + "…"
+
+
+def build_stream_summary_snapshot(
+    *,
+    stream_history: "object",
+) -> StreamSummarySnapshot:
+    """Construct a read-only stream summary snapshot.
+
+    ``stream_history`` is typed as ``object`` to avoid importing
+    ``brain.development.text_stream`` in the snapshot path's type
+    signature; the builder only reads attributes (``chunks``) and the
+    capacity constant via module import below.
+
+    Drives ``I-UISTRM-04``, ``I-UISTRM-09``, ``I-UISTRM-12``.
+    """
+    from brain.development.text_stream import (
+        STREAM_HISTORY_MAX_CHUNKS,
+        TextStreamHistory,
+    )
+
+    if stream_history is None:
+        return StreamSummarySnapshot(
+            history_capacity=STREAM_HISTORY_MAX_CHUNKS,
+        )
+    if not isinstance(stream_history, TextStreamHistory):
+        raise TypeError(
+            "build_stream_summary_snapshot expects a TextStreamHistory "
+            f"(got {type(stream_history).__name__})"
+        )
+
+    chunks = stream_history.chunks
+    chunk_count = len(chunks)
+    total_text_length = 0
+    distinct_ids: set[str] = set()
+    source_totals: dict[str, int] = {}
+    latest_chunk_id: Optional[str] = None
+    latest_chunk_preview = ""
+    for chunk in chunks:
+        total_text_length += len(chunk.text)
+        distinct_ids.add(chunk.chunk_id)
+        src_name = getattr(chunk.source, "name", str(chunk.source))
+        source_totals[src_name] = source_totals.get(src_name, 0) + 1
+        latest_chunk_id = chunk.chunk_id
+        latest_chunk_preview = _bounded_text_preview(chunk.text)
+
+    source_counts = tuple(
+        (name, source_totals[name]) for name in sorted(source_totals.keys())
+    )
+
+    return StreamSummarySnapshot(
+        chunk_count=chunk_count,
+        history_capacity=STREAM_HISTORY_MAX_CHUNKS,
+        total_text_length=total_text_length,
+        distinct_chunk_ids=len(distinct_ids),
+        source_counts=source_counts,
+        latest_chunk_id=latest_chunk_id,
+        latest_chunk_text_preview=latest_chunk_preview,
+    )
+
+
+def build_stream_candidates_snapshot(
+    *,
+    stream_candidates: "object",
+    capacity: int,
+) -> StreamCandidatesSnapshot:
+    """Construct a read-only candidate-list snapshot.
+
+    ``stream_candidates`` is expected to be a tuple of
+    ``StreamPromotionCandidate``. The builder copies each candidate
+    into an immutable :class:`StreamCandidateSnapshot` with a bounded
+    text preview. Drives ``I-UISTRM-05``, ``I-UISTRM-09``,
+    ``I-UISTRM-12``.
+    """
+    if stream_candidates is None:
+        return StreamCandidatesSnapshot(candidate_capacity=int(capacity))
+
+    if not isinstance(stream_candidates, tuple):
+        raise TypeError(
+            "build_stream_candidates_snapshot expects a tuple "
+            f"(got {type(stream_candidates).__name__})"
+        )
+
+    from brain.development.text_stream import StreamPromotionCandidate
+
+    snapshots: list[StreamCandidateSnapshot] = []
+    for cand in stream_candidates:
+        if not isinstance(cand, StreamPromotionCandidate):
+            raise TypeError(
+                "build_stream_candidates_snapshot entries must be "
+                f"StreamPromotionCandidate (got {type(cand).__name__})"
+            )
+        snapshots.append(
+            StreamCandidateSnapshot(
+                candidate_id=cand.candidate_id,
+                target_content_id=cand.target_content_id,
+                chunk_id=cand.chunk_id,
+                source=getattr(cand.source, "name", str(cand.source)),
+                provenance=cand.provenance,
+                text_preview=_bounded_text_preview(cand.text),
+            )
+        )
+
+    return StreamCandidatesSnapshot(
+        candidates=tuple(snapshots),
+        candidate_count=len(snapshots),
+        candidate_capacity=int(capacity),
+    )
