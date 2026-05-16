@@ -1,16 +1,16 @@
-# CURRENT_MISSION.md — Phase 3.9 Persistent Session Store Entry Point
+# CURRENT_MISSION.md — Phase 3.10 Operational Hardening + Persistence Observability + Autosave Entry Point
 
 ## One-line instruction
 
 When a repo-capable agent receives `go` in this repository, it must read this file, read `CURRENT_CAMPAIGN.md`, create or continue the active campaign branch, run the next eligible campaign step, commit successful results, push the branch, and stop exactly where the campaign says to stop.
 
-This mission replaces the completed Fast Safe Text Interaction campaign. The repo can now run a bounded text-stream interaction loop with an explicit LLM runtime toggle, but it does not yet preserve profile/session state across cold starts. Phase 3.9 exists to add persistent session/profile continuity without weakening the existing `PerceptEvent` / `tick()` boundary.
+This mission replaces the completed Phase 3.9 Persistent Session Store campaign. The repo can now persist and restore `BrainState` / `OperatorSession` through an explicit SQLite session store, but the operator still needs robust status, verification, backup, observability, and a carefully gated autosave policy before the persistence layer should be treated as operationally mature.
 
 ---
 
 ## Current mission
 
-Execute the **Phase 3.9 Persistent Session Store Campaign** in:
+Execute the **Phase 3.10 Operational Hardening + Persistence Observability + Autosave Campaign** in:
 
 ```text
 CURRENT_CAMPAIGN.md
@@ -19,7 +19,9 @@ CURRENT_CAMPAIGN.md
 Campaign target:
 
 ```text
-Phase 3.9 Persistent Session Store — exact, invariant-checked cold-start continuity for BrainState, profile, registry, session counters, and local text-stream history.
+Phase 3.10a Operational Hardening      — DB/session status, verification, backup, bounded recovery UX
+Phase 3.10b Persistence Observability  — read-only DB/session/profile/stream summaries and saved-state diff
+Phase 3.10c Autosave Policy            — explicit opt-in autosave after accepted backup/verify/observability gates
 ```
 
 Intended result:
@@ -27,11 +29,19 @@ Intended result:
 ```text
 python3 -m brain.ui --session-db brain/session.sqlite3 --load-session
 
-/save-session
-/load-session
+/session-status
+/db-status
+/db-verify
+/db-summary
+/profile-summary
+/db-diff
+/db-backup
+/autosave-status
+/autosave-enable     # only after the accepted autosave phase lands
+/autosave-disable
 ```
 
-The persistence layer must be explicit, typed, transactional, schema-versioned, and constructor-validated. It must not pickle arbitrary Python objects or assign deserialized data directly into kernel state.
+Autosave is **not** authorized by default. It must remain off unless an accepted Phase 3.10c catalog patch and implementation explicitly enable a finite, opt-in mode.
 
 ---
 
@@ -42,7 +52,7 @@ Future campaign work must use a branch-first workflow.
 Preferred branch:
 
 ```text
-campaign/persistent-session-store
+campaign/operational-hardening-observability-autosave
 ```
 
 Rules:
@@ -55,7 +65,7 @@ open a PR into main at campaign completion
 never merge the PR without explicit user approval
 ```
 
-This file itself may already have been installed on `main` by explicit user request. That does not change the branch-first rule for the new campaign implementation.
+This review bundle is not a Git push. If these files are installed later, the branch-first rule governs the campaign implementation after installation.
 
 ---
 
@@ -68,9 +78,14 @@ CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
+PHASE3_9_PERSISTENT_SESSION_STORE_AUDIT.md
+PHASE3_9_PERSISTENCE_DRY_RUN.md
 PHASE3_TEXT_INTERACTION_DRY_RUN.md
 PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md
 PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md
+brain/ui/persistence.py
+brain/ui/session.py
+brain/ui/__main__.py
 ```
 
 Then read whichever files the next campaign step names. Do not rely on chat memory; use repo-local files and the current catalog.
@@ -82,20 +97,18 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 Expected current baseline:
 
 ```text
-Catalog: v0.16
+Catalog: v0.17
 Counts:
-  REQUIRED:        178
-  STRUCTURAL:       64
-  NOT-EXERCISED:     9
+  REQUIRED:        187
+  STRUCTURAL:       69
+  NOT-EXERCISED:    10
   DEFERRED:         12
-  OBSERVED:         12
-Latest completed campaign: Fast Safe Text Interaction through Phase 3.8b and Step 26 dry run
-  Status: merged to main (PR #6)
-Required latest audits:
-  PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md      PASS
-  PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md             PASS
+  OBSERVED:         13
+Latest completed campaign: Phase 3.9 Persistent Session Store
+Required latest audit:
+  PHASE3_9_PERSISTENT_SESSION_STORE_AUDIT.md      PASS
 Required latest dry run:
-  PHASE3_TEXT_INTERACTION_DRY_RUN.md
+  PHASE3_9_PERSISTENCE_DRY_RUN.md
 ```
 
 Stop if these facts are false or the catalog gate disagrees.
@@ -104,7 +117,7 @@ Stop if these facts are false or the catalog gate disagrees.
 
 ## Architectural guardrails
 
-Preserve these constraints throughout Phase 3.9:
+Preserve these constraints throughout Phase 3.10:
 
 ```text
 COGITO_ID remains reserved
@@ -113,15 +126,16 @@ raw text never mutates BrainState directly
 loaded state must reconstruct through public builders / constructors
 loaded state must pass invariants before becoming active
 failed load must not replace the live session
-failed save must not mutate the live session
+failed save / verify / backup must not mutate the live session
 tick() remains the only TLICA runtime transition route
 /step remains the operator route that calls tick()
 offline remains the default LLM mode
 model-backed modes remain explicit opt-in
-no LLM client, socket, file handle, subprocess handle, callable, or curses object is persisted
+no LLM client, socket, file handle, subprocess handle, callable, curses object, or sqlite3.Connection is stored on OperatorSession
+no autosave until Phase 3.10c explicitly accepts and implements it
 ```
 
-Persistence may write only to an explicitly configured session database path. No autosave is authorized until a cataloged autosave policy is accepted.
+Persistence writes may occur only to an explicitly configured session database path or to an explicit backup path after the backup policy is accepted. No implicit background persistence, no unreviewed export path, and no autosave may land before its review gate.
 
 Guarded paths may be touched only when the current campaign step explicitly allows it:
 
