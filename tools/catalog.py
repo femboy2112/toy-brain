@@ -24,15 +24,15 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.15 expected counts — bumped by the Phase 3.8 Operator Stream
-# Interaction catalog patch (I-UISTRM-01..17): +10 REQUIRED, +5 STRUCTURAL,
+# v0.16 expected counts — bumped by the Phase 3.8b LLM Runtime Toggle
+# catalog patch (I-LLMTOG-01..15): +10 REQUIRED, +3 STRUCTURAL,
 # +1 NOT-EXERCISED, +1 OBSERVED.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 168,
-    "STRUCTURAL": 61,
-    "NOT-EXERCISED": 8,
+    "REQUIRED": 178,
+    "STRUCTURAL": 64,
+    "NOT-EXERCISED": 9,
     "DEFERRED": 12,
-    "OBSERVED": 11,
+    "OBSERVED": 12,
 }
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."

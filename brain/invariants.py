@@ -714,6 +714,48 @@ for _row_id, _status in _PHASE3_8_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_8_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.8b LLM Runtime Toggle pending rows. Step 24E lands the catalog
+# rows I-LLMTOG-01..15. Step 24F is the implementation step that adds
+# brain/ui/llm_runtime.py, extends brain/ui/__main__.py, and lands the
+# twelve llm_runtime_* fixtures that drain these pending registrations.
+# I-LLMTOG-14 (OBSERVED) and I-LLMTOG-15 (NOT-EXERCISED) do not
+# participate in I-CAT-01 coverage and are not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_8B_PENDING_ROWS: dict[str, str] = {
+    "I-LLMTOG-01": "REQUIRED",
+    "I-LLMTOG-02": "REQUIRED",
+    "I-LLMTOG-03": "REQUIRED",
+    "I-LLMTOG-04": "REQUIRED",
+    "I-LLMTOG-05": "REQUIRED",
+    "I-LLMTOG-06": "REQUIRED",
+    "I-LLMTOG-07": "REQUIRED",
+    "I-LLMTOG-08": "REQUIRED",
+    "I-LLMTOG-09": "REQUIRED",
+    "I-LLMTOG-10": "REQUIRED",
+    "I-LLMTOG-11": "STRUCTURAL",
+    "I-LLMTOG-12": "STRUCTURAL",
+    "I-LLMTOG-13": "STRUCTURAL",
+}
+
+
+def _make_phase3_8b_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.8b catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_8B_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_8b_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
