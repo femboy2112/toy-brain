@@ -754,6 +754,57 @@ for _row_id, _status in _PHASE3_8B_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_8b_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.9 Persistent Session Store pending rows. Step 7 of the Phase 3.9
+# campaign applies the accepted v0.17 catalog patch (I-PERSIST-01..16)
+# before the Phase 3.9 persistence runtime (brain/ui/persistence.py) and
+# its eleven persistence_* fixtures exist. These pending registrations
+# keep I-CAT-01 coverage coherent while making any attempted row
+# execution fail explicitly. Steps 8-10 replace I-PERSIST-01..14 with
+# real fixture-backed checks (Step 8 lands the schema + typed records +
+# static audit; Step 9 lands save / load reconstruction and the failure-
+# isolation / atomic-save / resource-audit fixtures; Step 10 lands the
+# /save-session and /load-session commands fixture). I-PERSIST-15
+# (OBSERVED, cold-start dry run) and I-PERSIST-16 (NOT-EXERCISED,
+# autosave path absent; structurally checked by
+# persistence_static_audit.py) do not participate in I-CAT-01 coverage
+# and are not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_9_PENDING_ROWS: dict[str, str] = {
+    "I-PERSIST-01": "REQUIRED",
+    "I-PERSIST-02": "REQUIRED",
+    "I-PERSIST-03": "REQUIRED",
+    "I-PERSIST-04": "REQUIRED",
+    "I-PERSIST-05": "REQUIRED",
+    "I-PERSIST-06": "REQUIRED",
+    "I-PERSIST-07": "REQUIRED",
+    "I-PERSIST-08": "REQUIRED",
+    "I-PERSIST-09": "REQUIRED",
+    "I-PERSIST-10": "STRUCTURAL",
+    "I-PERSIST-11": "STRUCTURAL",
+    "I-PERSIST-12": "STRUCTURAL",
+    "I-PERSIST-13": "STRUCTURAL",
+    "I-PERSIST-14": "STRUCTURAL",
+}
+
+
+def _make_phase3_9_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.9 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_9_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_9_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:

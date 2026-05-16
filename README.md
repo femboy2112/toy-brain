@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.16)
+# brain — TLICA-constrained Python kernel (catalog v0.17)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -225,6 +225,7 @@ Behaviour rules (enforced by the `I-UI-*` catalog rows):
 - **v0.14** — +I-STRM-01..17 (Phase 3.7 Text Stream Ingress bounded local raw-text substrate).
 - **v0.15** — +I-UISTRM-01..17 (Phase 3.8 Operator Stream Interaction `/stream`, `/stream-summary`, `/stream-candidates`, `/stream-promote` typed routes over the Phase 3.7 substrate; `/step` remains the only `tick()` route).
 - **v0.16** — +I-LLMTOG-01..15 (Phase 3.8b LLM Runtime Toggle: explicit `--llm-mode {offline,mock,anthropic-api,claude-cli}` opt-in over the existing `LLMClient` protocol; `offline` remains the default).
+- **v0.17** — +I-PERSIST-01..16 (Phase 3.9 Persistent Session Store: explicit typed transactional SQLite-backed `/save-session` / `/load-session` over `BrainState` + `OperatorSession` at `brain/ui/persistence.py`; Fractions persist exactly as integer pairs; load reconstructs through public builders; failed save / load preserves the live session; autosave is NOT-EXERCISED).
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
@@ -246,7 +247,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.16**. Confirmation numbers: **178 REQUIRED · 64 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 12 OBSERVED · 91 fixtures**. Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.17**. Confirmation numbers: **187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED · 102 fixtures** (Phase 3.9 fixtures land incrementally; pending registrations hold `I-PERSIST-01..14` coverage coherent until Step 8-10). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -344,8 +345,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.16, the expected count is:
-**178 REQUIRED · 64 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 12 OBSERVED**.
+For catalog v0.17, the expected count is:
+**187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage
