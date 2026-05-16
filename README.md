@@ -155,6 +155,33 @@ The closed set of typed verbs (one verb per submission):
                             into the live session on success (Phase 3.9;
                             no implicit load; preserves the live session
                             on failure; does NOT call tick())
+/session-status             bounded read-only summary of the live
+                            OperatorSession (Phase 3.10a; no disk IO)
+/db-status                  bounded read-only summary of the configured
+                            session DB: existence, byte size, mtime,
+                            schema_version, catalog_version, created_at,
+                            updated_at (Phase 3.10a; sqlite3 mode=ro)
+/db-verify                  reconstruct a candidate from the configured
+                            DB through the Phase 3.9 load path, run
+                            invariants, DROP the candidate, report
+                            PASS / FAIL (Phase 3.10a; live session
+                            unchanged on PASS or FAIL)
+/db-summary                 bounded row-count + meta summary of the
+                            saved DB (Phase 3.10b; sqlite3 mode=ro)
+/profile-summary            COGITO-first, deterministically-sorted exact-
+                            Fraction "num/den" listing of saved profile
+                            values (Phase 3.10b; row cap 64)
+/stream-db-summary          bounded head + tail slice of saved
+                            stream_chunks + stream_candidates with text
+                            preview cap 64 (Phase 3.10b)
+/db-diff                    live OperatorSession vs saved snapshot
+                            diff over the finite field enumeration;
+                            "<missing>" explicit on one-sided absence
+                            (Phase 3.10b; row cap 32)
+/db-backup <path>           byte-faithful sqlite3.Connection.backup()
+                            copy of the configured DB to <path>
+                            (Phase 3.10a; refuses to overwrite without
+                            --force; rejects URI-scheme destinations)
 ```
 
 ### Persistent session store (Phase 3.9)
@@ -201,6 +228,91 @@ Rules:
   `/load-session` are the only persistence routes. A future
   autosave campaign requires an explicit reviewed policy
   artifact and dedicated catalog rows.
+
+### Operational hardening + observability (Phase 3.10a / 3.10b)
+
+Phase 3.10 adds eight typed read-mostly verbs and four one-shot
+CLI flags over the Phase 3.9 session DB. Track A (Operational
+Hardening) covers status / verify / backup; track B (Persistence
+Observability) covers summaries + diff. Autosave (track C) remains
+deferred behind its own review gate.
+
+```bash
+python3 -m brain.ui --session-db brain/session.sqlite3 --db-status   # one-shot DB status; exit 0/1
+python3 -m brain.ui --session-db brain/session.sqlite3 --db-verify   # one-shot verify; exit 0/1
+python3 -m brain.ui --session-db brain/session.sqlite3 \
+    --db-backup /tmp/session.bak.sqlite3                             # one-shot byte-faithful backup
+python3 -m brain.ui --session-db brain/session.sqlite3 \
+    --db-backup /tmp/session.bak.sqlite3 --db-backup-force           # overwrite an existing dest
+```
+
+The three short-circuit flags (`--db-status`, `--db-verify`,
+`--db-backup PATH`) are mutually exclusive and short-circuit after
+`--check-terminal` / `--print-once` but before
+`parse_llm_runtime_args` and curses initialization. Exit code is
+`0` on PASS / success and `1` on FAIL / failure.
+
+Inside the TUI, the same eight verbs route through the typed
+composer:
+
+```text
+/session-status                    Phase 3.10a (no disk IO)
+/db-status                         Phase 3.10a (sqlite3 mode=ro)
+/db-verify                         Phase 3.10a (load → DROP candidate)
+/db-summary                        Phase 3.10b (mode=ro; row counts)
+/profile-summary                   Phase 3.10b (exact "num/den")
+/stream-db-summary                 Phase 3.10b (head + tail slice)
+/db-diff                           Phase 3.10b (live vs saved)
+/db-backup <path> [--force]        Phase 3.10a (page-faithful copy)
+```
+
+Rules (driven by `I-OPSHARDEN-01..14` and `I-OBSERVE-01..11`):
+
+- `/session-status` reads in-memory `OperatorSession` fields only;
+  no disk IO; no `tick()`; no `sqlite3.Connection`.
+- `/db-status`, `/db-verify`, `/db-summary`, `/profile-summary`,
+  `/stream-db-summary`, `/db-diff` open the configured DB through
+  `sqlite3.connect("file:<path>?mode=ro", uri=True)` inside a
+  `with conn:` block; no live session mutation.
+- `/db-verify` reuses `load_session` (the Phase 3.9 helper), runs
+  the existing invariant assertions on the candidate `BrainState`,
+  and immediately drops the candidate; the live `OperatorSession`
+  reference is unchanged by `id()` before and after the call.
+- `/db-backup` uses `sqlite3.Connection.backup()` (page-faithful)
+  from a `mode=ro` source connection to a write-mode destination
+  connection inside `with` blocks. It refuses URI-scheme
+  destinations (`sqlite:`, `file:`, `http:`, `https:`, `ftp:`,
+  `ws:`, `wss:`, `data:`, `gopher:`, `ssh:`, `git:`); it refuses
+  `dest_path == source_path`; it refuses an existing destination
+  unless `--force` is supplied; it never modifies the source DB.
+- Observability commands never invoke a kernel builder
+  (`make_profile_with_cogito`, `make_msi`, `make_ptcns`,
+  `ContentRegistry`, `BrainState`, `make_text_stream_chunk`,
+  `TextStreamHistory`, `make_stream_promotion_candidate`,
+  `OperatorSession`); they read typed rows directly through
+  `_deserialize_from_db` and the public `snapshot_session` helper.
+- All `Fraction` values display as exact `"num/den"` strings via
+  a single shared render helper; no `float()` / `repr()` / JSON
+  leakage.
+- `/db-diff` reports differences over the finite field enumeration
+  declared in source (`profile.<id>`, `msi.contents`,
+  `msi.threshold`, `ptcns_eval.<id>`, `registry.<id>`,
+  `tick_counter`, `stream_chunk_serial`, `stream_history.count`,
+  `stream_candidates.count`) and uses the literal `"<missing>"`
+  for one-sided absence (never silent `0` / `null` defaults).
+- Default row caps: `PROFILE_SUMMARY_ROW_CAP = 64`,
+  `STREAM_DB_SUMMARY_HEAD_CAP = 8`,
+  `STREAM_DB_SUMMARY_TAIL_CAP = 8`, `DB_DIFF_ROW_CAP = 32`,
+  `STREAM_TEXT_PREVIEW_MAX_LEN = 64`,
+  `OPS_REPORT_TEXT_MAX_LEN = 256`,
+  `PROFILE_VALUE_STRING_MAX_LEN = 64`.
+- Phase 3.10a/b adds NO new `OperatorSession` field; the
+  resource-free property from Phase 3.9 is preserved.
+- No autosave entry point exists in either
+  `brain/ui/persistence_ops.py` or
+  `brain/ui/persistence_observe.py`; both modules carry a
+  defensive autosave-absent audit. Phase 3.10c autosave wiring is
+  deferred to a later catalog patch.
 
 Composer-only keys (always handled as edit events, regardless of
 buffer state):
