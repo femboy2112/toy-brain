@@ -518,6 +518,7 @@ def check_I_UI_18_local_command_line_is_finite_and_typed() -> None:
         "queue": " beta hello",
         "stream": " hello",
         "stream-promote": " promo-strm-chunk-1",
+        "db-backup": " /tmp/brain-i-ui-18-backup.sqlite3",
     }
     routed_verbs: set[str] = set()
     for verb in LOCAL_COMMAND_VERBS:

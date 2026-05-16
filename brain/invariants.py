@@ -147,6 +147,16 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.persistence_atomic_save",
     "brain.ui.fixtures.persistence_session_resource_audit",
     "brain.ui.fixtures.persistence_commands",
+    "brain.ui.fixtures.persistence_ops_session_status",
+    "brain.ui.fixtures.persistence_ops_db_status",
+    "brain.ui.fixtures.persistence_ops_db_verify",
+    "brain.ui.fixtures.persistence_ops_db_verify_drop",
+    "brain.ui.fixtures.persistence_ops_db_backup",
+    "brain.ui.fixtures.persistence_ops_db_backup_force",
+    "brain.ui.fixtures.persistence_ops_db_backup_dest_uri",
+    "brain.ui.fixtures.persistence_ops_cli_short_circuit",
+    "brain.ui.fixtures.persistence_ops_resource_audit",
+    "brain.ui.fixtures.persistence_ops_static_audit",
 ]
 
 
@@ -838,20 +848,16 @@ for _row_id, _status in _PHASE3_9_PENDING_ROWS.items():
 
 
 _PHASE3_10_OPS_PENDING_ROWS: dict[str, str] = {
-    "I-OPSHARDEN-01": "REQUIRED",
-    "I-OPSHARDEN-02": "REQUIRED",
-    "I-OPSHARDEN-03": "REQUIRED",
-    "I-OPSHARDEN-04": "REQUIRED",
-    "I-OPSHARDEN-05": "REQUIRED",
-    "I-OPSHARDEN-06": "REQUIRED",
-    "I-OPSHARDEN-07": "REQUIRED",
-    "I-OPSHARDEN-08": "REQUIRED",
-    "I-OPSHARDEN-09": "REQUIRED",
-    "I-OPSHARDEN-10": "STRUCTURAL",
-    "I-OPSHARDEN-11": "STRUCTURAL",
-    "I-OPSHARDEN-12": "STRUCTURAL",
-    "I-OPSHARDEN-13": "STRUCTURAL",
-    "I-OPSHARDEN-14": "STRUCTURAL",
+    # Step 8 landed I-OPSHARDEN-01..14 via brain/ui/persistence_ops.py
+    # (session_status, db_status, db_verify, db_backup helpers + typed
+    # reports), brain/ui/commands.py (SESSION_STATUS / DB_STATUS /
+    # DB_VERIFY / DB_BACKUP enum members + DbBackupPayload),
+    # brain/ui/command_line.py (the four Phase 3.10a verbs),
+    # brain/ui/session.py (the four Phase 3.10a dispatchers),
+    # brain/ui/__main__.py (the four --db-* short-circuit flags + the
+    # _dispatch_ops_short_circuit helper), and the ten
+    # persistence_ops_* fixtures. No Phase 3.10a Operational
+    # Hardening rows remain pending.
 }
 
 

@@ -361,6 +361,50 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "launch (default when --session-db is supplied alone)"
         ),
     )
+    # Phase 3.10a short-circuit ops flags. These are mutually exclusive
+    # at argparse time and short-circuit BEFORE LLM runtime resolution
+    # and curses initialization (drives I-OPSHARDEN-09 / I-OPSHARDEN-14).
+    ops_group = parser.add_mutually_exclusive_group()
+    ops_group.add_argument(
+        "--db-status",
+        action="store_true",
+        default=False,
+        help=(
+            "Phase 3.10a: print a bounded read-only status report for "
+            "--session-db and exit. Requires --session-db. Does not "
+            "load curses."
+        ),
+    )
+    ops_group.add_argument(
+        "--db-verify",
+        action="store_true",
+        default=False,
+        help=(
+            "Phase 3.10a: run db_verify against --session-db and exit "
+            "with 0 (PASS) or 1 (FAIL). Requires --session-db. Does "
+            "not load curses."
+        ),
+    )
+    ops_group.add_argument(
+        "--db-backup",
+        dest="db_backup",
+        default=None,
+        help=(
+            "Phase 3.10a: copy --session-db to the given destination "
+            "via the sqlite3 backup API and exit. Requires --session-db. "
+            "Refuses to overwrite an existing destination unless "
+            "--db-backup-force is also supplied."
+        ),
+    )
+    parser.add_argument(
+        "--db-backup-force",
+        action="store_true",
+        default=False,
+        help=(
+            "Phase 3.10a: permit --db-backup to overwrite an existing "
+            "destination file."
+        ),
+    )
     return parser
 
 
@@ -420,6 +464,13 @@ def main(
         for row in render_agent(view):
             print(row, file=stdout_)
         return 0
+
+    # Phase 3.10a short-circuit ops flags. These exit BEFORE
+    # _resolve_llm_runtime_config and curses initialization (drives
+    # I-OPSHARDEN-09). Exit codes follow I-OPSHARDEN-14: 0 on success,
+    # 1 on failure.
+    if args.db_status or args.db_verify or args.db_backup is not None:
+        return _dispatch_ops_short_circuit(args, stdout=stdout_, stderr=stderr_)
 
     check = detect_terminal(stdin=stdin, stdout=stdout_, env=env)
     if not check.usable:
@@ -535,6 +586,109 @@ def main(
         # A clean Ctrl-C exit is a documented quit path.
         return 0
     return 0
+
+
+def _dispatch_ops_short_circuit(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO,
+    stderr: TextIO,
+) -> int:
+    """Short-circuit dispatcher for the Phase 3.10a ``--db-*`` flags.
+
+    Drives ``I-OPSHARDEN-09`` (short-circuit ordering / mutual
+    exclusion) and ``I-OPSHARDEN-14`` (exit-code mapping). Argparse has
+    already enforced mutual exclusion via the ``ops_group`` group; this
+    helper picks the active flag, runs the operation, prints a bounded
+    one-line summary to stdout, and returns the exit code.
+    """
+    if args.session_db is None:
+        print(
+            "brain.ui: --db-status / --db-verify / --db-backup require "
+            "--session-db",
+            file=stderr,
+        )
+        return 1
+
+    session_db_path = pathlib.Path(args.session_db)
+    from brain.ui.persistence import (  # noqa: PLC0415
+        PersistenceError,
+        SessionStoreConfig,
+    )
+    try:
+        config = SessionStoreConfig(db_path=session_db_path)
+    except (TypeError, ValueError) as exc:
+        print(f"brain.ui: invalid --session-db: {exc}", file=stderr)
+        return 1
+
+    from brain.ui.persistence_ops import (  # noqa: PLC0415
+        db_backup,
+        db_status,
+        db_verify,
+    )
+
+    if args.db_status:
+        try:
+            status_report = db_status(config)
+        except PersistenceError as exc:
+            print(f"brain.ui: db-status error: {exc}", file=stderr)
+            return 1
+        print(
+            "brain.ui: db-status = "
+            + ("ok" if status_report.db_exists and not status_report.error_text else "fail")
+            + f" (path={status_report.db_path_str!r}; "
+            f"exists={status_report.db_exists}; "
+            f"schema=v{status_report.schema_version}; "
+            f"catalog={status_report.catalog_version!r}; "
+            f"bytes={status_report.db_byte_size})",
+            file=stdout,
+        )
+        if not status_report.db_exists or status_report.error_text:
+            return 1
+        return 0
+
+    if args.db_verify:
+        try:
+            verify_report = db_verify(config)
+        except PersistenceError as exc:
+            print(f"brain.ui: db-verify error: {exc}", file=stderr)
+            return 1
+        print(
+            "brain.ui: db-verify = "
+            + ("pass" if verify_report.passed else "fail")
+            + f" (path={verify_report.db_path_str!r}; "
+            f"schema=v{verify_report.schema_version}; "
+            f"chunks={verify_report.loaded_chunks}; "
+            f"candidates={verify_report.loaded_candidates}; "
+            f"error={verify_report.error_text!r})",
+            file=stdout,
+        )
+        return 0 if verify_report.passed else 1
+
+    if args.db_backup is not None:
+        dest_path = pathlib.Path(args.db_backup)
+        try:
+            backup_report = db_backup(
+                config, dest_path, force=bool(args.db_backup_force)
+            )
+        except PersistenceError as exc:
+            print(f"brain.ui: db-backup error: {exc}", file=stderr)
+            return 1
+        print(
+            "brain.ui: db-backup = "
+            + ("ok" if backup_report.succeeded else "fail")
+            + f" (source={backup_report.source_path_str!r}; "
+            f"dest={backup_report.dest_path_str!r}; "
+            f"pages={backup_report.pages_copied}/{backup_report.total_pages}; "
+            f"bytes={backup_report.dest_byte_size}; "
+            f"overwritten={backup_report.overwritten}; "
+            f"error={backup_report.error_text!r})",
+            file=stdout,
+        )
+        return 0 if backup_report.succeeded else 1
+
+    # Unreachable: caller checks one of the three flags is set.
+    return 1
 
 
 def _resolve_llm_runtime_config(

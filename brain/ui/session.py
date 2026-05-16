@@ -54,6 +54,7 @@ from brain.tick import BrainState, tick
 from brain.ui.commands import (
     INSPECT_VIEW_MAP,
     Command,
+    DbBackupPayload,
     OperatorCommand,
     QueuePerceptPayload,
     StreamAppendPayload,
@@ -473,6 +474,14 @@ class OperatorSession:
             self._dispatch_save_session()
         elif kind is OperatorCommand.LOAD_SESSION:
             self._dispatch_load_session()
+        elif kind is OperatorCommand.SESSION_STATUS:
+            self._dispatch_session_status()
+        elif kind is OperatorCommand.DB_STATUS:
+            self._dispatch_db_status()
+        elif kind is OperatorCommand.DB_VERIFY:
+            self._dispatch_db_verify()
+        elif kind is OperatorCommand.DB_BACKUP:
+            self._dispatch_db_backup(command.payload)
         else:  # pragma: no cover - the enum is closed
             raise AssertionError(
                 f"I-UI-03 violated: unrouted OperatorCommand {kind!r}"
@@ -814,6 +823,106 @@ class OperatorSession:
             f"candidates={result.loaded_candidates}"
             + (", rebuilt=true" if result.rebuilt_candidates else "")
             + ")"
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 3.10a operational hardening dispatchers. None of these
+    # routes call tick(); none stores a sqlite3.Connection on the
+    # session; each catches PersistenceError and surfaces it as bounded
+    # local error_message text.
+    # ------------------------------------------------------------------
+
+    def _dispatch_session_status(self) -> None:
+        from brain.ui.persistence_ops import (  # noqa: PLC0415
+            session_status,
+        )
+        report = session_status(self)
+        self.set_status(
+            "session-status: "
+            f"tick={report.tick_counter} "
+            f"queue={report.queue_size} "
+            f"view={report.active_view} "
+            f"chunks={report.stream_chunk_count} "
+            f"candidates={report.stream_candidate_count} "
+            f"db="
+            + ("configured" if report.session_db_configured else "off")
+        )
+
+    def _dispatch_db_status(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error("/db-status requires a configured --session-db")
+            return
+        from brain.ui.persistence_ops import (  # noqa: PLC0415
+            PersistenceError,
+            db_status,
+        )
+        try:
+            report = db_status(config)
+        except PersistenceError as exc:
+            self.set_error(f"/db-status failed: {exc}")
+            return
+        if not report.db_exists:
+            self.set_error(
+                f"/db-status: db missing ({report.error_text})"
+            )
+            return
+        self.set_status(
+            f"db-status: schema=v{report.schema_version} "
+            f"catalog={report.catalog_version!r} "
+            f"bytes={report.db_byte_size}"
+        )
+
+    def _dispatch_db_verify(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error("/db-verify requires a configured --session-db")
+            return
+        from brain.ui.persistence_ops import (  # noqa: PLC0415
+            PersistenceError,
+            db_verify,
+        )
+        try:
+            report = db_verify(config)
+        except PersistenceError as exc:
+            self.set_error(f"/db-verify failed: {exc}")
+            return
+        if not report.passed:
+            self.set_error(f"/db-verify FAIL: {report.error_text}")
+            return
+        self.set_status(
+            f"db-verify PASS: schema=v{report.schema_version} "
+            f"chunks={report.loaded_chunks} "
+            f"candidates={report.loaded_candidates}"
+        )
+
+    def _dispatch_db_backup(self, payload: Optional[DbBackupPayload]) -> None:
+        if not isinstance(payload, DbBackupPayload):
+            self.set_error("/db-backup requires a DbBackupPayload")
+            return
+        config = self.session_store_config
+        if config is None:
+            self.set_error("/db-backup requires a configured --session-db")
+            return
+        from brain.ui.persistence_ops import (  # noqa: PLC0415
+            PersistenceError,
+            db_backup,
+        )
+        try:
+            report = db_backup(
+                config, payload.dest_path, force=payload.force
+            )
+        except PersistenceError as exc:
+            self.set_error(f"/db-backup failed: {exc}")
+            return
+        if not report.succeeded:
+            self.set_error(f"/db-backup failed: {report.error_text}")
+            return
+        self.set_status(
+            f"db-backup ok: dest={report.dest_path_str!r} "
+            f"pages={report.pages_copied}/{report.total_pages} "
+            f"bytes={report.dest_byte_size}"
+            + (" (overwritten)" if report.overwritten else "")
         )
 
     # ------------------------------------------------------------------
