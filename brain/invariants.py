@@ -665,6 +665,55 @@ for _row_id, _status in _PHASE3_7_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_7_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.8 Operator Stream Interaction: pending row registrations.
+#
+# Step 23 of the Phase 3.8 campaign applies the accepted v0.15 catalog patch
+# (I-UISTRM-01..I-UISTRM-17) before the Phase 3.8 operator stream runtime
+# (brain/ui/commands.py, brain/ui/command_line.py, brain/ui/session.py,
+# brain/ui/snapshot.py, brain/ui/render.py) and its fixtures exist. These
+# pending registrations keep I-CAT-01 coverage coherent while making any
+# attempted row execution fail explicitly. Step 24 (stream commands +
+# fixtures) replaces I-UISTRM-01..15 with real fixture-backed checks.
+# I-UISTRM-16 (OBSERVED) and I-UISTRM-17 (NOT-EXERCISED) do not participate
+# in I-CAT-01 coverage and are not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_8_PENDING_ROWS: dict[str, str] = {
+    "I-UISTRM-01": "REQUIRED",
+    "I-UISTRM-02": "REQUIRED",
+    "I-UISTRM-03": "REQUIRED",
+    "I-UISTRM-04": "REQUIRED",
+    "I-UISTRM-05": "REQUIRED",
+    "I-UISTRM-06": "REQUIRED",
+    "I-UISTRM-07": "REQUIRED",
+    "I-UISTRM-08": "REQUIRED",
+    "I-UISTRM-09": "REQUIRED",
+    "I-UISTRM-10": "REQUIRED",
+    "I-UISTRM-11": "STRUCTURAL",
+    "I-UISTRM-12": "STRUCTURAL",
+    "I-UISTRM-13": "STRUCTURAL",
+    "I-UISTRM-14": "STRUCTURAL",
+    "I-UISTRM-15": "STRUCTURAL",
+}
+
+
+def _make_phase3_8_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.8 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_8_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_8_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:
