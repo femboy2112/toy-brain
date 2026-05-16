@@ -11,10 +11,19 @@ runtime modules, add fixtures, change generated catalog IDs, alter
 `INVARIANT_CATALOG.md`, change `brain/invariants.py`, or update
 README as though implementation exists.
 
-Verdict for the Step 6 review gate:
+Verdict for the Step 6 review gate after the review patch:
 
 ```text
-COHERENT - READY FOR REVIEW GATE
+COHERENT - READY FOR REVIEW GATE AFTER REQUIRED PATCHES
+```
+
+Review patch disposition:
+
+```text
+PATCHED: fixture file delta corrected from 10 to 11.
+PATCHED: brain.tick.BrainState is explicitly allowed as a typed record import.
+PATCHED: importing or calling the tick callable remains explicitly forbidden.
+PATCHED: I-PERSIST-16 wording now states that autosave absence is checked by persistence_static_audit.py and has no dedicated fixture.
 ```
 
 ## 2. Baseline
@@ -128,10 +137,14 @@ COGITO_ID to a non-canonical value raises PersistenceError.
 
 The persistence module imports only the documented seam set:
 sqlite3, pathlib, datetime, fractions, dataclasses, typing,
-brain.io_types, brain.tlica.builders, brain.tlica.profile,
-brain.tlica.msi, brain.tlica.ptcns, brain.development.text_stream,
+brain.io_types, brain.tick.BrainState as a typed record,
+brain.tlica.builders, brain.tlica.profile, brain.tlica.msi,
+brain.tlica.ptcns, brain.development.text_stream,
 brain.ui.session, brain.ui.commands. It imports neither pickle
-nor any execution / network / subprocess / curses path.
+nor any execution / network / subprocess / curses path. It must
+not import or call the tick callable: `from brain.tick import tick`,
+`brain.tick.tick(...)`, and any call target named `tick(...)` are
+forbidden in the persistence module.
 
 No autosave is authorized in Phase 3.9. /save-session and
 /load-session are explicit operator commands; no tick-adjacent
@@ -274,16 +287,19 @@ I-PERSIST-12  Persistence module static audit rejects forbidden
                brain/ui/persistence.py imports are confined to
                the documented seam set (sqlite3, pathlib,
                datetime, fractions, dataclasses, typing,
-               brain.io_types, brain.tlica.builders,
-               brain.tlica.profile, brain.tlica.msi,
-               brain.tlica.ptcns,
+               brain.io_types, brain.tick.BrainState,
+               brain.tlica.builders, brain.tlica.profile,
+               brain.tlica.msi, brain.tlica.ptcns,
                brain.development.text_stream,
                brain.ui.session, brain.ui.commands). The module
                imports no pickle, shelve, marshal, dill,
                cloudpickle, joblib, subprocess, socket, urllib,
-               http, requests, or curses. It contains no
-               importlib.import_module, __import__, eval(,
-               exec(, compile(, atexit.register, threading,
+               http, requests, or curses. It must not import the
+               tick callable (`from brain.tick import tick` is
+               forbidden), must not call `brain.tick.tick(...)`,
+               and must not contain any call target named `tick(...)`.
+               It contains no importlib.import_module, __import__,
+               eval(, exec(, compile(, atexit.register, threading,
                asyncio, or signal handler. Module-level
                statements are limited to imports, constants,
                function defs, and class defs (plus a module
@@ -343,13 +359,9 @@ I-PERSIST-16  Autosave path is NOT-EXERCISED.
                autosave path requires an explicit reviewed policy
                artifact, a dedicated catalog row, bounded fixtures,
                and a new stop condition.
-               Fixture: none. The placeholder is held by the
-                        persistence_autosave_absent.py audit (a
-                        STRUCTURAL static rejection check that
-                        complements this NOT-EXERCISED row); the
-                        Step 7 patch may either keep that audit
-                        separately or fold it into
-                        persistence_static_audit.py.
+               Fixture: none. Autosave absence is structurally
+                        checked by persistence_static_audit.py; this
+                        NOT-EXERCISED row has no dedicated fixture.
 ```
 
 ## 6. Fixture Roster
@@ -371,11 +383,10 @@ I-PERSIST-13  persistence_schema.py
 I-PERSIST-14  persistence_session_resource_audit.py
 I-PERSIST-15  OBSERVED; persistence_dry_run.py or audit-cited
 I-PERSIST-16  NOT-EXERCISED; no dedicated fixture
-                (folds into persistence_static_audit.py or remains
-                 placeholder-only)
+                (autosave absence folds into persistence_static_audit.py)
 ```
 
-Fixture file delta: **10** new files.
+Fixture file delta: **11** new files.
 
 ```text
 brain/ui/fixtures/persistence_schema.py
@@ -685,8 +696,8 @@ Do not proceed to Step 7 until this plan is explicitly accepted.
 
 ## Conclusion
 
-This plan is coherent and ready for review. The next campaign step,
-if accepted, is:
+This plan is coherent after the required review-gate patches. The next
+campaign step, if accepted, is:
 
 ```text
 Step 7 - Apply Phase 3.9 catalog patch
