@@ -24,19 +24,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.19 expected counts — bumped by the Phase 3.10c Autosave Policy
-# catalog patch (I-AUTOSAVE-01..15: +11 REQUIRED, +3 STRUCTURAL,
-# +1 OBSERVED) plus the Phase 3.9 I-PERSIST-16 reclassification
-# (NOT-EXERCISED -> STRUCTURAL; row ID and position preserved;
-# proposition narrowed to "brain/ui/persistence.py owns no autosave
-# trigger or background autosave hook"): net +11 REQUIRED, +4
-# STRUCTURAL, +1 OBSERVED, -1 NOT-EXERCISED.
+# v0.20 expected counts — bumped by the Phase 3.11 Codex CLI Runtime
+# Option catalog patch (I-LLMTOG-16/17/18: +2 REQUIRED, +1 OBSERVED;
+# I-LLMTOG-12 row body updates in place from four-member to
+# five-member assertion). The Phase 3.8b I-LLMTOG-* family is
+# extended additively; no Phase 3.8b row is retired or renamed.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 212,
+    "REQUIRED": 214,
     "STRUCTURAL": 83,
     "NOT-EXERCISED": 9,
     "DEFERRED": 12,
-    "OBSERVED": 15,
+    "OBSERVED": 16,
 }
 
 # Module header lines look like "### `brain/tlica/profile.py` — ..."

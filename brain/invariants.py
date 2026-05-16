@@ -1008,6 +1008,44 @@ register("I-PERSIST-16", status="STRUCTURAL")(
 )
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.11 Codex CLI Runtime Option: pending row registrations.
+#
+# Step 8 applies the accepted v0.20 catalog patch (I-LLMTOG-16/17 REQUIRED,
+# I-LLMTOG-18 OBSERVED) before the Phase 3.11 Step 9 runtime extension
+# (CODEX_CLI enum member, _build_codex_cli_client, CodexCLIClient) and its
+# two new fixtures land. These pending registrations keep I-CAT-01 coverage
+# coherent while making any attempted row execution fail explicitly. Step 9
+# replaces I-LLMTOG-16/17 with real fixture-backed checks via the two new
+# llm_runtime_codex_cli_* modules registered in FIXTURE_MODULES.
+# I-LLMTOG-18 is OBSERVED and does not participate in I-CAT-01 coverage;
+# its smoke walk is documented in PHASE3_11_CODEX_CLI_RUNTIME_CORRIGENDA.md
+# Section 11 and recorded by the operator in
+# PHASE3_11_LLM_RUNTIME_BEHAVIOR_REPORT.md.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_11_PENDING_ROWS: dict[str, str] = {
+    "I-LLMTOG-16": "REQUIRED",
+    "I-LLMTOG-17": "REQUIRED",
+}
+
+
+def _make_phase3_11_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.11 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_11_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_11_pending_check(_row_id))
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:

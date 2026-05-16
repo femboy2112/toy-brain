@@ -80,6 +80,8 @@ EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({
     "I-LLMTOG-08",
     "I-LLMTOG-09",
     "I-LLMTOG-10",
+    "I-LLMTOG-16",
+    "I-LLMTOG-17",
     "I-MOD-01",
     "I-MOD-02",
     "I-MOD-03",
