@@ -469,6 +469,10 @@ class OperatorSession:
             self._dispatch_stream_append(command.payload)
         elif kind is OperatorCommand.STREAM_PROMOTE:
             self._dispatch_stream_promote(command.payload)
+        elif kind is OperatorCommand.SAVE_SESSION:
+            self._dispatch_save_session()
+        elif kind is OperatorCommand.LOAD_SESSION:
+            self._dispatch_load_session()
         else:  # pragma: no cover - the enum is closed
             raise AssertionError(
                 f"I-UI-03 violated: unrouted OperatorCommand {kind!r}"
@@ -743,6 +747,73 @@ class OperatorSession:
         self.set_status(
             f"promoted stream candidate {candidate.candidate_id!r} "
             f"(queue size = {len(self.event_queue)})"
+        )
+
+    # ------------------------------------------------------------------
+    # /save-session and /load-session — explicit persistence dispatchers
+    # (drive I-PERSIST-09). Both routes are local: no tick() call, no
+    # event_queue mutation, no stream-history mutation. Failure paths
+    # surface as bounded local error text only.
+    # ------------------------------------------------------------------
+
+    def _dispatch_save_session(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error(
+                "/save-session requires a configured --session-db"
+            )
+            return
+        # Lazy import keeps the brain.ui.session <-> brain.ui.persistence
+        # module-load order acyclic.
+        from brain.ui.persistence import (  # noqa: PLC0415
+            PersistenceError,
+            save_session,
+        )
+        try:
+            result = save_session(self, config)
+        except PersistenceError as exc:
+            self.set_error(f"/save-session failed: {exc}")
+            return
+        self.set_status(
+            f"saved session to {result.db_path!s} "
+            f"(chunks={result.saved_chunks}, "
+            f"candidates={result.saved_candidates})"
+        )
+
+    def _dispatch_load_session(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error(
+                "/load-session requires a configured --session-db"
+            )
+            return
+        from brain.ui.persistence import (  # noqa: PLC0415
+            PersistenceError,
+            load_session,
+        )
+        try:
+            candidate, result = load_session(config)
+        except PersistenceError as exc:
+            self.set_error(f"/load-session failed: {exc}")
+            return
+        # Apply the candidate's kernel + stream state in-place. This is
+        # the controlled swap routine documented in the kickoff section
+        # 9: we copy the loaded immutable fields onto the live session
+        # so live wrappers (curses, transcripts) keep their identity.
+        # Status / error / active_view / event_queue are intentionally
+        # preserved across loads -- they belong to the live operator
+        # surface, not the persisted snapshot.
+        self.state = candidate.state
+        self.tick_counter = candidate.tick_counter
+        self.stream_history = candidate.stream_history
+        self.stream_candidates = candidate.stream_candidates
+        self.stream_chunk_serial = candidate.stream_chunk_serial
+        self.set_status(
+            f"loaded session from {result.db_path!s} "
+            f"(chunks={result.loaded_chunks}, "
+            f"candidates={result.loaded_candidates}"
+            + (", rebuilt=true" if result.rebuilt_candidates else "")
+            + ")"
         )
 
     # ------------------------------------------------------------------

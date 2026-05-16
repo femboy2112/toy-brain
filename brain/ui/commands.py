@@ -76,6 +76,8 @@ class OperatorCommand(str, Enum):
     INSPECT_STREAM_SUMMARY = "inspect_stream_summary"
     INSPECT_STREAM_CANDIDATES = "inspect_stream_candidates"
     STREAM_PROMOTE = "stream_promote"
+    SAVE_SESSION = "save_session"
+    LOAD_SESSION = "load_session"
 
 
 #: The closed set of inspection-only commands. Maps each kind to the

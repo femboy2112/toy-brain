@@ -141,6 +141,8 @@ _EXPECTED_COMMAND_VALUES = frozenset({
     "inspect_stream_summary",
     "inspect_stream_candidates",
     "stream_promote",
+    "save_session",
+    "load_session",
 })
 
 

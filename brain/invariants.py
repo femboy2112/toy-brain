@@ -146,6 +146,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.persistence_failed_save",
     "brain.ui.fixtures.persistence_atomic_save",
     "brain.ui.fixtures.persistence_session_resource_audit",
+    "brain.ui.fixtures.persistence_commands",
 ]
 
 
@@ -785,11 +786,18 @@ for _row_id, _status in _PHASE3_8B_PENDING_ROWS.items():
 _PHASE3_9_PENDING_ROWS: dict[str, str] = {
     # Step 8 landed I-PERSIST-01, I-PERSIST-12, I-PERSIST-13.
     # Step 9 landed I-PERSIST-02..08, I-PERSIST-10, I-PERSIST-11,
-    # I-PERSIST-14 via brain/ui/persistence.py save / load bodies +
-    # the eight Step 9 fixtures. Step 10 drains I-PERSIST-09 by
-    # landing the /save-session / /load-session typed commands and
-    # the persistence_commands fixture.
-    "I-PERSIST-09": "REQUIRED",
+    # I-PERSIST-14. Step 10 landed I-PERSIST-09 via brain/ui/commands.py
+    # (SAVE_SESSION / LOAD_SESSION enum), brain/ui/command_line.py
+    # (/save-session and /load-session typed verbs),
+    # brain/ui/session.py (_dispatch_save_session /
+    # _dispatch_load_session), brain/ui/__main__.py (--session-db /
+    # --load-session / --no-load-session CLI flags), and
+    # brain/ui/fixtures/persistence_commands.py. No Phase 3.9
+    # Persistent Session Store rows remain pending. I-PERSIST-15
+    # (OBSERVED, cold-start dry run) is documented in Step 11's
+    # PHASE3_9_PERSISTENCE_DRY_RUN.md; I-PERSIST-16 (NOT-EXERCISED,
+    # autosave absent) is structurally checked by
+    # persistence_static_audit.py.
 }
 
 
