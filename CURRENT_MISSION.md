@@ -4,7 +4,7 @@
 
 When a repo-capable agent receives `/go` in this repository, it must read this file, read `CURRENT_CAMPAIGN.md`, create or continue the active campaign branch, run the next eligible campaign step, commit successful results, push the branch, and stop exactly where the campaign says to stop.
 
-This mission replaces the completed Phase 3.10 campaign. The next mission is to test actual live behavior before building a scenario harness or adding new cognitive layers.
+This mission replaces the completed Phase 3.10 Operational Hardening + Persistence Observability + Autosave Policy campaign. The repo now has stream interaction, persistence, database observability, backup, and opt-in autosave. The next mission is not to add a new cognitive layer. The next mission is to test the actual live behavior of the system, including launch paths, real operator command behavior, persistence, autosave, observability, and LLM runtime modes.
 
 ---
 
@@ -19,16 +19,24 @@ CURRENT_CAMPAIGN.md
 Campaign target:
 
 ```text
-Phase 3.11a Codex CLI Runtime Option
-Phase 3.11b Comprehensive Live Behavior Test
-Phase 3.11c Behavior Findings + Triage
+Phase 3.11a Codex CLI Runtime Option        — add codex-cli as an explicit LLM runtime mode candidate before live test coverage
+Phase 3.11b Comprehensive Live Behavior     — test actual operator behavior across offline, mock, Claude CLI, Codex CLI, optional API/real modes
+Phase 3.11c Behavior Findings + Triage      — document what actually works, what is awkward, what fails, and what should be fixed next
 ```
 
-The campaign must include `codex-cli` as an explicit LLM runtime option target.
+Intended result:
+
+```text
+The repo contains a grounded behavior report that says what the system actually does when launched and used.
+```
+
+This campaign is evidence-seeking. It should not presume the system behaves well merely because invariant fixtures pass.
 
 ---
 
 ## Branch / push / PR rule
+
+Future campaign work must use a branch-first workflow.
 
 Preferred branch:
 
@@ -52,6 +60,8 @@ This file itself may be installed on `main` only by explicit user request. Campa
 
 ## Required source files to read first
 
+Read these before doing campaign work:
+
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
@@ -59,10 +69,13 @@ README.md
 INVARIANT_CATALOG.md
 PHASE3_10_INTEGRATED_AUDIT.md
 PHASE3_10C_AUTOSAVE_AUDIT.md
+PHASE3_10C_AUTOSAVE_DRY_RUN.md
 PHASE3_10_OPS_OBSERVABILITY_AUDIT.md
+PHASE3_10_OPS_OBSERVABILITY_DRY_RUN.md
 PHASE3_9_PERSISTENT_SESSION_STORE_AUDIT.md
+PHASE3_9_PERSISTENCE_DRY_RUN.md
+PHASE3_TEXT_INTERACTION_DRY_RUN.md
 PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md
-PHASE3_11_COMPREHENSIVE_LIVE_BEHAVIOR_TEST_ROADMAP.md
 brain/ui/llm_runtime.py
 brain/ui/autosave.py
 brain/ui/persistence.py
@@ -78,12 +91,21 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 
 ## Baseline to verify
 
+Expected current baseline:
+
 ```text
 Catalog: v0.19
-Counts: 212 REQUIRED / 83 STRUCTURAL / 9 NOT-EXERCISED / 12 DEFERRED / 15 OBSERVED
+Counts:
+  REQUIRED:        212
+  STRUCTURAL:       83
+  NOT-EXERCISED:     9
+  DEFERRED:         12
+  OBSERVED:         15
 Latest completed campaign: Phase 3.10 Operational Hardening + Persistence Observability + Autosave Policy
-Required latest audit: PHASE3_10_INTEGRATED_AUDIT.md PASS
-Required latest PR: PR #9 merged
+Required latest audit:
+  PHASE3_10_INTEGRATED_AUDIT.md      PASS
+Required latest PR:
+  PR #9 merged
 ```
 
 Stop if these facts are false or the catalog gate disagrees.
@@ -92,23 +114,58 @@ Stop if these facts are false or the catalog gate disagrees.
 
 ## Codex CLI requirement
 
-This mission must include:
+This mission must include `codex-cli` as an explicit LLM runtime option target.
+
+Required planning outcome:
 
 ```text
 --llm-mode codex-cli
 ```
 
-The final spelling and implementation details must be locked by the Phase 3.11 Codex CLI synthesis, kickoff, corrigenda, and catalog patch plan before implementation.
+or the exact final spelling accepted by the campaign corrigenda.
 
-Required constraints:
+The `codex-cli` mode must follow the existing runtime discipline:
 
 ```text
-offline remains default
-codex-cli is explicit opt-in
-standard fixtures do not require real Codex access
-real Codex smoke is OBSERVED/manual unless explicitly accepted as gating
+default remains offline
+Codex CLI is explicit opt-in
+missing executable / missing auth fails locally before launch
+no network/API assumption inside deterministic fixtures
+standard tests do not require real Codex access
+real Codex CLI smoke is OBSERVED/manual unless explicitly accepted as gating
 selected client enters through the existing LLMClient / tick(..., client, ...) seam
 ```
+
+If current Codex CLI invocation details are uncertain, the synthesis/kickoff/corrigenda must make the executable/argument contract explicit before implementation.
+
+---
+
+## Architectural guardrails
+
+Preserve these constraints throughout Phase 3.11:
+
+```text
+COGITO_ID remains reserved
+raw text never maps to COGITO_ID
+raw text never mutates BrainState directly
+loaded state must reconstruct through public builders / constructors
+loaded state must pass invariants before becoming active
+failed load/save/verify/backup/autosave must not corrupt live state
+tick() remains the only TLICA runtime transition route
+/step remains the operator route that calls tick()
+offline remains the default LLM mode
+model-backed modes remain explicit opt-in
+Codex CLI mode must be explicit opt-in
+no LLM client, socket, file handle, subprocess handle, callable, curses object, or sqlite3.Connection is stored on OperatorSession
+```
+
+Test campaigns may expose uncomfortable behavior. Do not hide or patch around behavior findings unless the campaign explicitly authorizes a correctness patch step.
+
+---
+
+## Command rule
+
+Use `python3 -m ...` for Python module commands. Convert historical `python -m ...` examples to `python3 -m ...` unless the user has explicitly confirmed a `python` alias.
 
 ---
 
