@@ -39,14 +39,25 @@ local :mod:`brain.ui.commands` / :mod:`brain.ui.snapshot` /
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import TYPE_CHECKING, Optional
 
+from brain.development.text_stream import (
+    STREAM_PROMOTION_MAX,
+    StreamPromotionCandidate,
+    TextStreamHistory,
+    TextStreamSource,
+    make_stream_promotion_candidate,
+    make_text_stream_chunk,
+)
 from brain.tick import BrainState, tick
 from brain.ui.commands import (
     INSPECT_VIEW_MAP,
     Command,
     OperatorCommand,
     QueuePerceptPayload,
+    StreamAppendPayload,
+    StreamPromotePayload,
 )
 from brain.ui.render import DEFAULT_KEYBOARD_HELP
 from brain.ui.snapshot import ACTIVE_VIEWS
@@ -57,6 +68,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing-only imports
     from brain.development.worldlet import WorldletHistory
     from brain.io_types import TickRecord
     from brain.llm.client import LLMClient
+    from brain.toce_core import ContentState
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +194,27 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "error_message",
     "quit_flag",
     "tick_counter",
+    "stream_history",
+    "stream_candidates",
+    "stream_chunk_serial",
 })
+
+
+# Defaults for converting StreamPromotionCandidate -> QueuePerceptPayload.
+# The constants are local to the stream-promote bridge and are matched
+# against the LocalCommandLine defaults by the constant-parity fixture
+# (``stream_constant_parity.py``).
+_STREAM_PROMOTE_DEFAULT_RHO = Fraction(1, 2)
+
+
+def _stream_promote_default_content_state() -> "ContentState":
+    from brain.toce_core import ContentState as _ContentState
+    return _ContentState(
+        available=True,
+        verification_path=True,
+        retrievable=True,
+        operative=True,
+    )
 
 
 @dataclass(slots=True)
@@ -213,6 +245,9 @@ class OperatorSession:
     error_message: str = ""
     quit_flag: bool = False
     tick_counter: int = 0
+    stream_history: TextStreamHistory = field(default_factory=TextStreamHistory)
+    stream_candidates: tuple[StreamPromotionCandidate, ...] = ()
+    stream_chunk_serial: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -250,6 +285,36 @@ class OperatorSession:
             raise ValueError(
                 "OperatorSession.tick_counter must be a non-negative int "
                 f"(got {self.tick_counter!r})"
+            )
+        if not isinstance(self.stream_history, TextStreamHistory):
+            raise TypeError(
+                "OperatorSession.stream_history must be a TextStreamHistory "
+                f"(got {type(self.stream_history).__name__})"
+            )
+        if not isinstance(self.stream_candidates, tuple):
+            raise TypeError(
+                "OperatorSession.stream_candidates must be a tuple "
+                f"(got {type(self.stream_candidates).__name__})"
+            )
+        for cand in self.stream_candidates:
+            if not isinstance(cand, StreamPromotionCandidate):
+                raise TypeError(
+                    "OperatorSession.stream_candidates entries must be "
+                    f"StreamPromotionCandidate (got {type(cand).__name__})"
+                )
+        if len(self.stream_candidates) > STREAM_PROMOTION_MAX:
+            raise ValueError(
+                "I-UISTRM-11 violated: stream_candidates length "
+                f"{len(self.stream_candidates)} exceeds STREAM_PROMOTION_MAX="
+                f"{STREAM_PROMOTION_MAX}"
+            )
+        if (
+            not isinstance(self.stream_chunk_serial, int)
+            or self.stream_chunk_serial < 0
+        ):
+            raise ValueError(
+                "OperatorSession.stream_chunk_serial must be a non-negative int "
+                f"(got {self.stream_chunk_serial!r})"
             )
         self._assert_no_unsafe_resources()
 
@@ -384,6 +449,10 @@ class OperatorSession:
             # Explicit no-op: leave session state unchanged. Drives the
             # "every command kind is handled" branch of I-UI-03.
             return
+        elif kind is OperatorCommand.STREAM_APPEND:
+            self._dispatch_stream_append(command.payload)
+        elif kind is OperatorCommand.STREAM_PROMOTE:
+            self._dispatch_stream_promote(command.payload)
         else:  # pragma: no cover - the enum is closed
             raise AssertionError(
                 f"I-UI-03 violated: unrouted OperatorCommand {kind!r}"
@@ -495,6 +564,172 @@ class OperatorSession:
         )
 
     # ------------------------------------------------------------------
+    # Stream-command handlers (Phase 3.8)
+    # ------------------------------------------------------------------
+
+    def _next_stream_chunk_id(self) -> str:
+        """Return a deterministic non-reserved chunk_id for the next /stream.
+
+        Uses the session-owned ``stream_chunk_serial`` counter so each
+        append produces a unique bounded printable identifier. The
+        counter is incremented as part of a successful append; the id
+        format ``"strm-chunk-N"`` is short enough to satisfy the
+        Phase 3.7 substrate bounds and is never equal to ``COGITO_ID``.
+        """
+        return f"strm-chunk-{self.stream_chunk_serial + 1}"
+
+    def _append_stream_candidates(
+        self, new_candidates: tuple[StreamPromotionCandidate, ...]
+    ) -> None:
+        combined = self.stream_candidates + tuple(new_candidates)
+        if len(combined) > STREAM_PROMOTION_MAX:
+            combined = combined[-STREAM_PROMOTION_MAX:]
+        self.stream_candidates = combined
+
+    def _dispatch_stream_append(
+        self, payload: Optional[StreamAppendPayload]
+    ) -> None:
+        if not isinstance(payload, StreamAppendPayload):
+            self.set_error("STREAM_APPEND requires a StreamAppendPayload")
+            return
+
+        prior_history = self.stream_history
+        prior_candidates = self.stream_candidates
+        prior_serial = self.stream_chunk_serial
+
+        chunk_id = self._next_stream_chunk_id()
+        try:
+            chunk = make_text_stream_chunk(
+                chunk_id=chunk_id,
+                text=payload.text,
+                source=TextStreamSource.OPERATOR,
+                provenance="operator",
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(f"stream append rejected: {exc}")
+            assert self.stream_history is prior_history
+            assert self.stream_candidates == prior_candidates
+            assert self.stream_chunk_serial == prior_serial
+            return
+
+        try:
+            new_history = prior_history.append(chunk)
+            candidate = make_stream_promotion_candidate(
+                candidate_id=f"promo-{chunk.chunk_id}",
+                target_content_id=f"strm-{chunk.chunk_id}",
+                source=chunk.source,
+                chunk_id=chunk.chunk_id,
+                text=chunk.text,
+                provenance=chunk.provenance,
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(f"stream append rejected: {exc}")
+            assert self.stream_history is prior_history
+            assert self.stream_candidates == prior_candidates
+            assert self.stream_chunk_serial == prior_serial
+            return
+
+        self.stream_history = new_history
+        self._append_stream_candidates((candidate,))
+        self.stream_chunk_serial = prior_serial + 1
+        self.set_active_view("stream_summary")
+        self.set_status(
+            f"stream chunk {chunk.chunk_id!r} appended "
+            f"(history size = {len(new_history.chunks)})"
+        )
+
+    def _resolve_stream_candidate(
+        self, candidate_id: str
+    ) -> Optional[StreamPromotionCandidate]:
+        for cand in self.stream_candidates:
+            if cand.candidate_id == candidate_id:
+                return cand
+        return None
+
+    def _dispatch_stream_promote(
+        self, payload: Optional[StreamPromotePayload]
+    ) -> None:
+        if not isinstance(payload, StreamPromotePayload):
+            self.set_error("STREAM_PROMOTE requires a StreamPromotePayload")
+            return
+
+        prior_history = self.stream_history
+        prior_candidates = self.stream_candidates
+        prior_state = self.state
+        prior_latest_tick = self.latest_tick
+        prior_queue_size = len(self.event_queue)
+        prior_tick_counter = self.tick_counter
+        prior_serial = self.stream_chunk_serial
+
+        candidate = self._resolve_stream_candidate(payload.candidate_id)
+        if candidate is None:
+            self.set_error(
+                f"unknown stream candidate: {payload.candidate_id!r}"
+            )
+            assert self.stream_history is prior_history
+            assert self.stream_candidates == prior_candidates
+            assert self.state is prior_state
+            assert self.latest_tick is prior_latest_tick
+            assert len(self.event_queue) == prior_queue_size
+            assert self.tick_counter == prior_tick_counter
+            assert self.stream_chunk_serial == prior_serial
+            return
+
+        if self.event_queue.is_full():
+            self.set_error(
+                f"event queue full (limit={self.event_queue.limit})"
+            )
+            assert self.stream_history is prior_history
+            assert self.stream_candidates == prior_candidates
+            assert self.state is prior_state
+            assert self.latest_tick is prior_latest_tick
+            assert len(self.event_queue) == prior_queue_size
+            assert self.tick_counter == prior_tick_counter
+            assert self.stream_chunk_serial == prior_serial
+            return
+
+        try:
+            queue_payload = QueuePerceptPayload(
+                content_id=candidate.target_content_id,
+                text=candidate.text,
+                content_state=_stream_promote_default_content_state(),
+                initial_rho=_STREAM_PROMOTE_DEFAULT_RHO,
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(f"stream-promote rejected: {exc}")
+            assert self.stream_history is prior_history
+            assert self.stream_candidates == prior_candidates
+            assert self.state is prior_state
+            assert self.latest_tick is prior_latest_tick
+            assert len(self.event_queue) == prior_queue_size
+            assert self.tick_counter == prior_tick_counter
+            assert self.stream_chunk_serial == prior_serial
+            return
+
+        try:
+            self.event_queue.enqueue(queue_payload)
+        except (TypeError, ValueError, OverflowError) as exc:
+            self.set_error(f"queue rejected promotion: {exc}")
+            assert self.stream_history is prior_history
+            assert self.stream_candidates == prior_candidates
+            assert self.state is prior_state
+            assert self.latest_tick is prior_latest_tick
+            assert len(self.event_queue) == prior_queue_size
+            assert self.tick_counter == prior_tick_counter
+            assert self.stream_chunk_serial == prior_serial
+            return
+
+        # Success: leave stream state intact except for view/status; the
+        # /step path consumes the queued payload through the existing
+        # _dispatch_step route. Stream history, candidates, and serial
+        # are not consumed here.
+        self.set_active_view("queue")
+        self.set_status(
+            f"promoted stream candidate {candidate.candidate_id!r} "
+            f"(queue size = {len(self.event_queue)})"
+        )
+
+    # ------------------------------------------------------------------
     # Bounded display contracts (used by the renderer / smoke tests)
     # ------------------------------------------------------------------
 
@@ -520,3 +755,7 @@ __all__ = [
     "OperatorEventQueue",
     "OperatorSession",
 ]
+
+
+# Convenience accessors for fixtures and the constant-parity audit.
+STREAM_PROMOTE_DEFAULT_RHO: Fraction = _STREAM_PROMOTE_DEFAULT_RHO

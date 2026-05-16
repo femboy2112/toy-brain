@@ -514,9 +514,14 @@ def check_I_UI_18_local_command_line_is_finite_and_typed() -> None:
 
     # ---- Verb enumeration coverage: every entry in LOCAL_COMMAND_VERBS
     # is routed by the parser. /queue requires args; the rest are no-arg.
+    _arg_verbs = {
+        "queue": " beta hello",
+        "stream": " hello",
+        "stream-promote": " promo-strm-chunk-1",
+    }
     routed_verbs: set[str] = set()
     for verb in LOCAL_COMMAND_VERBS:
-        line = "/" + verb + (" beta hello" if verb == "queue" else "")
+        line = "/" + verb + _arg_verbs.get(verb, "")
         result = parser.parse(line)
         if isinstance(result, Command):
             routed_verbs.add(verb)

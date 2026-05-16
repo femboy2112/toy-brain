@@ -26,6 +26,8 @@ from brain.ui.snapshot import (
     EMPTY_DISPLAY,
     BrainSnapshot,
     DevelopmentSnapshot,
+    StreamCandidatesSnapshot,
+    StreamSummarySnapshot,
 )
 
 
@@ -67,6 +69,8 @@ class TuiViewModel:
     error_message: str = ""
     keyboard_help: tuple[tuple[str, str], ...] = ()
     pane_titles: tuple[str, ...] = ()
+    stream_summary: Optional[StreamSummarySnapshot] = None
+    stream_candidates: Optional[StreamCandidatesSnapshot] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.active_view, str):
@@ -147,6 +151,20 @@ class TuiViewModel:
                     "TuiViewModel.keyboard_help entries must be "
                     "(str, str) tuples"
                 )
+        if self.stream_summary is not None and not isinstance(
+            self.stream_summary, StreamSummarySnapshot
+        ):
+            raise TypeError(
+                "TuiViewModel.stream_summary must be a StreamSummarySnapshot "
+                "or None"
+            )
+        if self.stream_candidates is not None and not isinstance(
+            self.stream_candidates, StreamCandidatesSnapshot
+        ):
+            raise TypeError(
+                "TuiViewModel.stream_candidates must be a "
+                "StreamCandidatesSnapshot or None"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +211,8 @@ def build_view_model(
     error_message: str = "",
     keyboard_help: Optional[tuple[tuple[str, str], ...]] = None,
     pane_titles: Optional[tuple[str, ...]] = None,
+    stream_summary: Optional[StreamSummarySnapshot] = None,
+    stream_candidates: Optional[StreamCandidatesSnapshot] = None,
 ) -> TuiViewModel:
     """Helper: build a ``TuiViewModel`` with the default keyboard help / panes.
 
@@ -210,6 +230,8 @@ def build_view_model(
         error_message=error_message,
         keyboard_help=DEFAULT_KEYBOARD_HELP if keyboard_help is None else keyboard_help,
         pane_titles=DEFAULT_PANE_TITLES if pane_titles is None else pane_titles,
+        stream_summary=stream_summary,
+        stream_candidates=stream_candidates,
     )
 
 
@@ -383,6 +405,57 @@ def _render_help(view: TuiViewModel) -> tuple[str, ...]:
     return tuple(lines)
 
 
+def _render_stream_summary(view: TuiViewModel) -> tuple[str, ...]:
+    lines: list[str] = []
+    lines.append(_frame_header("stream summary", view.width))
+    summary = view.stream_summary
+    if summary is None:
+        lines.append(EMPTY_DISPLAY)
+        return tuple(lines)
+    lines.append(
+        f"chunks          : {summary.chunk_count} / {summary.history_capacity}"
+    )
+    lines.append(f"total length    : {summary.total_text_length}")
+    lines.append(f"distinct ids    : {summary.distinct_chunk_ids}")
+    if summary.source_counts:
+        lines.append("by source:")
+        for name, count in summary.source_counts:
+            lines.append(f"  {name} = {count}")
+    else:
+        lines.append("by source: " + EMPTY_DISPLAY)
+    lines.append(
+        "latest chunk    : "
+        + (summary.latest_chunk_id if summary.latest_chunk_id else EMPTY_DISPLAY)
+    )
+    if summary.latest_chunk_text_preview:
+        lines.append(f"latest preview  : {summary.latest_chunk_text_preview}")
+    return tuple(lines)
+
+
+def _render_stream_candidates(view: TuiViewModel) -> tuple[str, ...]:
+    lines: list[str] = []
+    lines.append(_frame_header("stream candidates", view.width))
+    candidates = view.stream_candidates
+    if candidates is None or not candidates.candidates:
+        lines.append(EMPTY_DISPLAY)
+        if candidates is not None:
+            lines.append(
+                f"capacity        : {candidates.candidate_capacity}"
+            )
+        return tuple(lines)
+    lines.append(
+        f"candidates      : "
+        f"{candidates.candidate_count} / {candidates.candidate_capacity}"
+    )
+    for snapshot in candidates.candidates:
+        lines.append(f"  {snapshot.candidate_id} -> {snapshot.target_content_id}")
+        lines.append(f"    source = {snapshot.source}")
+        lines.append(f"    chunk  = {snapshot.chunk_id}")
+        if snapshot.text_preview:
+            lines.append(f"    text   = {snapshot.text_preview}")
+    return tuple(lines)
+
+
 _RENDERERS = {
     "state": _render_state,
     "tick": _render_tick,
@@ -392,6 +465,8 @@ _RENDERERS = {
     "queue": _render_queue,
     "status": _render_status,
     "help": _render_help,
+    "stream_summary": _render_stream_summary,
+    "stream_candidates": _render_stream_candidates,
 }
 
 
@@ -475,6 +550,8 @@ def _legacy_view_for_pane(
         error_message=view.error_message,
         keyboard_help=view.keyboard_help or DEFAULT_KEYBOARD_HELP,
         pane_titles=view.pane_titles or DEFAULT_PANE_TITLES,
+        stream_summary=getattr(view, "stream_summary", None),
+        stream_candidates=getattr(view, "stream_candidates", None),
     )
 
 

@@ -114,6 +114,16 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.text_stream_segment_candidate",
     "brain.development.fixtures.text_stream_pattern_recurrence",
     "brain.development.fixtures.text_stream_promotion_candidate",
+    "brain.ui.fixtures.stream_command_parser",
+    "brain.ui.fixtures.stream_session_append",
+    "brain.ui.fixtures.stream_summary_candidates",
+    "brain.ui.fixtures.stream_promotion_queue",
+    "brain.ui.fixtures.stream_tick_boundary",
+    "brain.ui.fixtures.stream_failure_isolation",
+    "brain.ui.fixtures.stream_snapshot_render",
+    "brain.ui.fixtures.stream_static_audit",
+    "brain.ui.fixtures.stream_session_resource_audit",
+    "brain.ui.fixtures.stream_constant_parity",
 ]
 
 
@@ -681,21 +691,11 @@ for _row_id, _status in _PHASE3_7_PENDING_ROWS.items():
 
 
 _PHASE3_8_PENDING_ROWS: dict[str, str] = {
-    "I-UISTRM-01": "REQUIRED",
-    "I-UISTRM-02": "REQUIRED",
-    "I-UISTRM-03": "REQUIRED",
-    "I-UISTRM-04": "REQUIRED",
-    "I-UISTRM-05": "REQUIRED",
-    "I-UISTRM-06": "REQUIRED",
-    "I-UISTRM-07": "REQUIRED",
-    "I-UISTRM-08": "REQUIRED",
-    "I-UISTRM-09": "REQUIRED",
-    "I-UISTRM-10": "REQUIRED",
-    "I-UISTRM-11": "STRUCTURAL",
-    "I-UISTRM-12": "STRUCTURAL",
-    "I-UISTRM-13": "STRUCTURAL",
-    "I-UISTRM-14": "STRUCTURAL",
-    "I-UISTRM-15": "STRUCTURAL",
+    # Step 24 landed I-UISTRM-01..15 via brain/ui/{commands,command_line,
+    # session,snapshot,render}.py plus the ten stream_* fixtures.
+    # I-UISTRM-16 (OBSERVED) and I-UISTRM-17 (NOT-EXERCISED) do not
+    # participate in I-CAT-01 coverage and are not pending here. No
+    # Phase 3.8 Operator Stream Interaction rows remain pending.
 }
 
 

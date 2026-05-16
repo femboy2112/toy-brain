@@ -221,6 +221,7 @@ def check_I_UI_09_view_model_is_terminal_agnostic() -> None:
 
     # Every declared field is a bounded primitive, tuple, or snapshot
     # reference. No curses/file/socket/callable values are accepted.
+    from brain.ui.snapshot import StreamCandidatesSnapshot, StreamSummarySnapshot
     allowed_types = {
         "active_view": (str,),
         "width": (int,),
@@ -232,6 +233,8 @@ def check_I_UI_09_view_model_is_terminal_agnostic() -> None:
         "error_message": (str,),
         "keyboard_help": (tuple,),
         "pane_titles": (tuple,),
+        "stream_summary": (StreamSummarySnapshot, type(None)),
+        "stream_candidates": (StreamCandidatesSnapshot, type(None)),
     }
     declared = {f.name for f in fields(view)}
     assert declared == set(allowed_types.keys()), (

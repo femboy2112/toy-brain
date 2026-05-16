@@ -36,7 +36,11 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Union
 
+from brain.development.text_stream import (
+    STREAM_TEXT_MAX_LEN,
+)
 from brain.ui.commands import (
+    STREAM_PROMOTE_CANDIDATE_ID_MAX_LEN,
     Command,
     OperatorCommand,
     make_command,
@@ -99,6 +103,10 @@ LOCAL_COMMAND_VERBS: tuple[str, ...] = (
     "step",
     "clear",
     "quit",
+    "stream",
+    "stream-summary",
+    "stream-candidates",
+    "stream-promote",
 )
 
 
@@ -248,6 +256,18 @@ class LocalCommandLine:
             return self._parse_no_args(verb, remainder, OperatorCommand.QUIT)
         if verb == "queue":
             return self._parse_queue(remainder)
+        if verb == "stream":
+            return self._parse_stream(remainder)
+        if verb == "stream-summary":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.INSPECT_STREAM_SUMMARY
+            )
+        if verb == "stream-candidates":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.INSPECT_STREAM_CANDIDATES
+            )
+        if verb == "stream-promote":
+            return self._parse_stream_promote(remainder)
         # Unreachable: every verb in LOCAL_COMMAND_VERBS is handled above.
         raise AssertionError(  # pragma: no cover - enumeration is closed
             f"I-UI-18 violated: unrouted typed verb /{verb}"
@@ -313,6 +333,56 @@ class LocalCommandLine:
             return LocalCommandError(f"/queue rejected: {exc}")
         return command
 
+    def _parse_stream(self, remainder: str) -> ParseResult:
+        # /stream preserves the full operator-supplied text body so that
+        # the bounded TextStreamChunk constructor sees exactly what the
+        # operator typed (with one trailing newline-style strip).
+        text = remainder.rstrip("\n")
+        if not text or not text.strip():
+            return LocalCommandError(
+                "/stream requires <text>"
+            )
+        if len(text) > STREAM_TEXT_MAX_LEN:
+            return LocalCommandError(
+                f"/stream text exceeds {STREAM_TEXT_MAX_LEN} chars"
+            )
+        try:
+            command = make_command(
+                OperatorCommand.STREAM_APPEND,
+                stream_text=text,
+            )
+        except (TypeError, ValueError) as exc:
+            return LocalCommandError(f"/stream rejected: {exc}")
+        return command
+
+    def _parse_stream_promote(self, remainder: str) -> ParseResult:
+        candidate_id = remainder.strip()
+        if not candidate_id:
+            return LocalCommandError(
+                "/stream-promote requires <candidate_id>"
+            )
+        # The candidate_id is split-on-whitespace; reject extra tokens to
+        # match the rest of the parser's finite-arity discipline.
+        parts = candidate_id.split()
+        if len(parts) != 1:
+            return LocalCommandError(
+                "/stream-promote requires exactly one <candidate_id>"
+            )
+        candidate_id = parts[0]
+        if len(candidate_id) > STREAM_PROMOTE_CANDIDATE_ID_MAX_LEN:
+            return LocalCommandError(
+                "/stream-promote candidate_id exceeds "
+                f"{STREAM_PROMOTE_CANDIDATE_ID_MAX_LEN} chars"
+            )
+        try:
+            command = make_command(
+                OperatorCommand.STREAM_PROMOTE,
+                candidate_id=candidate_id,
+            )
+        except (TypeError, ValueError) as exc:
+            return LocalCommandError(f"/stream-promote rejected: {exc}")
+        return command
+
 
 # ---------------------------------------------------------------------------
 # Help-text rendering helper.
@@ -333,6 +403,10 @@ LOCAL_COMMAND_HELP: tuple[tuple[str, str], ...] = (
     ("/step", "advance one tick using the head of the queue"),
     ("/clear", "clear local status/error (^U clears composer)"),
     ("/quit", "exit the operator session"),
+    ("/stream <text>", "append bounded text to the local stream history"),
+    ("/stream-summary", "inspect local stream summary"),
+    ("/stream-candidates", "inspect local stream promotion candidates"),
+    ("/stream-promote <id>", "queue one explicit promotion candidate"),
 )
 
 

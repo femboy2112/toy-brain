@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.12)
+# brain — TLICA-constrained Python kernel (catalog v0.15)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -186,6 +186,9 @@ Behaviour rules (enforced by the `I-UI-*` catalog rows):
 - **v0.10** — +I-UI-01..15 (Operator TUI deterministic operator-facing surface).
 - **v0.11** — +I-UI-16..23 (Operator TUI Agent-Style Layout expansion).
 - **v0.12** — +I-EXP-01..18 (Phase 3.5 Expression + ReadabilityPredictor bounded local layer).
+- **v0.13** — +I-REF-01..14 (Phase 3.6 Reflective Inspection bounded local read-only developmental summary layer).
+- **v0.14** — +I-STRM-01..17 (Phase 3.7 Text Stream Ingress bounded local raw-text substrate).
+- **v0.15** — +I-UISTRM-01..17 (Phase 3.8 Operator Stream Interaction `/stream`, `/stream-summary`, `/stream-candidates`, `/stream-promote` typed routes over the Phase 3.7 substrate; `/step` remains the only `tick()` route).
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
@@ -201,7 +204,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.12**. Confirmation numbers: **139 REQUIRED · 48 STRUCTURAL · 5 NOT-EXERCISED · 12 DEFERRED · 8 OBSERVED · 50 fixtures**. Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.15**. Confirmation numbers: **168 REQUIRED · 61 STRUCTURAL · 8 NOT-EXERCISED · 12 DEFERRED · 11 OBSERVED · 79 fixtures**. Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -299,8 +302,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.12, the expected count is:
-**139 REQUIRED · 48 STRUCTURAL · 5 NOT-EXERCISED · 12 DEFERRED · 8 OBSERVED**.
+For catalog v0.15, the expected count is:
+**168 REQUIRED · 61 STRUCTURAL · 8 NOT-EXERCISED · 12 DEFERRED · 11 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage
