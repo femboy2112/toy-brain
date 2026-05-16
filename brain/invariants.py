@@ -136,6 +136,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.llm_runtime_print_once_independent",
     "brain.ui.fixtures.llm_runtime_config_frozen",
     "brain.ui.fixtures.llm_runtime_static_audit",
+    "brain.ui.fixtures.persistence_schema",
+    "brain.ui.fixtures.persistence_static_audit",
 ]
 
 
@@ -773,7 +775,16 @@ for _row_id, _status in _PHASE3_8B_PENDING_ROWS.items():
 
 
 _PHASE3_9_PENDING_ROWS: dict[str, str] = {
-    "I-PERSIST-01": "REQUIRED",
+    # Step 8 landed I-PERSIST-01 (schema_finite_and_closed), I-PERSIST-12
+    # (static_audit), and I-PERSIST-13 (no_kernel_real_column) via
+    # brain/ui/persistence.py + persistence_schema.py +
+    # persistence_static_audit.py. Step 9 drains I-PERSIST-02..08,
+    # I-PERSIST-10, I-PERSIST-11, I-PERSIST-14 by landing save / load
+    # bodies plus the failure-isolation / atomic-save /
+    # session-resource-audit / load-constructor-only / load-invariants
+    # / cogito-protected / save-roundtrip fixtures. Step 10 drains
+    # I-PERSIST-09 by landing the /save-session / /load-session typed
+    # commands and the persistence_commands fixture.
     "I-PERSIST-02": "REQUIRED",
     "I-PERSIST-03": "REQUIRED",
     "I-PERSIST-04": "REQUIRED",
@@ -784,8 +795,6 @@ _PHASE3_9_PENDING_ROWS: dict[str, str] = {
     "I-PERSIST-09": "REQUIRED",
     "I-PERSIST-10": "STRUCTURAL",
     "I-PERSIST-11": "STRUCTURAL",
-    "I-PERSIST-12": "STRUCTURAL",
-    "I-PERSIST-13": "STRUCTURAL",
     "I-PERSIST-14": "STRUCTURAL",
 }
 
