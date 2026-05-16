@@ -51,6 +51,48 @@ step results, and stop at explicit review gates or campaign completion.
 Treat references in mission and campaign files to Codex as applying to Claude
 Code too.
 
+## Campaign Preflight
+
+The "campaign preflight" referenced by `brain-current-mission.md` step 3 is the
+checklist below. It is designed to be issued as a single parallel burst (all
+items in one tool-call message) so a `go` invocation completes a full
+diagnostic sweep before choosing the next step.
+
+Issue in parallel:
+
+1. **Required reads** — every file the mission's required-read section names,
+   one `Read` call per file in the same message.
+2. **Gate commands** — run all of these in parallel Bash calls:
+   ```bash
+   python3 -m tools.catalog counts
+   python3 -m tools.citations verify
+   python3 -m tools.import_audit
+   python3 -m brain.invariants run
+   git status
+   git log --oneline -10
+   git log --merges --oneline origin/main | head -10
+   ```
+3. **Diagnostic agents** — spawn both in the same message:
+   - `brain-campaign-state` (returns `READY`, `STOP`, or `USER-JUDGMENT`
+     verdict).
+   - `brain-catalog-lint` (returns C1/C2/C3/C4 punch list).
+
+After all three burst results return, synthesize:
+
+- If `brain-campaign-state` returns `STOP` or `USER-JUDGMENT`, surface the
+  verdict and stop. Do NOT proceed to step selection.
+- If any gate command failed, surface the failure and stop unless the failure
+  is exactly the situation the next campaign step is supposed to fix.
+- If `brain-catalog-lint` returns FAIL on C1 / C2 / C3 / C4, include the
+  finding in the report; treat C1 / C2 as blockers (auto-fix candidates
+  before the step), and C3 / C4 as user-judgment items.
+- Otherwise proceed to step execution using the verdict from
+  `brain-campaign-state` plus the campaign macro sequence.
+
+Step execution itself should also batch independent operations: read all
+allowed-scope files in parallel, batch independent edits, batch independent
+validation commands.
+
 ## Core Commands
 
 Catalog queries:
@@ -185,8 +227,52 @@ Never push to the upstream Lean repository.
 ## Paired Agent Roles
 
 - `brain-current-mission`: executes `CURRENT_MISSION.md` when the user says
-  `go` or uses an equivalent mission trigger.
+  `go` or uses an equivalent mission trigger. Orchestrates preflight in
+  parallel via the agents below plus the gate commands.
 - `brain-explorer`: read-only navigator.
 - `brain-row-implementer`: bounded row implementation.
 - `brain-runner-debugger`: red-row diagnosis and minimal fix.
 - `brain-spec-refresher`: SPEC_UPDATES and upstream Lean drift workflow.
+- `brain-catalog-lint`: read-only drift check between
+  INVARIANT_CATALOG.md, `tools/catalog.py` banner, `FIXTURE_MODULES` list,
+  README / CURRENT_MISSION / CURRENT_CAMPAIGN version strings, and
+  `_PHASE3_*_PENDING_ROWS` docstrings. Auto-fix limited to banner and list
+  edits, only on explicit user authorization.
+- `brain-campaign-state`: read-only diagnostic that emits `READY` / `STOP` /
+  `USER-JUDGMENT` for the next eligible step. Used by `brain-current-mission`
+  preflight and by the `/repo-state` command.
+
+## Common Mistakes (history-mined)
+
+Six recurring drift patterns observed across the Phase 3.1–3.8b campaigns. The
+first four are auto-detected by `brain-catalog-lint`; the last two are
+auto-detected by `brain-campaign-state`.
+
+1. **Catalog banner drift.** `tools/catalog.py` `EXPECTED_COUNTS` dict gets
+   bumped, but the prose comment block above it still claims the prior
+   version/phase. Caught by C1.
+2. **FIXTURE_MODULES list drift.** A new fixture is added under
+   `brain/**/fixtures/*.py` but the manual `FIXTURE_MODULES` list in
+   `brain/invariants.py` is not updated (silent: the new fixture never runs).
+   Caught by C2.
+3. **Catalog-version triplet drift.** Mission file, campaign file, and README
+   describe a starting catalog version that is no longer current. Caught by
+   C3. C3 does NOT auto-fix — mission baselines are sometimes lagged on
+   purpose to record the state the campaign started from.
+4. **Pending-row docstring staleness.** `_PHASE3_*_PENDING_ROWS` blocks are
+   copy-pasted with stale step numbers from a prior phase. Caught by C4.
+5. **Merged-PR-vs-stale-mission.** A campaign completes and merges to `main`,
+   but `CURRENT_MISSION.md` still describes the now-completed campaign as the
+   active mission. Caught by `brain-campaign-state` S1.
+6. **Amendment vs campaign-doc drift.** A `*_AMENDMENT.md` is added but
+   `CURRENT_CAMPAIGN.md` is not updated to require reading it. Watch for
+   amendment commits without a same-PR `CURRENT_CAMPAIGN.md` edit; surface
+   under `brain-campaign-state` S3 USER-JUDGMENT.
+
+Two further gates owned by existing tools (not duplicated in any new agent):
+
+- **Generated-IDs freshness** is step 0 of `bash tools/check_all.sh`. If
+  catalog rows are added without running `python3 -m tools.catalog generate-ids`,
+  `brain/_catalog_ids.py` goes stale.
+- **I-PCE-05 import audit** is `python3 -m tools.import_audit`. `agency.py`
+  must never import `pce.py`.
