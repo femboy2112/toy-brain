@@ -232,7 +232,13 @@ Companion docs (consult the relevant one when editing the catalog):
 - `PHASE2_v1_1_TRACE_KICKOFF.md` (cognition trace).
 - `BASELINE_HARDENING_KICKOFF.md` (Phase 2 v1.2 baseline hardening).
 - `PHASE3_5_EXPRESSION_READABILITY_AUDIT.md` (Phase 3.5 complete; PASS).
-- `CURRENT_CAMPAIGN.md` (Fast Safe Text Interaction — Phase 3.6 next).
+- `PHASE3_6_REFLECTIVE_INSPECTION_AUDIT.md` (Phase 3.6 complete; PASS).
+- `PHASE3_7_TEXT_STREAM_INGRESS_AUDIT.md` (Phase 3.7 complete; PASS).
+- `PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md` (Phase 3.8 complete; PASS).
+- `PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md` (Phase 3.8b complete; PASS).
+- `PHASE3_TEXT_INTERACTION_DRY_RUN.md` (Fast Safe Text Interaction end-to-end walk).
+- `CURRENT_MISSION.md` / `CURRENT_CAMPAIGN.md` (Phase 3.9 Persistent Session Store — current).
+- `PHASE3_9_PERSISTENT_SESSION_STORE_ROADMAP.md` (Phase 3.9 roadmap).
 
 ## Constraints (pre-coding rules — these are pulled from the catalog)
 

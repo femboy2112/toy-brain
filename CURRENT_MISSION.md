@@ -90,6 +90,7 @@ Counts:
   DEFERRED:         12
   OBSERVED:         12
 Latest completed campaign: Fast Safe Text Interaction through Phase 3.8b and Step 26 dry run
+  Status: merged to main (PR #6)
 Required latest audits:
   PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md      PASS
   PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md             PASS
