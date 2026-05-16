@@ -808,14 +808,21 @@ def _snapshot_brain_state(state: BrainState) -> PersistentBrainStateSnapshot:
     )
 
 
-def _snapshot_session(
+def snapshot_session(
     session: "OperatorSessionLike",
     config: SessionStoreConfig,
     *,
     now_iso: str,
     created_at_iso: Optional[str],
 ) -> PersistentSessionSnapshot:
-    """Materialise a :class:`PersistentSessionSnapshot` from a live session."""
+    """Materialise a :class:`PersistentSessionSnapshot` from a live session.
+
+    Pure projection helper: no IO, no kernel builder call, no session
+    mutation. Phase 3.10b promoted this name from ``_snapshot_session``
+    (corrigenda section 9) so :func:`brain.ui.persistence_observe.db_diff`
+    can project the live session for the diff comparison without
+    re-exporting a private helper.
+    """
     brain_snapshot = _snapshot_brain_state(session.state)
 
     chunks_list: list[PersistentStreamChunkSnapshot] = []
@@ -1312,7 +1319,7 @@ def save_session(
             created_at_existing = _read_meta_value(
                 conn, META_CREATED_AT_KEY
             )
-            snap = _snapshot_session(
+            snap = snapshot_session(
                 session,
                 config,
                 now_iso=now_iso,
@@ -1483,4 +1490,5 @@ __all__ = (
     "schema_statements",
     "save_session",
     "load_session",
+    "snapshot_session",
 )

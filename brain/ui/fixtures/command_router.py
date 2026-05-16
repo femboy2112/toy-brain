@@ -148,6 +148,11 @@ _EXPECTED_COMMAND_VALUES = frozenset({
     "db_status",
     "db_verify",
     "db_backup",
+    # Phase 3.10b Persistence Observability verbs.
+    "db_summary",
+    "profile_summary",
+    "stream_db_summary",
+    "db_diff",
 })
 
 

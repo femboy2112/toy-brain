@@ -470,12 +470,27 @@ def check_I_UI_07_ui_has_no_forbidden_imports_or_host_execution() -> None:
     self_path = Path(__file__).resolve()
     fixture_dir = self_path.parent
     persistence_module_path = (fixture_dir.parent / "persistence.py").resolve()
+    # Phase 3.10 added two persistence-adjacent modules that legitimately
+    # import ``brain.tlica.profile`` for ``COGITO_ID``. They are subject
+    # to their own per-module static audits (I-OPSHARDEN-12 / I-OBSERVE-06)
+    # and receive the same exemption here as the Phase 3.9 persistence
+    # module (``persistence_module=True``).
+    persistence_ops_module_path = (
+        fixture_dir.parent / "persistence_ops.py"
+    ).resolve()
+    persistence_observe_module_path = (
+        fixture_dir.parent / "persistence_observe.py"
+    ).resolve()
 
     findings: list[_AuditFinding] = []
     for path in paths:
         resolved = path.resolve()
         is_fixture = str(path).startswith(str(fixture_dir))
-        is_persistence_module = resolved == persistence_module_path
+        is_persistence_module = resolved in (
+            persistence_module_path,
+            persistence_ops_module_path,
+            persistence_observe_module_path,
+        )
         # Phase 3.9 persistence fixtures legitimately import tempfile
         # to host throw-away SQLite databases. The narrow per-fixture
         # allowlist is documented in `_audit_ui_source`.

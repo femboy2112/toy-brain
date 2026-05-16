@@ -114,6 +114,10 @@ LOCAL_COMMAND_VERBS: tuple[str, ...] = (
     "db-status",
     "db-verify",
     "db-backup",
+    "db-summary",
+    "profile-summary",
+    "stream-db-summary",
+    "db-diff",
 )
 
 
@@ -297,6 +301,22 @@ class LocalCommandLine:
             )
         if verb == "db-backup":
             return self._parse_db_backup(remainder)
+        if verb == "db-summary":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.DB_SUMMARY
+            )
+        if verb == "profile-summary":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.PROFILE_SUMMARY
+            )
+        if verb == "stream-db-summary":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.STREAM_DB_SUMMARY
+            )
+        if verb == "db-diff":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.DB_DIFF
+            )
         # Unreachable: every verb in LOCAL_COMMAND_VERBS is handled above.
         raise AssertionError(  # pragma: no cover - enumeration is closed
             f"I-UI-18 violated: unrouted typed verb /{verb}"
@@ -502,6 +522,10 @@ LOCAL_COMMAND_HELP: tuple[tuple[str, str], ...] = (
     ("/db-status", "show bounded read-only session DB status"),
     ("/db-verify", "verify the configured session DB (mode=ro)"),
     ("/db-backup <path> [--force]", "back up the configured session DB"),
+    ("/db-summary", "show bounded read-only summary of saved state"),
+    ("/profile-summary", "list saved profile values (exact 'num/den')"),
+    ("/stream-db-summary", "head + tail summary of saved stream chunks"),
+    ("/db-diff", "diff the live session against the saved DB"),
 )
 
 

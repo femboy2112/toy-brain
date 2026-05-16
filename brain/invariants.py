@@ -157,6 +157,14 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.persistence_ops_cli_short_circuit",
     "brain.ui.fixtures.persistence_ops_resource_audit",
     "brain.ui.fixtures.persistence_ops_static_audit",
+    "brain.ui.fixtures.persistence_observe_db_summary",
+    "brain.ui.fixtures.persistence_observe_profile_summary",
+    "brain.ui.fixtures.persistence_observe_stream_db_summary",
+    "brain.ui.fixtures.persistence_observe_db_diff",
+    "brain.ui.fixtures.persistence_observe_no_builder_call",
+    "brain.ui.fixtures.persistence_observe_resource_audit",
+    "brain.ui.fixtures.persistence_observe_default_caps",
+    "brain.ui.fixtures.persistence_observe_static_audit",
 ]
 
 
@@ -837,10 +845,11 @@ for _row_id, _status in _PHASE3_9_PENDING_ROWS.items():
 # making any attempted row execution fail explicitly. Steps 8-10 replace
 # I-OPSHARDEN-01..14 and I-OBSERVE-01..10 with real fixture-backed checks
 # (Step 8 lands the operational-hardening core: session_status, db_status,
-# db_verify, db_backup helpers + persistence_ops fixtures; Step 9 lands the
-# observability summaries + diff: db_summary, profile_summary,
-# stream_db_summary, db_diff helpers + persistence_observe fixtures;
-# Step 10 lands the explicit backup-command docs / README updates).
+# db_verify, db_backup helpers + persistence_ops fixtures (DONE); Step 9
+# lands the observability summaries + diff: db_summary, profile_summary,
+# stream_db_summary, db_diff helpers + persistence_observe fixtures (DONE,
+# all 10 I-OBSERVE rows drained); Step 10 lands the explicit
+# backup-command docs / README updates).
 # I-OBSERVE-11 (OBSERVED, ops/observability dry run) is documented in
 # Step 11's PHASE3_10_OPS_OBSERVABILITY_DRY_RUN.md and does not
 # participate in I-CAT-01 coverage.
@@ -862,16 +871,18 @@ _PHASE3_10_OPS_PENDING_ROWS: dict[str, str] = {
 
 
 _PHASE3_10_OBSERVE_PENDING_ROWS: dict[str, str] = {
-    "I-OBSERVE-01": "REQUIRED",
-    "I-OBSERVE-02": "REQUIRED",
-    "I-OBSERVE-03": "REQUIRED",
-    "I-OBSERVE-04": "REQUIRED",
-    "I-OBSERVE-05": "REQUIRED",
-    "I-OBSERVE-06": "STRUCTURAL",
-    "I-OBSERVE-07": "STRUCTURAL",
-    "I-OBSERVE-08": "STRUCTURAL",
-    "I-OBSERVE-09": "STRUCTURAL",
-    "I-OBSERVE-10": "STRUCTURAL",
+    # Step 9 landed I-OBSERVE-01..10 via brain/ui/persistence_observe.py
+    # (db_summary, profile_summary, stream_db_summary, db_diff helpers
+    # + typed reports + locked default caps), the narrow extension that
+    # promoted brain.ui.persistence._snapshot_session to the public
+    # snapshot_session helper, brain/ui/commands.py (DB_SUMMARY /
+    # PROFILE_SUMMARY / STREAM_DB_SUMMARY / DB_DIFF enum members),
+    # brain/ui/command_line.py (the four Phase 3.10b verbs),
+    # brain/ui/session.py (the four Phase 3.10b dispatchers), and the
+    # eight persistence_observe_* fixtures. No Phase 3.10b Persistence
+    # Observability rows remain pending. I-OBSERVE-11 (OBSERVED) is
+    # documented in Step 11's PHASE3_10_OPS_OBSERVABILITY_DRY_RUN.md
+    # and does not participate in I-CAT-01 coverage.
 }
 
 

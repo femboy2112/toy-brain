@@ -83,6 +83,10 @@ class OperatorCommand(str, Enum):
     DB_STATUS = "db_status"
     DB_VERIFY = "db_verify"
     DB_BACKUP = "db_backup"
+    DB_SUMMARY = "db_summary"
+    PROFILE_SUMMARY = "profile_summary"
+    STREAM_DB_SUMMARY = "stream_db_summary"
+    DB_DIFF = "db_diff"
 
 
 #: The closed set of inspection-only commands. Maps each kind to the
@@ -116,6 +120,10 @@ _COMMANDS_WITHOUT_PAYLOAD: frozenset[OperatorCommand] = frozenset({
     OperatorCommand.SESSION_STATUS,
     OperatorCommand.DB_STATUS,
     OperatorCommand.DB_VERIFY,
+    OperatorCommand.DB_SUMMARY,
+    OperatorCommand.PROFILE_SUMMARY,
+    OperatorCommand.STREAM_DB_SUMMARY,
+    OperatorCommand.DB_DIFF,
 })
 
 

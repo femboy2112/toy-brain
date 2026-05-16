@@ -482,6 +482,14 @@ class OperatorSession:
             self._dispatch_db_verify()
         elif kind is OperatorCommand.DB_BACKUP:
             self._dispatch_db_backup(command.payload)
+        elif kind is OperatorCommand.DB_SUMMARY:
+            self._dispatch_db_summary()
+        elif kind is OperatorCommand.PROFILE_SUMMARY:
+            self._dispatch_profile_summary()
+        elif kind is OperatorCommand.STREAM_DB_SUMMARY:
+            self._dispatch_stream_db_summary()
+        elif kind is OperatorCommand.DB_DIFF:
+            self._dispatch_db_diff()
         else:  # pragma: no cover - the enum is closed
             raise AssertionError(
                 f"I-UI-03 violated: unrouted OperatorCommand {kind!r}"
@@ -924,6 +932,115 @@ class OperatorSession:
             f"bytes={report.dest_byte_size}"
             + (" (overwritten)" if report.overwritten else "")
         )
+
+    # ------------------------------------------------------------------
+    # Phase 3.10b persistence observability dispatchers. None of these
+    # routes call tick(); none stores a sqlite3.Connection on the
+    # session; each catches PersistenceError and surfaces it as bounded
+    # local error_message text. None invokes a kernel builder.
+    # ------------------------------------------------------------------
+
+    def _dispatch_db_summary(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error(
+                "/db-summary requires a configured --session-db"
+            )
+            return
+        from brain.ui.persistence import PersistenceError  # noqa: PLC0415
+        from brain.ui.persistence_observe import db_summary  # noqa: PLC0415
+        try:
+            report = db_summary(config)
+        except PersistenceError as exc:
+            self.set_error(f"/db-summary failed: {exc}")
+            return
+        if report.error_text:
+            self.set_error(f"/db-summary: {report.error_text}")
+            return
+        self.set_status(
+            f"db-summary: profile={report.profile_row_count} "
+            f"msi={report.msi_content_count}/"
+            f"thr={report.msi_threshold} "
+            f"ptcns={report.ptcns_eval_row_count} "
+            f"registry={report.registry_row_count} "
+            f"chunks={report.stream_chunk_count} "
+            f"candidates={report.stream_candidate_count}"
+        )
+
+    def _dispatch_profile_summary(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error(
+                "/profile-summary requires a configured --session-db"
+            )
+            return
+        from brain.ui.persistence import PersistenceError  # noqa: PLC0415
+        from brain.ui.persistence_observe import (  # noqa: PLC0415
+            profile_summary,
+        )
+        try:
+            report = profile_summary(config)
+        except PersistenceError as exc:
+            self.set_error(f"/profile-summary failed: {exc}")
+            return
+        if report.error_text:
+            self.set_error(f"/profile-summary: {report.error_text}")
+            return
+        self.set_status(
+            f"profile-summary: rows={len(report.rows)} "
+            + ("(truncated)" if report.truncated else "(complete)")
+        )
+
+    def _dispatch_stream_db_summary(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error(
+                "/stream-db-summary requires a configured --session-db"
+            )
+            return
+        from brain.ui.persistence import PersistenceError  # noqa: PLC0415
+        from brain.ui.persistence_observe import (  # noqa: PLC0415
+            stream_db_summary,
+        )
+        try:
+            report = stream_db_summary(config)
+        except PersistenceError as exc:
+            self.set_error(f"/stream-db-summary failed: {exc}")
+            return
+        if report.error_text:
+            self.set_error(f"/stream-db-summary: {report.error_text}")
+            return
+        self.set_status(
+            f"stream-db-summary: chunks={report.chunk_count} "
+            f"candidates={report.candidate_count} "
+            f"head={len(report.head)} tail={len(report.tail)}"
+            + (" (truncated)" if report.truncated else "")
+        )
+
+    def _dispatch_db_diff(self) -> None:
+        config = self.session_store_config
+        if config is None:
+            self.set_error(
+                "/db-diff requires a configured --session-db"
+            )
+            return
+        from brain.ui.persistence import PersistenceError  # noqa: PLC0415
+        from brain.ui.persistence_observe import db_diff  # noqa: PLC0415
+        try:
+            report = db_diff(self, config)
+        except PersistenceError as exc:
+            self.set_error(f"/db-diff failed: {exc}")
+            return
+        if report.error_text:
+            self.set_error(f"/db-diff: {report.error_text}")
+            return
+        if report.matches:
+            self.set_status("db-diff: matches (diff_count=0)")
+        else:
+            self.set_status(
+                f"db-diff: diff_count={report.diff_count}"
+                + (" (truncated)" if report.truncated else "")
+            )
 
     # ------------------------------------------------------------------
     # Bounded display contracts (used by the renderer / smoke tests)
