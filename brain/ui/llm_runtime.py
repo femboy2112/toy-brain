@@ -38,6 +38,10 @@ Catalog rows driven from here:
   ``str, Enum``.
 * ``I-LLMTOG-13`` (STRUCTURAL) — Static AST audit over this module
   rejects forbidden imports and module-level side effects.
+* ``I-LLMTOG-16`` (REQUIRED) — ``CODEX_CLI`` without a discoverable
+  ``codex_cli_executable`` raises ``LlmRuntimeError`` before launch.
+* ``I-LLMTOG-17`` (REQUIRED) — ``CODEX_CLI`` factory returns a
+  ``CodexCLIClient`` whose ``command[0]`` is the resolved executable.
 """
 from __future__ import annotations
 
@@ -60,6 +64,7 @@ class LlmRuntimeMode(str, Enum):
     MOCK = "mock"
     ANTHROPIC_API = "anthropic-api"
     CLAUDE_CLI = "claude-cli"
+    CODEX_CLI = "codex-cli"
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +99,7 @@ LLM_RUNTIME_CACHE_DIR: Path = Path("brain/.llm_cache")
 DEFAULT_TIMEOUT_SECONDS: float = 30.0
 DEFAULT_MODEL: str = "claude-sonnet-4-6"
 DEFAULT_CLAUDE_CLI_EXECUTABLE: str = "claude"
+DEFAULT_CODEX_CLI_EXECUTABLE: str = "codex"
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +121,7 @@ class LlmRuntimeConfig:
     api_key: Optional[str] = None
     model: str = DEFAULT_MODEL
     claude_cli_executable: str = DEFAULT_CLAUDE_CLI_EXECUTABLE
+    codex_cli_executable: str = DEFAULT_CODEX_CLI_EXECUTABLE
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     enable_cache: bool = False
     mock_responses: tuple[str, ...] = ()
@@ -199,6 +206,7 @@ def parse_llm_runtime_args(
     cli_api_key: Optional[str] = None
     cli_model: Optional[str] = None
     cli_claude_cli_executable: Optional[str] = None
+    cli_codex_cli_executable: Optional[str] = None
     cli_timeout: Optional[float] = None
     cli_enable_cache: bool = False
     cli_mock_responses: list[str] = []
@@ -261,6 +269,20 @@ def parse_llm_runtime_args(
             cli_claude_cli_executable = argv[i + 1]
             i += 2
             continue
+        if token.startswith("--llm-codex-cli-executable="):
+            cli_codex_cli_executable = token[
+                len("--llm-codex-cli-executable="):
+            ]
+            i += 1
+            continue
+        if token == "--llm-codex-cli-executable":
+            if i + 1 >= n:
+                raise LlmRuntimeError(
+                    "--llm-codex-cli-executable requires a value"
+                )
+            cli_codex_cli_executable = argv[i + 1]
+            i += 2
+            continue
         if token.startswith("--llm-timeout="):
             cli_timeout = _parse_timeout(token[len("--llm-timeout="):])
             i += 1
@@ -311,6 +333,11 @@ def parse_llm_runtime_args(
         if cli_claude_cli_executable is not None
         else DEFAULT_CLAUDE_CLI_EXECUTABLE
     )
+    codex_cli_executable: str = (
+        cli_codex_cli_executable
+        if cli_codex_cli_executable is not None
+        else DEFAULT_CODEX_CLI_EXECUTABLE
+    )
     timeout_seconds: float = (
         cli_timeout if cli_timeout is not None else DEFAULT_TIMEOUT_SECONDS
     )
@@ -320,6 +347,7 @@ def parse_llm_runtime_args(
         api_key=api_key,
         model=model,
         claude_cli_executable=claude_cli_executable,
+        codex_cli_executable=codex_cli_executable,
         timeout_seconds=timeout_seconds,
         enable_cache=cli_enable_cache,
         mock_responses=tuple(cli_mock_responses),
@@ -459,6 +487,17 @@ def build_llm_client_from_config(config: LlmRuntimeConfig) -> object:
             return _wrap_cache(backend)
         return backend
 
+    if mode is LlmRuntimeMode.CODEX_CLI:
+        if _which(config.codex_cli_executable) is None:
+            raise LlmRuntimeError(
+                f"mode 'codex-cli' requires executable "
+                f"{config.codex_cli_executable!r} on PATH"
+            )
+        backend = _build_codex_cli_client(config)
+        if config.enable_cache:
+            return _wrap_cache(backend)
+        return backend
+
     # Defensive: LlmRuntimeMode is closed, but keep the branch fail-loud.
     raise LlmRuntimeError(f"unhandled LlmRuntimeMode: {mode!r}")
 
@@ -504,6 +543,21 @@ def _build_claude_cli_client(config: LlmRuntimeConfig) -> object:
     )
 
 
+def _build_codex_cli_client(config: LlmRuntimeConfig) -> object:
+    """Construct a :class:`brain.llm.client.CodexCLIClient`.
+
+    Mirrors :func:`_build_claude_cli_client`. The command tuple is
+    locked to ``(<resolved-executable>, "exec")`` per the Phase 3.11
+    corrigenda Section 7.
+    """
+    from brain.llm.client import CodexCLIClient
+
+    return CodexCLIClient(
+        command=(config.codex_cli_executable, "exec"),
+        timeout_seconds=config.timeout_seconds,
+    )
+
+
 def _wrap_cache(inner: object) -> object:
     """Wrap an inner client in :class:`brain.llm.client.CachedClient`."""
     from brain.llm.client import CachedClient
@@ -538,6 +592,11 @@ def format_startup_mode_line(config: LlmRuntimeConfig) -> str:
             f"claude-cli; executable={config.claude_cli_executable}; "
             f"cache={'on' if config.enable_cache else 'off'}"
         )
+    elif mode is LlmRuntimeMode.CODEX_CLI:
+        explanation = (
+            f"codex-cli; executable={config.codex_cli_executable}; "
+            f"cache={'on' if config.enable_cache else 'off'}"
+        )
     else:  # defensive
         explanation = "unknown mode"
     return f"brain.ui: llm runtime mode = {mode.value} ({explanation})"
@@ -545,6 +604,7 @@ def format_startup_mode_line(config: LlmRuntimeConfig) -> str:
 
 __all__ = [
     "DEFAULT_CLAUDE_CLI_EXECUTABLE",
+    "DEFAULT_CODEX_CLI_EXECUTABLE",
     "DEFAULT_MODEL",
     "DEFAULT_TIMEOUT_SECONDS",
     "LLM_RUNTIME_CACHE_DIR",

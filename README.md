@@ -62,9 +62,17 @@ python3 -m brain.ui --llm-mode mock \
 python3 -m brain.ui --llm-mode anthropic-api \
     --llm-anthropic-api-key <key>                   # real Anthropic API
 python3 -m brain.ui --llm-mode claude-cli           # local `claude -p` CLI
+python3 -m brain.ui --llm-mode codex-cli            # local `codex exec` CLI
 python3 -m brain.ui --llm-mode anthropic-api \
     --llm-enable-cache                              # wrap with CachedClient
 ```
+
+The `codex-cli` mode (Phase 3.11) targets the local OpenAI codex
+binary via `("codex", "exec")`. Override the executable with
+`--llm-codex-cli-executable PATH` (default: `codex`). Resolution
+happens via `shutil.which` at session-launch; missing binaries fail
+closed before launch with `LlmRuntimeError`. The mode is explicit
+opt-in only; there is no `BRAIN_LLM_CODEX_CLI_EXECUTABLE` env var.
 
 Rules (drive the `I-LLMTOG-*` row family):
 

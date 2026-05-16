@@ -1,11 +1,12 @@
-"""Phase 3.8b closed-mode-enumeration fixture.
+"""Phase 3.8b closed-mode-enumeration fixture (extended in Phase 3.11).
 
 Drives:
 
 * ``I-LLMTOG-02`` (REQUIRED) — ``LlmRuntimeMode`` is a finite closed
   enumeration; unknown strings raise.
 * ``I-LLMTOG-12`` (STRUCTURAL) — ``LlmRuntimeMode`` is a closed
-  ``str, Enum``; member set is exactly the documented four values.
+  ``str, Enum``; member set is exactly the documented five values
+  (Phase 3.11 extended from four to five).
 """
 from __future__ import annotations
 
@@ -20,13 +21,15 @@ from brain.ui.llm_runtime import (
 
 
 _EXPECTED_VALUES: frozenset[str] = frozenset(
-    {"offline", "mock", "anthropic-api", "claude-cli"}
+    {"offline", "mock", "anthropic-api", "claude-cli", "codex-cli"}
 )
+_EXPECTED_MEMBER_COUNT: int = 5
 
 
 @register("I-LLMTOG-02", status="REQUIRED")
 def check_I_LLMTOG_02_mode_closed_runtime() -> None:
-    # Member set is exactly the documented four values.
+    # Member set is exactly the documented five values (Phase 3.11
+    # extended from four to five with CODEX_CLI).
     actual = frozenset(m.value for m in LlmRuntimeMode)
     assert actual == _EXPECTED_VALUES, (
         "I-LLMTOG-02 violated: LlmRuntimeMode member set drifted "
@@ -62,15 +65,26 @@ def check_I_LLMTOG_12_mode_closed_structural() -> None:
         "I-LLMTOG-12 violated: LlmRuntimeMode is not an Enum subclass"
     )
 
-    # Exact membership.
+    # Exact membership (Phase 3.11 extends from four to five).
     actual = frozenset(m.value for m in LlmRuntimeMode)
     assert actual == _EXPECTED_VALUES, (
         "I-LLMTOG-12 violated: LlmRuntimeMode member set drifted "
         f"(got {sorted(actual)})"
     )
 
+    # Member count is exactly five (Phase 3.11 corrigenda Section 3).
+    actual_count = sum(1 for _ in LlmRuntimeMode)
+    assert actual_count == _EXPECTED_MEMBER_COUNT, (
+        "I-LLMTOG-12 violated: LlmRuntimeMode member count is not "
+        f"{_EXPECTED_MEMBER_COUNT} (got {actual_count})"
+    )
+
     # Members have str semantics (an explicit affordance of str-Enum).
     assert LlmRuntimeMode.OFFLINE == "offline", (
         "I-LLMTOG-12 violated: LlmRuntimeMode.OFFLINE does not equal "
+        "the underlying str value"
+    )
+    assert LlmRuntimeMode.CODEX_CLI == "codex-cli", (
+        "I-LLMTOG-12 violated: LlmRuntimeMode.CODEX_CLI does not equal "
         "the underlying str value"
     )

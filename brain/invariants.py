@@ -130,6 +130,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.llm_runtime_explicit_opt_in",
     "brain.ui.fixtures.llm_runtime_anthropic_requires_key",
     "brain.ui.fixtures.llm_runtime_claude_cli_requires_executable",
+    "brain.ui.fixtures.llm_runtime_codex_cli_factory",
+    "brain.ui.fixtures.llm_runtime_codex_cli_requires_executable",
     "brain.ui.fixtures.llm_runtime_mock_requires_responses",
     "brain.ui.fixtures.llm_runtime_cache_gated",
     "brain.ui.fixtures.llm_runtime_tick_seam",
@@ -1025,10 +1027,7 @@ register("I-PERSIST-16", status="STRUCTURAL")(
 # ---------------------------------------------------------------------------
 
 
-_PHASE3_11_PENDING_ROWS: dict[str, str] = {
-    "I-LLMTOG-16": "REQUIRED",
-    "I-LLMTOG-17": "REQUIRED",
-}
+_PHASE3_11_PENDING_ROWS: dict[str, str] = {}
 
 
 def _make_phase3_11_pending_check(row_id: str) -> Callable[[], None]:
