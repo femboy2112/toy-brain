@@ -124,6 +124,18 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.stream_static_audit",
     "brain.ui.fixtures.stream_session_resource_audit",
     "brain.ui.fixtures.stream_constant_parity",
+    "brain.ui.fixtures.llm_runtime_default_offline",
+    "brain.ui.fixtures.llm_runtime_mode_closed",
+    "brain.ui.fixtures.llm_runtime_factory_per_mode",
+    "brain.ui.fixtures.llm_runtime_explicit_opt_in",
+    "brain.ui.fixtures.llm_runtime_anthropic_requires_key",
+    "brain.ui.fixtures.llm_runtime_claude_cli_requires_executable",
+    "brain.ui.fixtures.llm_runtime_mock_requires_responses",
+    "brain.ui.fixtures.llm_runtime_cache_gated",
+    "brain.ui.fixtures.llm_runtime_tick_seam",
+    "brain.ui.fixtures.llm_runtime_print_once_independent",
+    "brain.ui.fixtures.llm_runtime_config_frozen",
+    "brain.ui.fixtures.llm_runtime_static_audit",
 ]
 
 
@@ -715,30 +727,16 @@ for _row_id, _status in _PHASE3_8_PENDING_ROWS.items():
 
 
 # ---------------------------------------------------------------------------
-# Phase 3.8b LLM Runtime Toggle pending rows. Step 24E lands the catalog
-# rows I-LLMTOG-01..15. Step 24F is the implementation step that adds
-# brain/ui/llm_runtime.py, extends brain/ui/__main__.py, and lands the
-# twelve llm_runtime_* fixtures that drain these pending registrations.
-# I-LLMTOG-14 (OBSERVED) and I-LLMTOG-15 (NOT-EXERCISED) do not
-# participate in I-CAT-01 coverage and are not pending here.
+# Phase 3.8b LLM Runtime Toggle pending rows. Step 24F landed
+# brain/ui/llm_runtime.py, extended brain/ui/__main__.py, and added the
+# twelve llm_runtime_* fixtures. I-LLMTOG-14 (OBSERVED) and
+# I-LLMTOG-15 (NOT-EXERCISED) do not participate in I-CAT-01 coverage
+# and are not pending here. No Phase 3.8b LLM Runtime Toggle rows
+# remain pending.
 # ---------------------------------------------------------------------------
 
 
-_PHASE3_8B_PENDING_ROWS: dict[str, str] = {
-    "I-LLMTOG-01": "REQUIRED",
-    "I-LLMTOG-02": "REQUIRED",
-    "I-LLMTOG-03": "REQUIRED",
-    "I-LLMTOG-04": "REQUIRED",
-    "I-LLMTOG-05": "REQUIRED",
-    "I-LLMTOG-06": "REQUIRED",
-    "I-LLMTOG-07": "REQUIRED",
-    "I-LLMTOG-08": "REQUIRED",
-    "I-LLMTOG-09": "REQUIRED",
-    "I-LLMTOG-10": "REQUIRED",
-    "I-LLMTOG-11": "STRUCTURAL",
-    "I-LLMTOG-12": "STRUCTURAL",
-    "I-LLMTOG-13": "STRUCTURAL",
-}
+_PHASE3_8B_PENDING_ROWS: dict[str, str] = {}
 
 
 def _make_phase3_8b_pending_check(row_id: str) -> Callable[[], None]:

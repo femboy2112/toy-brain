@@ -230,6 +230,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
       non-interactive inspection and for the I-UI-12 smoke fixture.
     * ``--check-terminal`` — print the result of :func:`detect_terminal`
       and exit. Never touches curses.
+    * ``--llm-mode`` — Phase 3.8b LLM runtime toggle. Accepts
+      ``offline`` (default), ``mock``, ``anthropic-api``, or
+      ``claude-cli``. Model-backed modes require explicit opt-in.
+    * ``--llm-anthropic-api-key`` — explicit API key override for
+      ``anthropic-api``. Otherwise resolved from
+      ``BRAIN_ANTHROPIC_API_KEY`` or ``ANTHROPIC_API_KEY``.
+    * ``--llm-anthropic-model`` — model name override.
+    * ``--llm-claude-cli-executable`` — executable override for
+      ``claude-cli``.
+    * ``--llm-timeout`` — request timeout in seconds.
+    * ``--llm-enable-cache`` — wrap model-backed clients in
+      :class:`CachedClient`. Only honored for ``anthropic-api`` /
+      ``claude-cli``.
+    * ``--llm-mock-response`` — repeatable canned response for ``mock``.
     """
     parser = argparse.ArgumentParser(
         prog="python3 -m brain.ui",
@@ -237,7 +251,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "Operator TUI entrypoint. Inspects BrainState / TickRecord / "
             "Phase 3.1-3.4 developmental histories and routes bottom-up "
             "PerceptEvent inputs through the public tick() path. No real "
-            "LLM, shell, network, file mutation, or host execution."
+            "LLM, shell, network, file mutation, or host execution unless "
+            "an explicit --llm-mode is supplied."
         ),
     )
     parser.add_argument(
@@ -265,6 +280,55 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=24,
         help="terminal height for --print-once (default: 24)",
     )
+    parser.add_argument(
+        "--llm-mode",
+        default=None,
+        help=(
+            "LLM runtime mode: offline (default), mock, anthropic-api, "
+            "or claude-cli. Model-backed modes require explicit opt-in. "
+            "Also honors BRAIN_LLM_MODE; --llm-mode wins."
+        ),
+    )
+    parser.add_argument(
+        "--llm-anthropic-api-key",
+        default=None,
+        help=(
+            "explicit Anthropic API key override; otherwise resolved "
+            "from BRAIN_ANTHROPIC_API_KEY then ANTHROPIC_API_KEY"
+        ),
+    )
+    parser.add_argument(
+        "--llm-anthropic-model",
+        default=None,
+        help="model name override for anthropic-api",
+    )
+    parser.add_argument(
+        "--llm-claude-cli-executable",
+        default=None,
+        help="executable override for claude-cli (default: claude)",
+    )
+    parser.add_argument(
+        "--llm-timeout",
+        default=None,
+        help="request timeout in seconds (default: 30.0)",
+    )
+    parser.add_argument(
+        "--llm-enable-cache",
+        action="store_true",
+        help=(
+            "wrap model-backed clients with CachedClient under "
+            "brain/.llm_cache; only honored for anthropic-api / claude-cli"
+        ),
+    )
+    parser.add_argument(
+        "--llm-mock-response",
+        action="append",
+        default=None,
+        help=(
+            "canned response for mode 'mock'; repeatable; required when "
+            "--llm-mode mock is selected"
+        ),
+    )
     return parser
 
 
@@ -288,6 +352,13 @@ def main(
     ``--print-once``, ``--check-terminal``) without attaching to a real
     terminal. The default values read :data:`sys.stdin` / :data:`sys.stdout`
     / :data:`sys.stderr` / :data:`os.environ`.
+
+    Phase 3.8b: the LLM runtime mode is selected via
+    :func:`brain.ui.llm_runtime.parse_llm_runtime_args` and the client
+    is built via :func:`brain.ui.llm_runtime.build_llm_client_from_config`
+    before ``run_curses`` is invoked (drives I-LLMTOG-09). The
+    ``--print-once`` / ``--check-terminal`` branches return before the
+    factory is invoked (drives I-LLMTOG-10).
     """
     stdout_ = stdout if stdout is not None else sys.stdout
     stderr_ = stderr if stderr is not None else sys.stderr
@@ -304,6 +375,8 @@ def main(
         return 0 if check.usable else 1
 
     if args.print_once:
+        # --print-once remains independent of the selected LLM mode
+        # (I-LLMTOG-10): we render without constructing any backend.
         session = build_default_session()
         view = build_agent_view_for_session(
             session,
@@ -321,10 +394,30 @@ def main(
         print(build_no_terminal_message(check), file=stderr_)
         return 1
 
+    # Resolve the LLM runtime config from the parsed args + env. This
+    # happens before any session / curses initialization so a missing
+    # API key / executable / mock response surfaces locally (ruling D).
+    from brain.ui.llm_runtime import (
+        LlmRuntimeError,
+        build_llm_client_from_config,
+        format_startup_mode_line,
+    )
+
+    env_ = env if env is not None else dict(os.environ)
+    try:
+        llm_config = _resolve_llm_runtime_config(argv, env_)
+        client = build_llm_client_from_config(llm_config)
+    except LlmRuntimeError as exc:
+        print(f"brain.ui: llm runtime error: {exc}", file=stderr_)
+        return 1
+
+    # Tactile feedback: print the resolved mode line to stdout (ruling F).
+    print(format_startup_mode_line(llm_config), file=stdout_)
+
     # Usable terminal: import the curses wrapper lazily and hand off.
     # The wrapper is responsible for the actual screen lifecycle; we
-    # only construct the default session and the offline stand-in
-    # client and pass them through.
+    # only construct the default session and the selected client and
+    # pass them through.
     #
     # The ``percept_factory_builder`` is passed in so the curses wrapper
     # can construct a live :func:`brain.ui.tui.prompt_queue_percept`
@@ -339,7 +432,6 @@ def main(
     from brain.ui.tui import make_curses_percept_factory, run_curses
 
     session = build_default_session()
-    client = OfflineStandInClient()
     try:
         run_curses(
             session,
@@ -350,6 +442,21 @@ def main(
         # A clean Ctrl-C exit is a documented quit path.
         return 0
     return 0
+
+
+def _resolve_llm_runtime_config(
+    argv: Optional[list[str]],
+    env: dict[str, str],
+) -> "LlmRuntimeConfig":  # type: ignore[name-defined]
+    """Wire argv (from sys.argv when None) + env into LlmRuntimeConfig.
+
+    Kept separate from :func:`main` so the I-LLMTOG-09 / I-LLMTOG-10
+    fixtures can exercise the resolve path without re-running argparse.
+    """
+    from brain.ui.llm_runtime import parse_llm_runtime_args
+
+    raw_argv = list(argv) if argv is not None else list(sys.argv[1:])
+    return parse_llm_runtime_args(raw_argv, env)
 
 
 def _render_once_to_string(session: OperatorSession, *, width: int, height: int) -> str:
