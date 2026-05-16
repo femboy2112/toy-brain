@@ -32,6 +32,7 @@ consumes.
 """
 from __future__ import annotations
 
+import pathlib
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import Union
@@ -109,6 +110,17 @@ LOCAL_COMMAND_VERBS: tuple[str, ...] = (
     "stream-promote",
     "save-session",
     "load-session",
+    "session-status",
+    "db-status",
+    "db-verify",
+    "db-backup",
+    "db-summary",
+    "profile-summary",
+    "stream-db-summary",
+    "db-diff",
+    "autosave-status",
+    "autosave-enable",
+    "autosave-disable",
 )
 
 
@@ -278,6 +290,46 @@ class LocalCommandLine:
             return self._parse_no_args(
                 verb, remainder, OperatorCommand.LOAD_SESSION
             )
+        if verb == "session-status":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.SESSION_STATUS
+            )
+        if verb == "db-status":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.DB_STATUS
+            )
+        if verb == "db-verify":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.DB_VERIFY
+            )
+        if verb == "db-backup":
+            return self._parse_db_backup(remainder)
+        if verb == "db-summary":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.DB_SUMMARY
+            )
+        if verb == "profile-summary":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.PROFILE_SUMMARY
+            )
+        if verb == "stream-db-summary":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.STREAM_DB_SUMMARY
+            )
+        if verb == "db-diff":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.DB_DIFF
+            )
+        if verb == "autosave-status":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.AUTOSAVE_STATUS
+            )
+        if verb == "autosave-disable":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.AUTOSAVE_DISABLE
+            )
+        if verb == "autosave-enable":
+            return self._parse_autosave_enable(remainder)
         # Unreachable: every verb in LOCAL_COMMAND_VERBS is handled above.
         raise AssertionError(  # pragma: no cover - enumeration is closed
             f"I-UI-18 violated: unrouted typed verb /{verb}"
@@ -393,6 +445,112 @@ class LocalCommandLine:
             return LocalCommandError(f"/stream-promote rejected: {exc}")
         return command
 
+    def _parse_db_backup(self, remainder: str) -> ParseResult:
+        """Parse ``/db-backup <path> [--force]``.
+
+        Accepts one positional destination path plus an optional
+        ``--force`` flag token. URI-scheme destinations are rejected at
+        parse time (drives ``I-OPSHARDEN-07``). No shell expansion,
+        glob expansion, or variable substitution is performed.
+        """
+        text = remainder.strip()
+        if not text:
+            return LocalCommandError(
+                "/db-backup requires <path> [--force]"
+            )
+        tokens = text.split()
+        force = False
+        positional: list[str] = []
+        for token in tokens:
+            if token == "--force":
+                if force:
+                    return LocalCommandError(
+                        "/db-backup --force may not repeat"
+                    )
+                force = True
+            elif token.startswith("--"):
+                return LocalCommandError(
+                    f"/db-backup does not recognize flag {token!r}"
+                )
+            else:
+                positional.append(token)
+        if len(positional) != 1:
+            return LocalCommandError(
+                "/db-backup requires exactly one <path> argument"
+            )
+        path_str = positional[0]
+        # Reject URI-scheme destinations at parse time so /db-backup
+        # never reaches sqlite3 with a forbidden destination.
+        if ":" in path_str:
+            from brain.ui.persistence_ops import (  # noqa: PLC0415
+                DB_BACKUP_FORBIDDEN_SCHEMES,
+            )
+            prefix = path_str.split(":", 1)[0].lower()
+            if prefix in DB_BACKUP_FORBIDDEN_SCHEMES:
+                return LocalCommandError(
+                    "/db-backup destination uses forbidden URI scheme "
+                    f"{prefix!r}"
+                )
+        try:
+            dest_path = pathlib.Path(path_str)
+        except (TypeError, ValueError) as exc:
+            return LocalCommandError(f"/db-backup path rejected: {exc}")
+        try:
+            command = make_command(
+                OperatorCommand.DB_BACKUP,
+                dest_path=dest_path,
+                backup_force=force,
+            )
+        except (TypeError, ValueError) as exc:
+            return LocalCommandError(f"/db-backup rejected: {exc}")
+        return command
+
+    def _parse_autosave_enable(self, remainder: str) -> ParseResult:
+        """Parse ``/autosave-enable <mode>``.
+
+        Accepts exactly one positional argument; the token must equal
+        one of the closed :class:`brain.ui.autosave.AutosaveMode` value
+        strings (``"off"`` or ``"after-successful-mutation"``). No
+        shell expansion, glob expansion, or variable substitution is
+        performed.
+
+        Drives ``I-AUTOSAVE-04`` (closed-arg shape for the
+        ``/autosave-enable`` verb).
+        """
+        text = remainder.strip()
+        if not text:
+            return LocalCommandError(
+                "/autosave-enable requires <mode>"
+            )
+        tokens = text.split()
+        if len(tokens) != 1:
+            return LocalCommandError(
+                "/autosave-enable requires exactly one <mode> argument"
+            )
+        mode_token = tokens[0]
+        # Lazy import: keeps the brain.ui.command_line -> brain.ui.autosave
+        # ordering shallow.
+        from brain.ui.autosave import (  # noqa: PLC0415
+            AutosaveMode,
+            SUPPORTED_AUTOSAVE_MODES,
+        )
+        try:
+            mode = AutosaveMode(mode_token)
+        except ValueError:
+            return LocalCommandError(
+                "/autosave-enable mode must be in "
+                f"{sorted(m.value for m in SUPPORTED_AUTOSAVE_MODES)!r} "
+                f"(got {mode_token!r})"
+            )
+        try:
+            command = make_command(
+                OperatorCommand.AUTOSAVE_ENABLE,
+                autosave_mode=mode,
+            )
+        except (TypeError, ValueError) as exc:
+            return LocalCommandError(f"/autosave-enable rejected: {exc}")
+        return command
+
 
 # ---------------------------------------------------------------------------
 # Help-text rendering helper.
@@ -419,6 +577,17 @@ LOCAL_COMMAND_HELP: tuple[tuple[str, str], ...] = (
     ("/stream-promote <id>", "queue one explicit promotion candidate"),
     ("/save-session", "save the session to the configured DB"),
     ("/load-session", "load the session from the configured DB"),
+    ("/session-status", "show bounded read-only session status"),
+    ("/db-status", "show bounded read-only session DB status"),
+    ("/db-verify", "verify the configured session DB (mode=ro)"),
+    ("/db-backup <path> [--force]", "back up the configured session DB"),
+    ("/db-summary", "show bounded read-only summary of saved state"),
+    ("/profile-summary", "list saved profile values (exact 'num/den')"),
+    ("/stream-db-summary", "head + tail summary of saved stream chunks"),
+    ("/db-diff", "diff the live session against the saved DB"),
+    ("/autosave-status", "show bounded autosave configuration + last attempt"),
+    ("/autosave-enable <mode>", "opt in to autosave (mode: off|after-successful-mutation)"),
+    ("/autosave-disable", "disable autosave (idempotent)"),
 )
 
 

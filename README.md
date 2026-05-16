@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.17)
+# brain — TLICA-constrained Python kernel (catalog v0.19)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -155,6 +155,33 @@ The closed set of typed verbs (one verb per submission):
                             into the live session on success (Phase 3.9;
                             no implicit load; preserves the live session
                             on failure; does NOT call tick())
+/session-status             bounded read-only summary of the live
+                            OperatorSession (Phase 3.10a; no disk IO)
+/db-status                  bounded read-only summary of the configured
+                            session DB: existence, byte size, mtime,
+                            schema_version, catalog_version, created_at,
+                            updated_at (Phase 3.10a; sqlite3 mode=ro)
+/db-verify                  reconstruct a candidate from the configured
+                            DB through the Phase 3.9 load path, run
+                            invariants, DROP the candidate, report
+                            PASS / FAIL (Phase 3.10a; live session
+                            unchanged on PASS or FAIL)
+/db-summary                 bounded row-count + meta summary of the
+                            saved DB (Phase 3.10b; sqlite3 mode=ro)
+/profile-summary            COGITO-first, deterministically-sorted exact-
+                            Fraction "num/den" listing of saved profile
+                            values (Phase 3.10b; row cap 64)
+/stream-db-summary          bounded head + tail slice of saved
+                            stream_chunks + stream_candidates with text
+                            preview cap 64 (Phase 3.10b)
+/db-diff                    live OperatorSession vs saved snapshot
+                            diff over the finite field enumeration;
+                            "<missing>" explicit on one-sided absence
+                            (Phase 3.10b; row cap 32)
+/db-backup <path>           byte-faithful sqlite3.Connection.backup()
+                            copy of the configured DB to <path>
+                            (Phase 3.10a; refuses to overwrite without
+                            --force; rejects URI-scheme destinations)
 ```
 
 ### Persistent session store (Phase 3.9)
@@ -201,6 +228,91 @@ Rules:
   `/load-session` are the only persistence routes. A future
   autosave campaign requires an explicit reviewed policy
   artifact and dedicated catalog rows.
+
+### Operational hardening + observability (Phase 3.10a / 3.10b)
+
+Phase 3.10 adds eight typed read-mostly verbs and four one-shot
+CLI flags over the Phase 3.9 session DB. Track A (Operational
+Hardening) covers status / verify / backup; track B (Persistence
+Observability) covers summaries + diff. Autosave (track C) remains
+deferred behind its own review gate.
+
+```bash
+python3 -m brain.ui --session-db brain/session.sqlite3 --db-status   # one-shot DB status; exit 0/1
+python3 -m brain.ui --session-db brain/session.sqlite3 --db-verify   # one-shot verify; exit 0/1
+python3 -m brain.ui --session-db brain/session.sqlite3 \
+    --db-backup /tmp/session.bak.sqlite3                             # one-shot byte-faithful backup
+python3 -m brain.ui --session-db brain/session.sqlite3 \
+    --db-backup /tmp/session.bak.sqlite3 --db-backup-force           # overwrite an existing dest
+```
+
+The three short-circuit flags (`--db-status`, `--db-verify`,
+`--db-backup PATH`) are mutually exclusive and short-circuit after
+`--check-terminal` / `--print-once` but before
+`parse_llm_runtime_args` and curses initialization. Exit code is
+`0` on PASS / success and `1` on FAIL / failure.
+
+Inside the TUI, the same eight verbs route through the typed
+composer:
+
+```text
+/session-status                    Phase 3.10a (no disk IO)
+/db-status                         Phase 3.10a (sqlite3 mode=ro)
+/db-verify                         Phase 3.10a (load → DROP candidate)
+/db-summary                        Phase 3.10b (mode=ro; row counts)
+/profile-summary                   Phase 3.10b (exact "num/den")
+/stream-db-summary                 Phase 3.10b (head + tail slice)
+/db-diff                           Phase 3.10b (live vs saved)
+/db-backup <path> [--force]        Phase 3.10a (page-faithful copy)
+```
+
+Rules (driven by `I-OPSHARDEN-01..14` and `I-OBSERVE-01..11`):
+
+- `/session-status` reads in-memory `OperatorSession` fields only;
+  no disk IO; no `tick()`; no `sqlite3.Connection`.
+- `/db-status`, `/db-verify`, `/db-summary`, `/profile-summary`,
+  `/stream-db-summary`, `/db-diff` open the configured DB through
+  `sqlite3.connect("file:<path>?mode=ro", uri=True)` inside a
+  `with conn:` block; no live session mutation.
+- `/db-verify` reuses `load_session` (the Phase 3.9 helper), runs
+  the existing invariant assertions on the candidate `BrainState`,
+  and immediately drops the candidate; the live `OperatorSession`
+  reference is unchanged by `id()` before and after the call.
+- `/db-backup` uses `sqlite3.Connection.backup()` (page-faithful)
+  from a `mode=ro` source connection to a write-mode destination
+  connection inside `with` blocks. It refuses URI-scheme
+  destinations (`sqlite:`, `file:`, `http:`, `https:`, `ftp:`,
+  `ws:`, `wss:`, `data:`, `gopher:`, `ssh:`, `git:`); it refuses
+  `dest_path == source_path`; it refuses an existing destination
+  unless `--force` is supplied; it never modifies the source DB.
+- Observability commands never invoke a kernel builder
+  (`make_profile_with_cogito`, `make_msi`, `make_ptcns`,
+  `ContentRegistry`, `BrainState`, `make_text_stream_chunk`,
+  `TextStreamHistory`, `make_stream_promotion_candidate`,
+  `OperatorSession`); they read typed rows directly through
+  `_deserialize_from_db` and the public `snapshot_session` helper.
+- All `Fraction` values display as exact `"num/den"` strings via
+  a single shared render helper; no `float()` / `repr()` / JSON
+  leakage.
+- `/db-diff` reports differences over the finite field enumeration
+  declared in source (`profile.<id>`, `msi.contents`,
+  `msi.threshold`, `ptcns_eval.<id>`, `registry.<id>`,
+  `tick_counter`, `stream_chunk_serial`, `stream_history.count`,
+  `stream_candidates.count`) and uses the literal `"<missing>"`
+  for one-sided absence (never silent `0` / `null` defaults).
+- Default row caps: `PROFILE_SUMMARY_ROW_CAP = 64`,
+  `STREAM_DB_SUMMARY_HEAD_CAP = 8`,
+  `STREAM_DB_SUMMARY_TAIL_CAP = 8`, `DB_DIFF_ROW_CAP = 32`,
+  `STREAM_TEXT_PREVIEW_MAX_LEN = 64`,
+  `OPS_REPORT_TEXT_MAX_LEN = 256`,
+  `PROFILE_VALUE_STRING_MAX_LEN = 64`.
+- Phase 3.10a/b adds NO new `OperatorSession` field; the
+  resource-free property from Phase 3.9 is preserved.
+- No autosave entry point exists in either
+  `brain/ui/persistence_ops.py` or
+  `brain/ui/persistence_observe.py`; both modules carry a
+  defensive autosave-absent audit. Phase 3.10c autosave wiring is
+  deferred to a later catalog patch.
 
 Composer-only keys (always handled as edit events, regardless of
 buffer state):
@@ -283,6 +395,8 @@ Behaviour rules (enforced by the `I-UI-*` catalog rows):
 - **v0.15** — +I-UISTRM-01..17 (Phase 3.8 Operator Stream Interaction `/stream`, `/stream-summary`, `/stream-candidates`, `/stream-promote` typed routes over the Phase 3.7 substrate; `/step` remains the only `tick()` route).
 - **v0.16** — +I-LLMTOG-01..15 (Phase 3.8b LLM Runtime Toggle: explicit `--llm-mode {offline,mock,anthropic-api,claude-cli}` opt-in over the existing `LLMClient` protocol; `offline` remains the default).
 - **v0.17** — +I-PERSIST-01..16 (Phase 3.9 Persistent Session Store: explicit typed transactional SQLite-backed `/save-session` / `/load-session` over `BrainState` + `OperatorSession` at `brain/ui/persistence.py`; Fractions persist exactly as integer pairs; load reconstructs through public builders; failed save / load preserves the live session; autosave is NOT-EXERCISED).
+- **v0.19** — +I-AUTOSAVE-01..15 (Phase 3.10c Autosave Policy: default-off, opt-in autosave layer at `brain/ui/autosave.py` over the existing Phase 3.9 `save_session` helper). `AutosaveMode` is a finite closed `(str, Enum)` with exactly `OFF` and `AFTER_SUCCESSFUL_MUTATION` members; `AutosaveTrigger` is a finite closed `(str, Enum)` with exactly `STEP_TICK` and `STREAM_PROMOTE` members. Default is `OFF` on every cold start at session construction AND at CLI parse time; no `BRAIN_AUTOSAVE_MODE` ambient env. `/autosave-enable` requires `--session-db` and raises `PersistenceError` otherwise; `/autosave-disable` is idempotent and never raises; `/autosave-status` returns a bounded report and never raises. `maybe_autosave_after_mutation` is the sole autosave entry point reachable from any dispatch path; fires AFTER `OperatorSession.dispatch` returns from a successful mutating dispatch (`/step` with `STEP_TICK`, `/stream-promote` with `STREAM_PROMOTE`); never fires after a failed dispatch, never fires after a read-only dispatch, never fires inside `tick()`; absorbs every `PersistenceError` into the typed status report (NEVER raises). Autosave reuses Phase 3.9 `save_session` via the existing transactional `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK` discipline; no second save code path. Failure preserves the live `OperatorSession` and the on-disk session DB. New typed `OperatorCommand` kinds (`AUTOSAVE_STATUS`, `AUTOSAVE_ENABLE`, `AUTOSAVE_DISABLE`) + `AutosaveEnablePayload`. New CLI flag `--autosave-mode {off, after-successful-mutation}` (default `off`; requires `--session-db` for non-off). Two new optional `OperatorSession` fields (`autosave_config`, `last_autosave_status`). `brain/ui/autosave.py` static audit: no `@atexit`, no `threading`, no `asyncio`, no `signal` handler, no `curses` callback, no `tick(` call. The Phase 3.9 `I-PERSIST-16` row is RECLASSIFIED in this patch (NOT-EXERCISED -> STRUCTURAL) with a narrowed proposition (`brain/ui/persistence.py` owns no autosave trigger or background autosave hook); its row ID is preserved.
+- **v0.18** — +I-OPSHARDEN-01..14 + I-OBSERVE-01..11 (Phase 3.10 Operational Hardening + Persistence Observability, tracks A + B only; track C autosave is deferred to a later catalog patch). Phase 3.10a adds read-only `/session-status`, read-only `/db-status` (sqlite3 uri `mode=ro`), candidate-DROPPING `/db-verify` that reuses `load_session` and runs invariants without swapping the live session, and byte-faithful `/db-backup` via `sqlite3.Connection.backup()` with `--force` overwrite gate and URI-scheme rejection (`sqlite:`, `file:`, `http:`, `https:`, `ftp:`, `ws:`, `wss:`, `data:`, `gopher:`, `ssh:`, `git:`). New one-shot CLI flags `--db-status` / `--db-verify` / `--db-backup PATH` / `--db-backup-force` are mutually exclusive at argparse time and short-circuit after `--check-terminal` / `--print-once` but before `parse_llm_runtime_args`; exit code 0 on success, 1 on failure. Phase 3.10b adds bounded read-only `/db-summary`, COGITO-first deterministically-sorted exact-`Fraction`-`"num/den"` `/profile-summary`, head+tail-bounded `/stream-db-summary` (`STREAM_TEXT_PREVIEW_MAX_LEN = 64`), and finite-field-enumeration `/db-diff` with explicit `"<missing>"` markers on one-sided absence. Observability commands never activate saved state and never mutate live `BrainState`. Default row caps: `PROFILE_SUMMARY_ROW_CAP = 64`, `STREAM_DB_SUMMARY_HEAD_CAP = 8`, `STREAM_DB_SUMMARY_TAIL_CAP = 8`, `DB_DIFF_ROW_CAP = 32`, `OPS_REPORT_TEXT_MAX_LEN = 256`. New typed `OperatorCommand` kinds (`SESSION_STATUS`, `DB_STATUS`, `DB_VERIFY`, `DB_BACKUP`, `DB_SUMMARY`, `PROFILE_SUMMARY`, `STREAM_DB_SUMMARY`, `DB_DIFF`) plus `DbBackupPayload`. New owning modules `brain/ui/persistence_ops.py` and `brain/ui/persistence_observe.py`; one narrow extension to `brain/ui/persistence.py` promoting `_snapshot_session` to the public `snapshot_session` helper. No autosave, no second save path, no new `OperatorSession` fields in 3.10a/b.
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
@@ -304,7 +418,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.17**. Confirmation numbers: **187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED · 102 fixtures** (Phase 3.9 fixtures land incrementally; pending registrations hold `I-PERSIST-01..14` coverage coherent until Step 8-10). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.19**. Confirmation numbers: **212 REQUIRED · 83 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 15 OBSERVED · 131 fixtures** (Phase 3.10c autosave fixtures land incrementally; pending registrations hold `I-AUTOSAVE-01..14` coverage coherent until Step 18; `I-PERSIST-16` was reclassified from NOT-EXERCISED to STRUCTURAL at v0.19 with the registration added in `brain/invariants.py` and the existing `persistence_static_audit.py` fixture unchanged). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -402,8 +516,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.17, the expected count is:
-**187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED**.
+For catalog v0.19, the expected count is:
+**212 REQUIRED · 83 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 15 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage

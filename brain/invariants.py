@@ -147,6 +147,35 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.persistence_atomic_save",
     "brain.ui.fixtures.persistence_session_resource_audit",
     "brain.ui.fixtures.persistence_commands",
+    "brain.ui.fixtures.persistence_ops_session_status",
+    "brain.ui.fixtures.persistence_ops_db_status",
+    "brain.ui.fixtures.persistence_ops_db_verify",
+    "brain.ui.fixtures.persistence_ops_db_verify_drop",
+    "brain.ui.fixtures.persistence_ops_db_backup",
+    "brain.ui.fixtures.persistence_ops_db_backup_force",
+    "brain.ui.fixtures.persistence_ops_db_backup_dest_uri",
+    "brain.ui.fixtures.persistence_ops_cli_short_circuit",
+    "brain.ui.fixtures.persistence_ops_resource_audit",
+    "brain.ui.fixtures.persistence_ops_static_audit",
+    "brain.ui.fixtures.persistence_observe_db_summary",
+    "brain.ui.fixtures.persistence_observe_profile_summary",
+    "brain.ui.fixtures.persistence_observe_stream_db_summary",
+    "brain.ui.fixtures.persistence_observe_db_diff",
+    "brain.ui.fixtures.persistence_observe_no_builder_call",
+    "brain.ui.fixtures.persistence_observe_resource_audit",
+    "brain.ui.fixtures.persistence_observe_default_caps",
+    "brain.ui.fixtures.persistence_observe_static_audit",
+    "brain.ui.fixtures.autosave_default_off",
+    "brain.ui.fixtures.autosave_mode_closed",
+    "brain.ui.fixtures.autosave_requires_db",
+    "brain.ui.fixtures.autosave_status_after_event",
+    "brain.ui.fixtures.autosave_failure_preserves",
+    "brain.ui.fixtures.autosave_no_after_failure",
+    "brain.ui.fixtures.autosave_no_after_read_only",
+    "brain.ui.fixtures.autosave_single_save_path",
+    "brain.ui.fixtures.autosave_trigger_set",
+    "brain.ui.fixtures.autosave_static_audit",
+    "brain.ui.fixtures.autosave_resource_audit",
 ]
 
 
@@ -814,6 +843,169 @@ def _make_phase3_9_pending_check(row_id: str) -> Callable[[], None]:
 
 for _row_id, _status in _PHASE3_9_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_9_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.10a Operational Hardening + Phase 3.10b Persistence Observability
+# pending rows. Step 7 of the Phase 3.10 campaign applies the accepted v0.18
+# catalog patch (I-OPSHARDEN-01..14 + I-OBSERVE-01..11; tracks A + B only;
+# track C autosave is gated behind its own review gate and is not in this
+# patch) before the Phase 3.10 runtime modules (brain/ui/persistence_ops.py
+# and brain/ui/persistence_observe.py) and their eighteen fixture files
+# exist. These pending registrations keep I-CAT-01 coverage coherent while
+# making any attempted row execution fail explicitly. Steps 8-10 replace
+# I-OPSHARDEN-01..14 and I-OBSERVE-01..10 with real fixture-backed checks
+# (Step 8 lands the operational-hardening core: session_status, db_status,
+# db_verify, db_backup helpers + persistence_ops fixtures (DONE); Step 9
+# lands the observability summaries + diff: db_summary, profile_summary,
+# stream_db_summary, db_diff helpers + persistence_observe fixtures (DONE,
+# all 10 I-OBSERVE rows drained); Step 10 lands the explicit
+# backup-command docs / README updates).
+# I-OBSERVE-11 (OBSERVED, ops/observability dry run) is documented in
+# Step 11's PHASE3_10_OPS_OBSERVABILITY_DRY_RUN.md and does not
+# participate in I-CAT-01 coverage.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_10_OPS_PENDING_ROWS: dict[str, str] = {
+    # Step 8 landed I-OPSHARDEN-01..14 via brain/ui/persistence_ops.py
+    # (session_status, db_status, db_verify, db_backup helpers + typed
+    # reports), brain/ui/commands.py (SESSION_STATUS / DB_STATUS /
+    # DB_VERIFY / DB_BACKUP enum members + DbBackupPayload),
+    # brain/ui/command_line.py (the four Phase 3.10a verbs),
+    # brain/ui/session.py (the four Phase 3.10a dispatchers),
+    # brain/ui/__main__.py (the four --db-* short-circuit flags + the
+    # _dispatch_ops_short_circuit helper), and the ten
+    # persistence_ops_* fixtures. No Phase 3.10a Operational
+    # Hardening rows remain pending.
+}
+
+
+_PHASE3_10_OBSERVE_PENDING_ROWS: dict[str, str] = {
+    # Step 9 landed I-OBSERVE-01..10 via brain/ui/persistence_observe.py
+    # (db_summary, profile_summary, stream_db_summary, db_diff helpers
+    # + typed reports + locked default caps), the narrow extension that
+    # promoted brain.ui.persistence._snapshot_session to the public
+    # snapshot_session helper, brain/ui/commands.py (DB_SUMMARY /
+    # PROFILE_SUMMARY / STREAM_DB_SUMMARY / DB_DIFF enum members),
+    # brain/ui/command_line.py (the four Phase 3.10b verbs),
+    # brain/ui/session.py (the four Phase 3.10b dispatchers), and the
+    # eight persistence_observe_* fixtures. No Phase 3.10b Persistence
+    # Observability rows remain pending. I-OBSERVE-11 (OBSERVED) is
+    # documented in Step 11's PHASE3_10_OPS_OBSERVABILITY_DRY_RUN.md
+    # and does not participate in I-CAT-01 coverage.
+}
+
+
+def _make_phase3_10_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.10 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_10_OPS_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_10_pending_check(_row_id))
+
+for _row_id, _status in _PHASE3_10_OBSERVE_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_10_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.10c Autosave Policy pending rows. Step 17 of the Phase 3.10
+# campaign applies the accepted v0.19 catalog patch
+# (I-AUTOSAVE-01..15) before the Phase 3.10c runtime module
+# (brain/ui/autosave.py) and its eleven autosave_* fixtures exist.
+# These pending registrations keep I-CAT-01 coverage coherent while
+# making any attempted row execution fail explicitly. Step 18 replaces
+# I-AUTOSAVE-01..14 with real fixture-backed checks (11 REQUIRED +
+# 3 STRUCTURAL = 14 pending rows; I-AUTOSAVE-15 is OBSERVED and is
+# documented in Step 19's PHASE3_10C_AUTOSAVE_DRY_RUN.md without
+# participating in I-CAT-01 coverage).
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_10C_PENDING_ROWS: dict[str, str] = {
+    # Step 18 drained I-AUTOSAVE-01..14 via the eleven
+    # brain/ui/fixtures/autosave_*.py fixtures registered in
+    # FIXTURE_MODULES. The runtime lives in brain/ui/autosave.py
+    # (default-OFF opt-in autosave that hooks the central
+    # OperatorSession.dispatch post-mutation site and routes through
+    # the existing brain.ui.persistence.save_session helper). The
+    # autosave Phase 3.10c verbs (/autosave-status, /autosave-enable,
+    # /autosave-disable) and the --autosave-mode CLI flag are wired in
+    # brain/ui/commands.py, brain/ui/command_line.py,
+    # brain/ui/__main__.py, and brain/ui/session.py. I-AUTOSAVE-15
+    # (OBSERVED) is documented in Step 19's
+    # PHASE3_10C_AUTOSAVE_DRY_RUN.md and does not participate in
+    # I-CAT-01 coverage.
+}
+
+
+def _make_phase3_10c_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.10c catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_10C_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_10c_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.9 I-PERSIST-16 reclassification (v0.19; NOT-EXERCISED ->
+# STRUCTURAL). The row's narrowed proposition (brain/ui/persistence.py
+# owns no autosave trigger or background autosave hook) is already
+# enforced by the I-PERSIST-12 static-AST audit body inside
+# brain.ui.fixtures.persistence_static_audit. The v0.19 patch keeps the
+# fixture file unchanged in this Step 17 catalog patch; the registration
+# below re-runs the existing audit and surfaces it under the I-PERSIST-16
+# row ID so I-CAT-01 coverage stays coherent without a fixture-file
+# edit. The catalog Fixture column for I-PERSIST-16 names
+# persistence_static_audit.py for documentation; the actual @register
+# entry lives here because the v0.19 file budget is documented-only and
+# does not include fixture edits.
+# ---------------------------------------------------------------------------
+
+
+def _check_i_persist_16_autosave_absent() -> None:
+    """brain/ui/persistence.py owns no autosave trigger or hook.
+
+    Re-runs the existing I-PERSIST-12 static-AST audit body over
+    brain/ui/persistence.py. The audit already rejects @atexit /
+    threading / asyncio / signal handlers, importlib /
+    eval / exec / compile, every forbidden import, and every
+    non-imports / -constants / -function-def / -class-def
+    module-level statement. The set of autosave entry points
+    forbidden by the narrowed I-PERSIST-16 proposition is a
+    subset of the I-PERSIST-12 audit body, so re-running that
+    audit is sufficient. If brain/ui/persistence.py ever fails
+    the I-PERSIST-12 audit, both rows will report red together;
+    that is the intended coupling.
+    """
+    # Local import: the fixture module is loaded lazily so this
+    # check function does not fight module-load ordering. The
+    # registration below runs as @register decoration time, but
+    # the body only executes when the runner walks the registry.
+    from brain.ui.fixtures.persistence_static_audit import (  # noqa: PLC0415
+        check_i_persist_12_static_audit,
+    )
+
+    check_i_persist_12_static_audit()
+
+
+register("I-PERSIST-16", status="STRUCTURAL")(
+    _check_i_persist_16_autosave_absent
+)
 
 
 def _import_fixtures(report: RunReport) -> None:

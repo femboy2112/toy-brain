@@ -143,6 +143,20 @@ _EXPECTED_COMMAND_VALUES = frozenset({
     "stream_promote",
     "save_session",
     "load_session",
+    # Phase 3.10a Operational Hardening verbs.
+    "session_status",
+    "db_status",
+    "db_verify",
+    "db_backup",
+    # Phase 3.10b Persistence Observability verbs.
+    "db_summary",
+    "profile_summary",
+    "stream_db_summary",
+    "db_diff",
+    # Phase 3.10c Autosave Policy verbs.
+    "autosave_status",
+    "autosave_enable",
+    "autosave_disable",
 })
 
 

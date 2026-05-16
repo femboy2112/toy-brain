@@ -25,6 +25,7 @@ of those surfaces as well (see :class:`I-UI-07` / :class:`I-UI-10`).
 """
 from __future__ import annotations
 
+import pathlib
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
@@ -78,6 +79,17 @@ class OperatorCommand(str, Enum):
     STREAM_PROMOTE = "stream_promote"
     SAVE_SESSION = "save_session"
     LOAD_SESSION = "load_session"
+    SESSION_STATUS = "session_status"
+    DB_STATUS = "db_status"
+    DB_VERIFY = "db_verify"
+    DB_BACKUP = "db_backup"
+    DB_SUMMARY = "db_summary"
+    PROFILE_SUMMARY = "profile_summary"
+    STREAM_DB_SUMMARY = "stream_db_summary"
+    DB_DIFF = "db_diff"
+    AUTOSAVE_STATUS = "autosave_status"
+    AUTOSAVE_ENABLE = "autosave_enable"
+    AUTOSAVE_DISABLE = "autosave_disable"
 
 
 #: The closed set of inspection-only commands. Maps each kind to the
@@ -108,6 +120,15 @@ _COMMANDS_WITHOUT_PAYLOAD: frozenset[OperatorCommand] = frozenset({
     OperatorCommand.HELP,
     OperatorCommand.QUIT,
     OperatorCommand.NOOP,
+    OperatorCommand.SESSION_STATUS,
+    OperatorCommand.DB_STATUS,
+    OperatorCommand.DB_VERIFY,
+    OperatorCommand.DB_SUMMARY,
+    OperatorCommand.PROFILE_SUMMARY,
+    OperatorCommand.STREAM_DB_SUMMARY,
+    OperatorCommand.DB_DIFF,
+    OperatorCommand.AUTOSAVE_STATUS,
+    OperatorCommand.AUTOSAVE_DISABLE,
 })
 
 
@@ -332,7 +353,100 @@ class StreamPromotePayload:
             )
 
 
-CommandPayload = Union[QueuePerceptPayload, StreamAppendPayload, StreamPromotePayload]
+# ---------------------------------------------------------------------------
+# DbBackupPayload — Phase 3.10a operator-typed backup destination payload
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class DbBackupPayload:
+    """Operator-supplied destination for ``/db-backup``.
+
+    Drives ``I-OPSHARDEN-07``. Construction validates that ``dest_path``
+    is a :class:`pathlib.Path` (not a string) and that its string form
+    does not parse as a URI in the closed forbidden-scheme set declared
+    in :mod:`brain.ui.persistence_ops`. The payload carries no callable,
+    file handle, socket, LLM client, subprocess handle, or stream.
+    """
+
+    dest_path: pathlib.Path
+    force: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.dest_path, pathlib.Path):
+            raise TypeError(
+                "DbBackupPayload.dest_path must be a pathlib.Path "
+                f"(got {type(self.dest_path).__name__})"
+            )
+        if not isinstance(self.force, bool):
+            raise TypeError(
+                "DbBackupPayload.force must be a bool "
+                f"(got {type(self.force).__name__})"
+            )
+        # URI-scheme rejection: a destination whose string form starts
+        # with one of the closed forbidden schemes (sqlite:, file:,
+        # http:, https:, ftp:, ws:, wss:, data:, gopher:, ssh:, git:)
+        # is rejected here so /db-backup never reaches sqlite3.
+        text = str(self.dest_path)
+        if ":" in text:
+            prefix = text.split(":", 1)[0].lower()
+            from brain.ui.persistence_ops import (  # noqa: PLC0415
+                DB_BACKUP_FORBIDDEN_SCHEMES,
+            )
+            if prefix in DB_BACKUP_FORBIDDEN_SCHEMES:
+                raise ValueError(
+                    "DbBackupPayload.dest_path uses forbidden URI scheme "
+                    f"{prefix!r} (got {text!r})"
+                )
+
+
+# ---------------------------------------------------------------------------
+# AutosaveEnablePayload — Phase 3.10c typed payload for /autosave-enable
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class AutosaveEnablePayload:
+    """Operator-supplied mode for ``/autosave-enable``.
+
+    Drives ``I-AUTOSAVE-04``. The constructor validates the ``mode``
+    field against :class:`brain.ui.autosave.AutosaveMode` (closed enum).
+    The payload carries no callable, file handle, socket, LLM client,
+    subprocess handle, or stream. The autosave runtime module is
+    imported lazily inside ``__post_init__`` so :mod:`brain.ui.commands`
+    does not introduce a hard module-load dependency on
+    :mod:`brain.ui.autosave`.
+    """
+
+    mode: object  # AutosaveMode; validated in __post_init__
+
+    def __post_init__(self) -> None:
+        # Lazy import: avoids a brain.ui.commands -> brain.ui.autosave
+        # -> brain.ui.persistence import cycle in pathological orderings.
+        from brain.ui.autosave import (  # noqa: PLC0415
+            AutosaveMode,
+            SUPPORTED_AUTOSAVE_MODES,
+        )
+        if not isinstance(self.mode, AutosaveMode):
+            raise TypeError(
+                "AutosaveEnablePayload.mode must be an AutosaveMode "
+                f"(got {type(self.mode).__name__})"
+            )
+        if self.mode not in SUPPORTED_AUTOSAVE_MODES:
+            raise ValueError(
+                "AutosaveEnablePayload.mode must be in "
+                f"{sorted(m.value for m in SUPPORTED_AUTOSAVE_MODES)!r} "
+                f"(got {self.mode!r})"
+            )
+
+
+CommandPayload = Union[
+    QueuePerceptPayload,
+    StreamAppendPayload,
+    StreamPromotePayload,
+    DbBackupPayload,
+    AutosaveEnablePayload,
+]
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +506,20 @@ class Command:
                     "STREAM_PROMOTE (got "
                     f"{type(self.payload).__name__})"
                 )
+        elif self.kind is OperatorCommand.DB_BACKUP:
+            if not isinstance(self.payload, DbBackupPayload):
+                raise TypeError(
+                    "Command.payload must be a DbBackupPayload for "
+                    "DB_BACKUP (got "
+                    f"{type(self.payload).__name__})"
+                )
+        elif self.kind is OperatorCommand.AUTOSAVE_ENABLE:
+            if not isinstance(self.payload, AutosaveEnablePayload):
+                raise TypeError(
+                    "Command.payload must be an AutosaveEnablePayload "
+                    "for AUTOSAVE_ENABLE (got "
+                    f"{type(self.payload).__name__})"
+                )
         else:
             if self.payload is not None:
                 raise TypeError(
@@ -413,6 +541,9 @@ def make_command(
     initial_rho: Optional[Fraction | int | str] = None,
     stream_text: Optional[str] = None,
     candidate_id: Optional[str] = None,
+    dest_path: Optional[pathlib.Path] = None,
+    backup_force: Optional[bool] = None,
+    autosave_mode: Optional[object] = None,
 ) -> Command:
     """Construct a :class:`Command` from a finite kind plus optional fields.
 
@@ -448,10 +579,16 @@ def make_command(
                 "make_command(QUEUE_PERCEPT) requires content_id, text, "
                 "content_state, and initial_rho"
             )
-        if stream_text is not None or candidate_id is not None:
+        if (
+            stream_text is not None
+            or candidate_id is not None
+            or dest_path is not None
+            or backup_force is not None
+            or autosave_mode is not None
+        ):
             raise TypeError(
                 "make_command(QUEUE_PERCEPT) does not accept stream_text or "
-                "candidate_id"
+                "candidate_id or dest_path or backup_force or autosave_mode"
             )
         payload: Optional[CommandPayload] = QueuePerceptPayload(
             content_id=content_id,
@@ -476,10 +613,14 @@ def make_command(
             or content_state is not None
             or initial_rho is not None
             or candidate_id is not None
+            or dest_path is not None
+            or backup_force is not None
+            or autosave_mode is not None
         ):
             raise TypeError(
                 "make_command(STREAM_APPEND) does not accept "
-                "content_id/text/content_state/initial_rho/candidate_id"
+                "content_id/text/content_state/initial_rho/candidate_id/"
+                "dest_path/backup_force/autosave_mode"
             )
         payload = StreamAppendPayload(text=stream_text)
     elif resolved is OperatorCommand.STREAM_PROMOTE:
@@ -493,12 +634,60 @@ def make_command(
             or content_state is not None
             or initial_rho is not None
             or stream_text is not None
+            or dest_path is not None
+            or backup_force is not None
+            or autosave_mode is not None
         ):
             raise TypeError(
                 "make_command(STREAM_PROMOTE) does not accept "
-                "content_id/text/content_state/initial_rho/stream_text"
+                "content_id/text/content_state/initial_rho/stream_text/"
+                "dest_path/backup_force/autosave_mode"
             )
         payload = StreamPromotePayload(candidate_id=candidate_id)
+    elif resolved is OperatorCommand.DB_BACKUP:
+        if dest_path is None:
+            raise TypeError(
+                "make_command(DB_BACKUP) requires dest_path"
+            )
+        if (
+            content_id is not None
+            or text is not None
+            or content_state is not None
+            or initial_rho is not None
+            or stream_text is not None
+            or candidate_id is not None
+            or autosave_mode is not None
+        ):
+            raise TypeError(
+                "make_command(DB_BACKUP) does not accept "
+                "content_id/text/content_state/initial_rho/stream_text/"
+                "candidate_id/autosave_mode"
+            )
+        payload = DbBackupPayload(
+            dest_path=dest_path,
+            force=bool(backup_force) if backup_force is not None else False,
+        )
+    elif resolved is OperatorCommand.AUTOSAVE_ENABLE:
+        if autosave_mode is None:
+            raise TypeError(
+                "make_command(AUTOSAVE_ENABLE) requires autosave_mode"
+            )
+        if (
+            content_id is not None
+            or text is not None
+            or content_state is not None
+            or initial_rho is not None
+            or stream_text is not None
+            or candidate_id is not None
+            or dest_path is not None
+            or backup_force is not None
+        ):
+            raise TypeError(
+                "make_command(AUTOSAVE_ENABLE) does not accept "
+                "content_id/text/content_state/initial_rho/stream_text/"
+                "candidate_id/dest_path/backup_force"
+            )
+        payload = AutosaveEnablePayload(mode=autosave_mode)
     else:
         if (
             content_id is not None
@@ -507,10 +696,14 @@ def make_command(
             or initial_rho is not None
             or stream_text is not None
             or candidate_id is not None
+            or dest_path is not None
+            or backup_force is not None
+            or autosave_mode is not None
         ):
             raise TypeError(
                 f"make_command({resolved.name}) does not accept "
-                "content_id/text/content_state/initial_rho/stream_text/candidate_id"
+                "content_id/text/content_state/initial_rho/stream_text/"
+                "candidate_id/dest_path/backup_force/autosave_mode"
             )
         payload = None
 
@@ -523,6 +716,8 @@ __all__ = [
     "QueuePerceptPayload",
     "StreamAppendPayload",
     "StreamPromotePayload",
+    "DbBackupPayload",
+    "AutosaveEnablePayload",
     "STREAM_PROMOTE_CANDIDATE_ID_MAX_LEN",
     "CommandPayload",
     "Command",
