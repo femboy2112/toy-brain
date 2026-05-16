@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import io
 import os
+import pathlib
 import sys
 from dataclasses import dataclass
 from fractions import Fraction
@@ -329,6 +330,37 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "--llm-mode mock is selected"
         ),
     )
+    parser.add_argument(
+        "--session-db",
+        default=None,
+        help=(
+            "path to the SQLite session database used by /save-session "
+            "and /load-session (Phase 3.9). Omit to disable persistence."
+        ),
+    )
+    load_group = parser.add_mutually_exclusive_group()
+    load_group.add_argument(
+        "--load-session",
+        dest="load_session",
+        action="store_true",
+        default=False,
+        help=(
+            "after argument parsing, load the session from --session-db "
+            "before launching the TUI; on failure, fall back to the "
+            "default session and report the bounded local reason"
+        ),
+    )
+    load_group.add_argument(
+        "--no-load-session",
+        dest="load_session",
+        action="store_false",
+        default=False,
+        help=(
+            "explicit opposite of --load-session; useful when --session-db "
+            "is configured but the operator does not want to load on this "
+            "launch (default when --session-db is supplied alone)"
+        ),
+    )
     return parser
 
 
@@ -431,7 +463,68 @@ def main(
     # matching the existing ``run_curses`` lifecycle.
     from brain.ui.tui import make_curses_percept_factory, run_curses
 
+    session_db_path = (
+        pathlib.Path(args.session_db) if args.session_db is not None else None
+    )
+    if args.load_session and session_db_path is None:
+        print(
+            "brain.ui: --load-session requires --session-db",
+            file=stderr_,
+        )
+        return 1
+
     session = build_default_session()
+
+    if session_db_path is not None:
+        # Attach a SessionStoreConfig so /save-session and /load-session
+        # can be dispatched from inside the TUI without command-line
+        # round-trips.
+        from brain.ui.persistence import (  # noqa: PLC0415
+            PersistenceError,
+            SessionStoreConfig,
+            load_session as _load_session,
+        )
+        try:
+            config = SessionStoreConfig(db_path=session_db_path)
+        except (TypeError, ValueError) as exc:
+            print(
+                f"brain.ui: invalid --session-db: {exc}",
+                file=stderr_,
+            )
+            return 1
+        session.session_store_config = config
+        if args.load_session:
+            try:
+                loaded, result = _load_session(config)
+            except PersistenceError as exc:
+                print(
+                    f"brain.ui: session db = {session_db_path!s} "
+                    f"(load failed: {exc}; using default session)",
+                    file=stdout_,
+                )
+            else:
+                # The candidate already carries the config; reuse it.
+                session = loaded
+                print(
+                    f"brain.ui: session db = {session_db_path!s} "
+                    f"(loaded; schema=v{result.schema_version}; "
+                    f"catalog={result.catalog_version}; "
+                    f"chunks={result.loaded_chunks}; "
+                    f"candidates={result.loaded_candidates})",
+                    file=stdout_,
+                )
+        else:
+            print(
+                f"brain.ui: session db = {session_db_path!s} "
+                f"(load skipped; use /load-session to load)",
+                file=stdout_,
+            )
+    else:
+        print(
+            "brain.ui: session db = not configured",
+            file=stdout_,
+        )
+
     try:
         run_curses(
             session,

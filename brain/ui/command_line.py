@@ -107,6 +107,8 @@ LOCAL_COMMAND_VERBS: tuple[str, ...] = (
     "stream-summary",
     "stream-candidates",
     "stream-promote",
+    "save-session",
+    "load-session",
 )
 
 
@@ -268,6 +270,14 @@ class LocalCommandLine:
             )
         if verb == "stream-promote":
             return self._parse_stream_promote(remainder)
+        if verb == "save-session":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.SAVE_SESSION
+            )
+        if verb == "load-session":
+            return self._parse_no_args(
+                verb, remainder, OperatorCommand.LOAD_SESSION
+            )
         # Unreachable: every verb in LOCAL_COMMAND_VERBS is handled above.
         raise AssertionError(  # pragma: no cover - enumeration is closed
             f"I-UI-18 violated: unrouted typed verb /{verb}"
@@ -407,6 +417,8 @@ LOCAL_COMMAND_HELP: tuple[tuple[str, str], ...] = (
     ("/stream-summary", "inspect local stream summary"),
     ("/stream-candidates", "inspect local stream promotion candidates"),
     ("/stream-promote <id>", "queue one explicit promotion candidate"),
+    ("/save-session", "save the session to the configured DB"),
+    ("/load-session", "load the session from the configured DB"),
 )
 
 

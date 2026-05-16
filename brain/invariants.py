@@ -136,6 +136,17 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.llm_runtime_print_once_independent",
     "brain.ui.fixtures.llm_runtime_config_frozen",
     "brain.ui.fixtures.llm_runtime_static_audit",
+    "brain.ui.fixtures.persistence_schema",
+    "brain.ui.fixtures.persistence_static_audit",
+    "brain.ui.fixtures.persistence_save_roundtrip",
+    "brain.ui.fixtures.persistence_failed_load",
+    "brain.ui.fixtures.persistence_cogito_protected",
+    "brain.ui.fixtures.persistence_load_constructor_only",
+    "brain.ui.fixtures.persistence_load_invariants",
+    "brain.ui.fixtures.persistence_failed_save",
+    "brain.ui.fixtures.persistence_atomic_save",
+    "brain.ui.fixtures.persistence_session_resource_audit",
+    "brain.ui.fixtures.persistence_commands",
 ]
 
 
@@ -752,6 +763,57 @@ def _make_phase3_8b_pending_check(row_id: str) -> Callable[[], None]:
 
 for _row_id, _status in _PHASE3_8B_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_8b_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.9 Persistent Session Store pending rows. Step 7 of the Phase 3.9
+# campaign applies the accepted v0.17 catalog patch (I-PERSIST-01..16)
+# before the Phase 3.9 persistence runtime (brain/ui/persistence.py) and
+# its eleven persistence_* fixtures exist. These pending registrations
+# keep I-CAT-01 coverage coherent while making any attempted row
+# execution fail explicitly. Steps 8-10 replace I-PERSIST-01..14 with
+# real fixture-backed checks (Step 8 lands the schema + typed records +
+# static audit; Step 9 lands save / load reconstruction and the failure-
+# isolation / atomic-save / resource-audit fixtures; Step 10 lands the
+# /save-session and /load-session commands fixture). I-PERSIST-15
+# (OBSERVED, cold-start dry run) and I-PERSIST-16 (NOT-EXERCISED,
+# autosave path absent; structurally checked by
+# persistence_static_audit.py) do not participate in I-CAT-01 coverage
+# and are not pending here.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_9_PENDING_ROWS: dict[str, str] = {
+    # Step 8 landed I-PERSIST-01, I-PERSIST-12, I-PERSIST-13.
+    # Step 9 landed I-PERSIST-02..08, I-PERSIST-10, I-PERSIST-11,
+    # I-PERSIST-14. Step 10 landed I-PERSIST-09 via brain/ui/commands.py
+    # (SAVE_SESSION / LOAD_SESSION enum), brain/ui/command_line.py
+    # (/save-session and /load-session typed verbs),
+    # brain/ui/session.py (_dispatch_save_session /
+    # _dispatch_load_session), brain/ui/__main__.py (--session-db /
+    # --load-session / --no-load-session CLI flags), and
+    # brain/ui/fixtures/persistence_commands.py. No Phase 3.9
+    # Persistent Session Store rows remain pending. I-PERSIST-15
+    # (OBSERVED, cold-start dry run) is documented in Step 11's
+    # PHASE3_9_PERSISTENCE_DRY_RUN.md; I-PERSIST-16 (NOT-EXERCISED,
+    # autosave absent) is structurally checked by
+    # persistence_static_audit.py.
+}
+
+
+def _make_phase3_9_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.9 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_9_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_9_pending_check(_row_id))
 
 
 def _import_fixtures(report: RunReport) -> None:

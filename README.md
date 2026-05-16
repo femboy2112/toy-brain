@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.16)
+# brain — TLICA-constrained Python kernel (catalog v0.17)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -125,6 +125,8 @@ resulting `Command` to `brain.ui.session.OperatorSession.dispatch`:
 > /tick<Enter>                       inspect the latest TickRecord
 > /help<Enter>                       show the typed-command help
 > /quit<Enter>                       exit the operator session
+> /save-session<Enter>               save to the configured session DB
+> /load-session<Enter>               load from the configured session DB
 ```
 
 The closed set of typed verbs (one verb per submission):
@@ -143,7 +145,62 @@ The closed set of typed verbs (one verb per submission):
 /clear                      clear local status/error (does NOT clear
                             the composer buffer; use ^U for that)
 /quit                       exit
+/save-session               save BrainState + session-local stream state to
+                            the SQLite session DB configured by --session-db
+                            (Phase 3.9; explicit operator command; no
+                            autosave; does NOT call tick())
+/load-session               read the configured session DB, reconstruct the
+                            kernel state through public builders, run
+                            invariant assertions, and swap the candidate
+                            into the live session on success (Phase 3.9;
+                            no implicit load; preserves the live session
+                            on failure; does NOT call tick())
 ```
+
+### Persistent session store (Phase 3.9)
+
+The Phase 3.9 Persistent Session Store adds explicit, typed,
+transactional, schema-versioned SQLite persistence over
+`BrainState`, `MSI`, `PtCns`, `ContentRegistry`, the
+`OperatorSession.tick_counter`, the Phase 3.7
+`TextStreamHistory`, and `OperatorSession.stream_chunk_serial` /
+`stream_candidates`. The persistence layer lives at
+`brain/ui/persistence.py` (see `INVARIANT_CATALOG.md` rows
+`I-PERSIST-01..I-PERSIST-16` for the bound contract).
+
+```bash
+python3 -m brain.ui --session-db brain/session.sqlite3              # configure but don't load yet
+python3 -m brain.ui --session-db brain/session.sqlite3 --load-session   # load before launch
+python3 -m brain.ui --session-db brain/session.sqlite3 --no-load-session # explicit opposite
+```
+
+Rules:
+
+- The session DB is the only save / export path; no other
+  filesystem write is authorized.
+- Fractions persist exactly as `(num INTEGER, den INTEGER)`
+  pairs. No `REAL` / `NUMERIC` / `FLOAT` / `DOUBLE` column stores
+  kernel numeric data.
+- Load reconstructs through the existing public builders
+  (`make_profile_with_cogito`, `make_msi`, `make_ptcns`,
+  `ContentRegistry`, `BrainState`, `make_text_stream_chunk`,
+  `TextStreamHistory`, `make_stream_promotion_candidate`,
+  `OperatorSession`) and runs `assert_state_invariants` on the
+  candidate before swapping. `COGITO_ID` cannot be overwritten by
+  persisted data.
+- Save is `BEGIN IMMEDIATE` / `COMMIT` or `ROLLBACK`. A failed
+  save preserves the live `OperatorSession` and leaves no orphan
+  rows. Schema bootstrap (`CREATE TABLE IF NOT EXISTS`) runs in
+  autocommit and is persistent across rollbacks.
+- Load opens the DB in sqlite3 uri `mode=ro`, so a failed load
+  never mutates the on-disk file.
+- No `sqlite3.Connection` lives on `OperatorSession`; helpers use
+  `with sqlite3.connect(...) as conn:` and close on with-block
+  exit.
+- Autosave is **not** authorized; `/save-session` and
+  `/load-session` are the only persistence routes. A future
+  autosave campaign requires an explicit reviewed policy
+  artifact and dedicated catalog rows.
 
 Composer-only keys (always handled as edit events, regardless of
 buffer state):
@@ -225,6 +282,7 @@ Behaviour rules (enforced by the `I-UI-*` catalog rows):
 - **v0.14** — +I-STRM-01..17 (Phase 3.7 Text Stream Ingress bounded local raw-text substrate).
 - **v0.15** — +I-UISTRM-01..17 (Phase 3.8 Operator Stream Interaction `/stream`, `/stream-summary`, `/stream-candidates`, `/stream-promote` typed routes over the Phase 3.7 substrate; `/step` remains the only `tick()` route).
 - **v0.16** — +I-LLMTOG-01..15 (Phase 3.8b LLM Runtime Toggle: explicit `--llm-mode {offline,mock,anthropic-api,claude-cli}` opt-in over the existing `LLMClient` protocol; `offline` remains the default).
+- **v0.17** — +I-PERSIST-01..16 (Phase 3.9 Persistent Session Store: explicit typed transactional SQLite-backed `/save-session` / `/load-session` over `BrainState` + `OperatorSession` at `brain/ui/persistence.py`; Fractions persist exactly as integer pairs; load reconstructs through public builders; failed save / load preserves the live session; autosave is NOT-EXERCISED).
 
 Companion docs (consult the relevant one when editing the catalog):
 - `PLAN_CORRIGENDA.md` (v0 plan corrigenda).
@@ -232,7 +290,13 @@ Companion docs (consult the relevant one when editing the catalog):
 - `PHASE2_v1_1_TRACE_KICKOFF.md` (cognition trace).
 - `BASELINE_HARDENING_KICKOFF.md` (Phase 2 v1.2 baseline hardening).
 - `PHASE3_5_EXPRESSION_READABILITY_AUDIT.md` (Phase 3.5 complete; PASS).
-- `CURRENT_CAMPAIGN.md` (Fast Safe Text Interaction — Phase 3.6 next).
+- `PHASE3_6_REFLECTIVE_INSPECTION_AUDIT.md` (Phase 3.6 complete; PASS).
+- `PHASE3_7_TEXT_STREAM_INGRESS_AUDIT.md` (Phase 3.7 complete; PASS).
+- `PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md` (Phase 3.8 complete; PASS).
+- `PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md` (Phase 3.8b complete; PASS).
+- `PHASE3_TEXT_INTERACTION_DRY_RUN.md` (Fast Safe Text Interaction end-to-end walk).
+- `CURRENT_MISSION.md` / `CURRENT_CAMPAIGN.md` (Phase 3.9 Persistent Session Store — current).
+- `PHASE3_9_PERSISTENT_SESSION_STORE_ROADMAP.md` (Phase 3.9 roadmap).
 
 ## Constraints (pre-coding rules — these are pulled from the catalog)
 
@@ -240,7 +304,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.16**. Confirmation numbers: **178 REQUIRED · 64 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 12 OBSERVED · 91 fixtures**. Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.17**. Confirmation numbers: **187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED · 102 fixtures** (Phase 3.9 fixtures land incrementally; pending registrations hold `I-PERSIST-01..14` coverage coherent until Step 8-10). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -338,8 +402,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.16, the expected count is:
-**178 REQUIRED · 64 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 12 OBSERVED**.
+For catalog v0.17, the expected count is:
+**187 REQUIRED · 69 STRUCTURAL · 10 NOT-EXERCISED · 12 DEFERRED · 13 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage
