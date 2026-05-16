@@ -97,13 +97,13 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 Expected current baseline:
 
 ```text
-Catalog: v0.18
+Catalog: v0.19
 Counts:
-  REQUIRED:        201
-  STRUCTURAL:       79
-  NOT-EXERCISED:    10
+  REQUIRED:        212
+  STRUCTURAL:       83
+  NOT-EXERCISED:     9
   DEFERRED:         12
-  OBSERVED:         14
+  OBSERVED:         15
 Latest completed campaign: Phase 3.9 Persistent Session Store
 Required latest audit:
   PHASE3_9_PERSISTENT_SESSION_STORE_AUDIT.md      PASS

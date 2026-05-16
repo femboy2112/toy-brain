@@ -904,6 +904,100 @@ for _row_id, _status in _PHASE3_10_OBSERVE_PENDING_ROWS.items():
     register(_row_id, status=_status)(_make_phase3_10_pending_check(_row_id))
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.10c Autosave Policy pending rows. Step 17 of the Phase 3.10
+# campaign applies the accepted v0.19 catalog patch
+# (I-AUTOSAVE-01..15) before the Phase 3.10c runtime module
+# (brain/ui/autosave.py) and its eleven autosave_* fixtures exist.
+# These pending registrations keep I-CAT-01 coverage coherent while
+# making any attempted row execution fail explicitly. Step 18 replaces
+# I-AUTOSAVE-01..14 with real fixture-backed checks (11 REQUIRED +
+# 3 STRUCTURAL = 14 pending rows; I-AUTOSAVE-15 is OBSERVED and is
+# documented in Step 19's PHASE3_10C_AUTOSAVE_DRY_RUN.md without
+# participating in I-CAT-01 coverage).
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_10C_PENDING_ROWS: dict[str, str] = {
+    "I-AUTOSAVE-01": "REQUIRED",
+    "I-AUTOSAVE-02": "REQUIRED",
+    "I-AUTOSAVE-03": "REQUIRED",
+    "I-AUTOSAVE-04": "REQUIRED",
+    "I-AUTOSAVE-05": "REQUIRED",
+    "I-AUTOSAVE-06": "REQUIRED",
+    "I-AUTOSAVE-07": "REQUIRED",
+    "I-AUTOSAVE-08": "REQUIRED",
+    "I-AUTOSAVE-09": "REQUIRED",
+    "I-AUTOSAVE-10": "REQUIRED",
+    "I-AUTOSAVE-11": "REQUIRED",
+    "I-AUTOSAVE-12": "STRUCTURAL",
+    "I-AUTOSAVE-13": "STRUCTURAL",
+    "I-AUTOSAVE-14": "STRUCTURAL",
+}
+
+
+def _make_phase3_10c_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.10c catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_10C_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_10c_pending_check(_row_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.9 I-PERSIST-16 reclassification (v0.19; NOT-EXERCISED ->
+# STRUCTURAL). The row's narrowed proposition (brain/ui/persistence.py
+# owns no autosave trigger or background autosave hook) is already
+# enforced by the I-PERSIST-12 static-AST audit body inside
+# brain.ui.fixtures.persistence_static_audit. The v0.19 patch keeps the
+# fixture file unchanged in this Step 17 catalog patch; the registration
+# below re-runs the existing audit and surfaces it under the I-PERSIST-16
+# row ID so I-CAT-01 coverage stays coherent without a fixture-file
+# edit. The catalog Fixture column for I-PERSIST-16 names
+# persistence_static_audit.py for documentation; the actual @register
+# entry lives here because the v0.19 file budget is documented-only and
+# does not include fixture edits.
+# ---------------------------------------------------------------------------
+
+
+def _check_i_persist_16_autosave_absent() -> None:
+    """brain/ui/persistence.py owns no autosave trigger or hook.
+
+    Re-runs the existing I-PERSIST-12 static-AST audit body over
+    brain/ui/persistence.py. The audit already rejects @atexit /
+    threading / asyncio / signal handlers, importlib /
+    eval / exec / compile, every forbidden import, and every
+    non-imports / -constants / -function-def / -class-def
+    module-level statement. The set of autosave entry points
+    forbidden by the narrowed I-PERSIST-16 proposition is a
+    subset of the I-PERSIST-12 audit body, so re-running that
+    audit is sufficient. If brain/ui/persistence.py ever fails
+    the I-PERSIST-12 audit, both rows will report red together;
+    that is the intended coupling.
+    """
+    # Local import: the fixture module is loaded lazily so this
+    # check function does not fight module-load ordering. The
+    # registration below runs as @register decoration time, but
+    # the body only executes when the runner walks the registry.
+    from brain.ui.fixtures.persistence_static_audit import (  # noqa: PLC0415
+        check_i_persist_12_static_audit,
+    )
+
+    check_i_persist_12_static_audit()
+
+
+register("I-PERSIST-16", status="STRUCTURAL")(
+    _check_i_persist_16_autosave_absent
+)
+
+
 def _import_fixtures(report: RunReport) -> None:
     """Import every fixture module; collect ValueError at import time."""
     for mod in FIXTURE_MODULES:

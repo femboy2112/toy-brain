@@ -17,8 +17,8 @@ campaign/operational-hardening-observability-autosave
 ## Baseline
 
 ```text
-Catalog: v0.18
-Counts: 201 REQUIRED / 79 STRUCTURAL / 10 NOT-EXERCISED / 12 DEFERRED / 14 OBSERVED
+Catalog: v0.19
+Counts: 212 REQUIRED / 83 STRUCTURAL / 9 NOT-EXERCISED / 12 DEFERRED / 15 OBSERVED
 Latest completed campaign: Phase 3.9 Persistent Session Store
 Latest audit: PHASE3_9_PERSISTENT_SESSION_STORE_AUDIT.md PASS
 Latest dry run: PHASE3_9_PERSISTENCE_DRY_RUN.md
