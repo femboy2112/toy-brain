@@ -17,6 +17,7 @@ from brain.llm.client import (
     AnthropicAPIClient,
     CachedClient,
     ClaudeCLIClient,
+    CodexCLIClient,
 )
 from brain.ui.llm_runtime import (
     LLM_RUNTIME_CACHE_DIR,
@@ -103,6 +104,41 @@ def check_I_LLMTOG_08_cache_gated() -> None:
     assert isinstance(cached_cli._inner, ClaudeCLIClient), (
         "I-LLMTOG-08 violated: CachedClient does not wrap ClaudeCLIClient "
         f"(got {type(cached_cli._inner).__name__})"
+    )
+
+    # CODEX_CLI + enable_cache -> CachedClient wrapping CodexCLIClient
+    # (Phase 3.11 extension).
+    cached_codex = build_llm_client_from_config(
+        LlmRuntimeConfig(
+            mode=LlmRuntimeMode.CODEX_CLI,
+            codex_cli_executable=sys.executable,
+            enable_cache=True,
+        )
+    )
+    assert isinstance(cached_codex, CachedClient), (
+        "I-LLMTOG-08 violated: CODEX_CLI + cache did not produce "
+        f"CachedClient (got {type(cached_codex).__name__})"
+    )
+    assert isinstance(cached_codex._inner, CodexCLIClient), (
+        "I-LLMTOG-08 violated: CachedClient does not wrap CodexCLIClient "
+        f"(got {type(cached_codex._inner).__name__})"
+    )
+
+    # CODEX_CLI without cache -> bare CodexCLIClient (no wrapper).
+    bare_codex = build_llm_client_from_config(
+        LlmRuntimeConfig(
+            mode=LlmRuntimeMode.CODEX_CLI,
+            codex_cli_executable=sys.executable,
+            enable_cache=False,
+        )
+    )
+    assert isinstance(bare_codex, CodexCLIClient), (
+        "I-LLMTOG-08 violated: CODEX_CLI without cache did not produce "
+        f"bare CodexCLIClient (got {type(bare_codex).__name__})"
+    )
+    assert not isinstance(bare_codex, CachedClient), (
+        "I-LLMTOG-08 violated: CODEX_CLI without cache wrapped the "
+        "backend in CachedClient unexpectedly"
     )
 
     # Module-level constant parity check.

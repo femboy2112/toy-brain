@@ -17,6 +17,7 @@ from brain.llm.client import (
     AnthropicAPIClient,
     CachedClient,
     ClaudeCLIClient,
+    CodexCLIClient,
     MockClient,
 )
 from brain.ui.__main__ import OfflineStandInClient
@@ -106,6 +107,37 @@ def check_I_LLMTOG_03_factory_per_mode() -> None:
     assert isinstance(cached_cli._inner, ClaudeCLIClient), (
         "I-LLMTOG-03 violated: CachedClient does not wrap "
         f"ClaudeCLIClient (got {type(cached_cli._inner).__name__})"
+    )
+
+    # CODEX_CLI -> CodexCLIClient (no subprocess invocation; just
+    # constructed). Use sys.executable so the local _which() helper
+    # resolves a path that always exists on the runner.
+    client_codex = build_llm_client_from_config(
+        LlmRuntimeConfig(
+            mode=LlmRuntimeMode.CODEX_CLI,
+            codex_cli_executable=sys.executable,
+        )
+    )
+    assert isinstance(client_codex, CodexCLIClient), (
+        "I-LLMTOG-03 violated: CODEX_CLI mode did not produce "
+        f"CodexCLIClient (got {type(client_codex).__name__})"
+    )
+
+    # CODEX_CLI with caching -> CachedClient wrapping CodexCLIClient.
+    cached_codex = build_llm_client_from_config(
+        LlmRuntimeConfig(
+            mode=LlmRuntimeMode.CODEX_CLI,
+            codex_cli_executable=sys.executable,
+            enable_cache=True,
+        )
+    )
+    assert isinstance(cached_codex, CachedClient), (
+        "I-LLMTOG-03 violated: CODEX_CLI + enable_cache did not "
+        f"produce CachedClient (got {type(cached_codex).__name__})"
+    )
+    assert isinstance(cached_codex._inner, CodexCLIClient), (
+        "I-LLMTOG-03 violated: CachedClient does not wrap "
+        f"CodexCLIClient (got {type(cached_codex._inner).__name__})"
     )
 
     # No backend should have been invoked during construction. The

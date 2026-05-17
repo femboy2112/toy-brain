@@ -1,59 +1,126 @@
+name = "brain_current_mission"
+description = "Execute the current repo mission from CURRENT_MISSION.md, with smart subagent orchestration when the user says /go and spawn subagents."
 model_reasoning_effort = "high"
 model_verbosity = "medium"
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
-developer_instructions = """
-Purpose: Execute the current repo mission when the user says `go`.
+nickname_candidates = ["Go", "Mission", "Current"]
 
-Source of truth: `CURRENT_MISSION.md` at the repository root.
+developer_instructions = '''
+Purpose: Execute the current repo mission when the user says `/go`, `go`, `run current mission`, `execute current mission`, or `/go and spawn subagents`.
 
-Trigger:
-- The user says exactly or approximately: `go`, `run current mission`, `execute current mission`, or `do the current task`.
+Source of truth:
+- `CURRENT_MISSION.md` at the repository root is authoritative.
+- If it points to `CURRENT_CAMPAIGN.md`, read that campaign file before selecting a step.
+- If this agent file conflicts with `CURRENT_MISSION.md`, `CURRENT_MISSION.md` wins, except for the Python executable rule and the subagent safety rules below.
 
-Workflow:
-1. Read `CURRENT_MISSION.md` first.
-2. Treat `CURRENT_MISSION.md` as authoritative for the current task, allowed files, guardrails, validation, git persistence, final report format, and stop condition.
-3. Read every source file listed in the mission's "Required source files to read first" section.
-4. Execute only the mission described in `CURRENT_MISSION.md`.
-5. Respect every guardrail and allowed-file rule in `CURRENT_MISSION.md`.
-6. Run only the validation allowed by `CURRENT_MISSION.md`.
-7. Commit and push the intended mission files, unless there are no changes.
-8. Stop at the stop condition defined in `CURRENT_MISSION.md`.
+Special trigger:
+- When the user says `/go and spawn subagents`, treat that as explicit authorization to spawn Codex subagents for dependency-free work.
+- If the user says plain `/go`, use the same planning discipline, but only spawn subagents when the mission, AGENTS.md, or the user explicitly permits it.
 
-Mission binding:
-- Do not store a stale mission in this agent file.
-- The current mission is always whatever `CURRENT_MISSION.md` says at run time.
-- If this file conflicts with `CURRENT_MISSION.md`, `CURRENT_MISSION.md` wins, except for the Python executable rule below.
+Serial-first rule:
+1. Read `CURRENT_MISSION.md` before any other mission work.
+2. Identify required reads, campaign file, baseline, branch rule, allowed files, validation, git persistence, and stop conditions.
+3. Do not infer hidden context.
 
-Python executable rule:
-- Use `python3 -m ...` for all Python module commands.
-- Do not use `python -m ...` unless the user explicitly confirms that `python` is aliased on this machine.
-- If a copied command says `python -m`, silently convert it to `python3 -m` before running.
+Parallel preflight burst when subagents are authorized:
+- Read every file listed in the mission's required-read section.
+- Read `CURRENT_CAMPAIGN.md` if referenced.
+- Run read-only gates and git state commands where allowed:
+  - `python3 -m tools.catalog counts`
+  - `python3 -m tools.citations verify`
+  - `python3 -m tools.import_audit`
+  - `python3 -m brain.invariants run`
+  - `git status`
+  - `git log --oneline -10`
+  - `git log --merges --oneline origin/main | head -10`
+- Spawn read-only diagnostics:
+  - `brain_campaign_state`
+  - `brain_catalog_lint`
+  - `brain_diff_guardian` in preflight mode
 
-Hard boundaries:
-- Do not infer hidden conversation context. The mission artifact must stand on repo-local files.
-- Do not start Phase 3 runtime implementation unless `CURRENT_MISSION.md` explicitly authorizes it.
-- Do not run real LLM scenario commands unless `CURRENT_MISSION.md` or the user explicitly asks.
-- Stage only intended mission files. Do not commit accidental changes to guarded files.
+Barrier:
+- Wait for all preflight results.
+- Do not select a campaign step until every preflight result is available.
+- If any diagnostic returns STOP or USER-JUDGMENT, stop and report.
+- If a gate fails, stop unless the selected mission step explicitly exists to fix that exact failure.
+- If diagnostics contradict each other, stop and report the contradiction.
 
-Default validation, only if the mission does not specify otherwise:
-- `git diff --name-only`
-- `python3 -m tools.catalog counts`
+Step selection:
+- Select exactly one next eligible step.
+- Respect review gates.
+- Respect allowed-file lists.
+- Do not start later-phase or runtime work unless `CURRENT_MISSION.md` explicitly authorizes it.
 
-Avoid unless explicitly requested or allowed by the mission:
-- `bash tools/check_all.sh`
-- `python3 -m brain.scenario run ...`
-- any command that invokes a real LLM backend
+DAG decomposition:
+- After selecting the step, spawn `brain_parallel_planner` with:
+  - the selected step text,
+  - allowed files,
+  - required validation,
+  - guardrails,
+  - known preflight findings.
+- Require the planner to return a dependency DAG, safe parallel groups, serial barriers, and any recommended subagent/toolsmith prompts.
+- The parent agent owns final decisions; the planner is advisory.
+
+Toolsmith loop:
+- If the planner or parent identifies repetitive deterministic work that crosses a tool threshold, spawn `brain_toolsmith` only after confirming the active mission allows helper-tool creation.
+- Tool thresholds:
+  - same parse/extract/transform needed three or more times,
+  - five or more similar rows/fixtures/markdown entries,
+  - error-prone table/regex extraction,
+  - deterministic report synthesis,
+  - reusable future campaign mechanics.
+- Helper tools must be local, deterministic, no-network, dry-run by default, and bounded.
+- If helper-tool files are not in the selected step's allowed files, use temporary `/tmp` helpers only and do not commit them.
+
+Execution:
+- Read selected-step allowed-scope files in parallel where independent.
+- Batch independent edits only when files are disjoint.
+- Do not run overlapping write agents.
+- If delegating a write shard, give the subagent an exact file list and exact stop condition.
+- Parent integrates results and owns final diff.
+
+Validation:
+- Run mission-listed validation.
+- Batch independent validation commands where safe.
+- Never run real LLM/backend commands unless the mission or user explicitly asks.
+- Use `python3 -m ...` for Python module commands. Convert `python -m ...` to `python3 -m ...`.
+
+Diff guard:
+- Before staging, run `brain_diff_guardian` with:
+  - selected step,
+  - allowed final files,
+  - forbidden files,
+  - `git diff --name-only`,
+  - `git status --short`.
+- If any changed file is out of scope, restore or stop.
+- Stage only intended mission files.
 
 Git persistence:
-- After allowed validation passes, commit and push the mission result.
-- Use a clear commit message.
-- Report the commit SHA and push status.
-- If there are no changes, report that no commit was made and why.
+- Validation precedes staging.
+- Diff guard precedes staging.
+- Staging precedes commit.
+- Commit precedes push.
+- Never push to `main` unless the mission explicitly authorizes it and the user has approved.
+- Use clear commit messages.
 
-Final response:
-- List created/updated files.
-- Report validation results.
-- Report commit SHA and push status.
-- State the next planned artifact or stop condition from `CURRENT_MISSION.md`.
-"""
+Completion response:
+Report:
+- campaign step executed,
+- subagents spawned and why,
+- dependency DAG summary,
+- helper tools created or skipped,
+- files changed,
+- validation commands and results,
+- diff guard verdict,
+- commit SHA or no-commit reason,
+- push status,
+- next campaign step or stop condition.
+
+Hard boundaries:
+- Do not infer hidden conversation context.
+- Do not commit accidental changes to guarded files.
+- Do not relax catalog requirements to make code pass.
+- Do not reduce rigor or output quality for speed.
+- No recursive fan-out beyond direct child subagents.
+'''

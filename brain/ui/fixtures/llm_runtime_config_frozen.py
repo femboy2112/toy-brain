@@ -31,13 +31,15 @@ def check_I_LLMTOG_11_config_frozen() -> None:
         "I-LLMTOG-11 violated: LlmRuntimeConfig has no __slots__"
     )
 
-    # Field type set is the documented bounded set.
+    # Field type set is the documented bounded set (Phase 3.11 adds
+    # codex_cli_executable: str).
     hints = get_type_hints(LlmRuntimeConfig)
     expected = {
         "mode": LlmRuntimeMode,
         "api_key": Optional[str],
         "model": str,
         "claude_cli_executable": str,
+        "codex_cli_executable": str,
         "timeout_seconds": float,
         "enable_cache": bool,
         "mock_responses": tuple[str, ...],

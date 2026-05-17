@@ -45,12 +45,14 @@ def check_I_LLMTOG_04_explicit_opt_in() -> None:
         f"--llm-mode produced non-offline mode (got {config.mode!r})"
     )
 
-    # CLI flag selects each non-offline mode.
+    # CLI flag selects each non-offline mode (Phase 3.11 extends to
+    # cover codex-cli).
     for value, expected in (
         ("offline", LlmRuntimeMode.OFFLINE),
         ("mock", LlmRuntimeMode.MOCK),
         ("anthropic-api", LlmRuntimeMode.ANTHROPIC_API),
         ("claude-cli", LlmRuntimeMode.CLAUDE_CLI),
+        ("codex-cli", LlmRuntimeMode.CODEX_CLI),
     ):
         config = parse_llm_runtime_args(["--llm-mode", value], {})
         assert config.mode is expected, (
@@ -65,6 +67,25 @@ def check_I_LLMTOG_04_explicit_opt_in() -> None:
         f"MOCK (got {config.mode!r})"
     )
 
+    # BRAIN_LLM_MODE=codex-cli also selects CODEX_CLI (Phase 3.11
+    # corrigenda Section 8: no separate BRAIN_LLM_CODEX_CLI_EXECUTABLE
+    # env var; the shared BRAIN_LLM_MODE selects the mode).
+    config = parse_llm_runtime_args([], {"BRAIN_LLM_MODE": "codex-cli"})
+    assert config.mode is LlmRuntimeMode.CODEX_CLI, (
+        "I-LLMTOG-04 violated: BRAIN_LLM_MODE=codex-cli did not resolve "
+        f"to CODEX_CLI (got {config.mode!r})"
+    )
+
+    # Environment alone does NOT silently flip to codex-cli without
+    # the operator-supplied BRAIN_LLM_MODE / --llm-mode opt-in. Even
+    # if a `codex` binary is present on PATH, the resolved mode stays
+    # OFFLINE.
+    config = parse_llm_runtime_args([], {"PATH": "/usr/bin:/bin"})
+    assert config.mode is LlmRuntimeMode.OFFLINE, (
+        "I-LLMTOG-04 violated: ambient PATH without --llm-mode "
+        f"produced non-offline mode (got {config.mode!r})"
+    )
+
     # CLI flag wins over env override.
     config = parse_llm_runtime_args(
         ["--llm-mode", "offline"], {"BRAIN_LLM_MODE": "anthropic-api"}
@@ -72,4 +93,13 @@ def check_I_LLMTOG_04_explicit_opt_in() -> None:
     assert config.mode is LlmRuntimeMode.OFFLINE, (
         "I-LLMTOG-04 violated: --llm-mode offline did not override "
         f"BRAIN_LLM_MODE=anthropic-api (got {config.mode!r})"
+    )
+
+    # CLI flag wins for codex-cli too.
+    config = parse_llm_runtime_args(
+        ["--llm-mode", "codex-cli"], {"BRAIN_LLM_MODE": "offline"}
+    )
+    assert config.mode is LlmRuntimeMode.CODEX_CLI, (
+        "I-LLMTOG-04 violated: --llm-mode codex-cli did not override "
+        f"BRAIN_LLM_MODE=offline (got {config.mode!r})"
     )

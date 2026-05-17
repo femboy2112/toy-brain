@@ -292,10 +292,82 @@ class ClaudeCLIClient:
         return completed.stdout
 
 
+# ---------------------------------------------------------------------------
+# CodexCLIClient — subprocess wrapper for the local `codex exec` CLI.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class CodexCLIClient:
+    """``LLMClient`` that delegates to the local OpenAI Codex CLI in
+    non-interactive mode (``codex exec <prompt>``).
+
+    Phase 3.11 Codex CLI Runtime Option — mirrors :class:`ClaudeCLIClient`
+    but targets the OpenAI codex CLI's non-interactive ``exec``
+    subcommand. The default command tuple is ``("codex", "exec")``;
+    operators may override the executable via
+    ``--llm-codex-cli-executable``. Authentication is whatever the local
+    codex binary already has — no env var management, no token plumbing.
+
+    Honors the ``LLMClient`` Protocol (I-LLM-04); a stored ``tracer``
+    field exists for symmetry with the other backends but the retry
+    shell (``LLMBackedPtCns``) owns the ``llm.request`` / ``llm.response``
+    events because it has the content_id / attempt context.
+
+    Drives I-LLMTOG-16 / I-LLMTOG-17 (REQUIRED) and I-LLMTOG-18
+    (OBSERVED).
+    """
+
+    # ``exec`` runs the codex CLI non-interactively for a single
+    # prompt-response cycle. The tuple is minimal: no version-specific
+    # flags whose semantics could shift between codex binary versions
+    # (corrigenda Section 7).
+    command: tuple[str, ...] = ("codex", "exec")
+    timeout_seconds: float = 60.0
+    tracer: CognitionTracer = field(default_factory=NullTracer)
+    # When invoking the nested CLI, drop into a neutral cwd so the child
+    # session does not auto-discover this repo's hooks or configuration.
+    cwd: str = "/tmp"
+
+    def __post_init__(self) -> None:
+        # Resolve the command's executable once so a missing binary
+        # surfaces immediately rather than at the first call.
+        exe = self.command[0] if self.command else ""
+        if not exe or shutil.which(exe) is None:
+            raise RuntimeError(
+                f"CodexCLIClient: executable {exe!r} not found on PATH. "
+                "Install the codex CLI or override `command` with a "
+                "callable subprocess."
+            )
+
+    def eval_consistency(self, prompt: str) -> str:
+        try:
+            completed = subprocess.run(
+                [*self.command, prompt],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout_seconds,
+                check=False,
+                cwd=self.cwd,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"CodexCLIClient: `{' '.join(self.command)}` timed out after "
+                f"{self.timeout_seconds}s"
+            ) from exc
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"CodexCLIClient: subprocess returned non-zero exit "
+                f"{completed.returncode}. stderr: {completed.stderr[:500]!r}"
+            )
+        return completed.stdout
+
+
 __all__ = [
     "LLMClient",
     "AnthropicAPIClient",
     "MockClient",
     "CachedClient",
     "ClaudeCLIClient",
+    "CodexCLIClient",
 ]

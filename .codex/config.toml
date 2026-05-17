@@ -1,6 +1,5 @@
 # Project-scoped Codex config for toy-brain prompt/config workflows.
-# Derived from `.claude/` prompt files. This config is loaded only when the
-# project is trusted by Codex.
+# Derived from `.claude/` prompt files and upgraded for smart subagent `/go`.
 
 project_doc_max_bytes = 65536
 project_root_markers = [".git", "pyproject.toml", "INVARIANT_CATALOG.md"]
@@ -11,13 +10,39 @@ model_reasoning_effort = "high"
 model_verbosity = "medium"
 
 [agents]
-max_threads = 4
+max_threads = 6
 max_depth = 1
+job_max_runtime_seconds = 1200
 
 [agents.brain_current_mission]
-description = "Execute the current repo mission from CURRENT_MISSION.md when the user says go."
+description = "Execute the current repo mission from CURRENT_MISSION.md when the user says /go, including smart subagent orchestration when explicitly requested."
 config_file = "agents/brain_current_mission.toml"
 nickname_candidates = ["Go", "Mission", "Current"]
+
+[agents.brain_campaign_state]
+description = "Read-only campaign-state diagnostic. Emits READY / STOP / USER-JUDGMENT before /go selects a step."
+config_file = "agents/brain_campaign_state.toml"
+nickname_candidates = ["State", "Campaign", "Verdict"]
+
+[agents.brain_catalog_lint]
+description = "Read-only catalog-drift diagnostic for INVARIANT_CATALOG.md, tools/catalog.py, FIXTURE_MODULES, version strings, and pending-row docstrings."
+config_file = "agents/brain_catalog_lint.toml"
+nickname_candidates = ["CatalogLint", "Lint", "Drift"]
+
+[agents.brain_parallel_planner]
+description = "Read-only task decomposer. Converts the selected mission step into a dependency DAG, safe parallel groups, and worker/toolsmith recommendations."
+config_file = "agents/brain_parallel_planner.toml"
+nickname_candidates = ["Planner", "DAG", "Decomposer"]
+
+[agents.brain_toolsmith]
+description = "Bounded helper-tool generator for repetitive deterministic work, used only after the active mission permits tool creation."
+config_file = "agents/brain_toolsmith.toml"
+nickname_candidates = ["Toolsmith", "Forge", "Helper"]
+
+[agents.brain_diff_guardian]
+description = "Read-only diff/scope guardian. Compares changed files to the selected step's allowed file set before staging or committing."
+config_file = "agents/brain_diff_guardian.toml"
+nickname_candidates = ["Guardian", "Diff", "Scope"]
 
 [agents.brain_explorer]
 description = "Read-only navigator for TLICA Lean references, invariant catalog rows, traces, and docs."

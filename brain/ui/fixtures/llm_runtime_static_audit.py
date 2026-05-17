@@ -20,8 +20,10 @@ from brain.invariants import register
 
 
 _REPO_BRAIN_UI = Path(__file__).resolve().parents[1]
+_REPO_BRAIN = _REPO_BRAIN_UI.parent
 _LLM_RUNTIME_PATH = _REPO_BRAIN_UI / "llm_runtime.py"
 _MAIN_PATH = _REPO_BRAIN_UI / "__main__.py"
+_LLM_CLIENT_PATH = _REPO_BRAIN / "llm" / "client.py"
 
 # Forbidden import roots for brain/ui/llm_runtime.py. The patch plan
 # section 4 + the corrigenda ruling H scope the toggle helper's
@@ -190,7 +192,8 @@ def _audit_main_toggle_calls(tree: ast.Module) -> list[str]:
     We confirm the imports `parse_llm_runtime_args` and
     `build_llm_client_from_config` appear, and that no second
     classification path (a direct AnthropicAPIClient / ClaudeCLIClient /
-    MockClient construction) exists at module level in __main__.py.
+    CodexCLIClient / MockClient / CachedClient construction) exists at
+    module level in __main__.py.
     """
     errors: list[str] = []
     found_parse = False
@@ -207,6 +210,7 @@ def _audit_main_toggle_calls(tree: ast.Module) -> list[str]:
             for forbidden in (
                 "AnthropicAPIClient",
                 "ClaudeCLIClient",
+                "CodexCLIClient",
                 "MockClient",
                 "CachedClient",
             ):
@@ -229,17 +233,51 @@ def _audit_main_toggle_calls(tree: ast.Module) -> list[str]:
     return errors
 
 
+def _audit_llm_client_codex_class(tree: ast.Module) -> list[str]:
+    """Audit that ``brain/llm/client.py`` defines CodexCLIClient and
+    keeps the existing backends intact (Phase 3.11 extension).
+
+    The new class must be a dataclass with the locked default
+    command tuple ``("codex", "exec")``; the surrounding classes
+    (``ClaudeCLIClient`` etc.) must remain present. We do not police
+    the class body here beyond a presence check; the construction
+    semantics are covered by I-LLMTOG-17.
+    """
+    errors: list[str] = []
+    expected_classes = frozenset({
+        "AnthropicAPIClient",
+        "MockClient",
+        "CachedClient",
+        "ClaudeCLIClient",
+        "CodexCLIClient",
+    })
+    found_classes: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            found_classes.add(node.name)
+    missing = expected_classes - found_classes
+    if missing:
+        errors.append(
+            "brain/llm/client.py missing expected classes: "
+            + ", ".join(sorted(missing))
+        )
+    return errors
+
+
 @register("I-LLMTOG-13", status="STRUCTURAL")
 def check_I_LLMTOG_13_static_audit() -> None:
     runtime_source = _LLM_RUNTIME_PATH.read_text(encoding="utf-8")
     main_source = _MAIN_PATH.read_text(encoding="utf-8")
+    client_source = _LLM_CLIENT_PATH.read_text(encoding="utf-8")
     runtime_tree = ast.parse(runtime_source, filename=str(_LLM_RUNTIME_PATH))
     main_tree = ast.parse(main_source, filename=str(_MAIN_PATH))
+    client_tree = ast.parse(client_source, filename=str(_LLM_CLIENT_PATH))
 
     errors: list[str] = []
     errors += _audit_llm_runtime_imports(runtime_tree)
     errors += _audit_module_level_shape(runtime_tree, "brain/ui/llm_runtime.py")
     errors += _audit_main_toggle_calls(main_tree)
+    errors += _audit_llm_client_codex_class(client_tree)
 
     if errors:
         raise AssertionError(

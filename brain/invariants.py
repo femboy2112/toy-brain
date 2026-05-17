@@ -130,6 +130,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.llm_runtime_explicit_opt_in",
     "brain.ui.fixtures.llm_runtime_anthropic_requires_key",
     "brain.ui.fixtures.llm_runtime_claude_cli_requires_executable",
+    "brain.ui.fixtures.llm_runtime_codex_cli_factory",
+    "brain.ui.fixtures.llm_runtime_codex_cli_requires_executable",
     "brain.ui.fixtures.llm_runtime_mock_requires_responses",
     "brain.ui.fixtures.llm_runtime_cache_gated",
     "brain.ui.fixtures.llm_runtime_tick_seam",
@@ -805,10 +807,9 @@ for _row_id, _status in _PHASE3_8B_PENDING_ROWS.items():
 # static audit; Step 9 lands save / load reconstruction and the failure-
 # isolation / atomic-save / resource-audit fixtures; Step 10 lands the
 # /save-session and /load-session commands fixture). I-PERSIST-15
-# (OBSERVED, cold-start dry run) and I-PERSIST-16 (NOT-EXERCISED,
-# autosave path absent; structurally checked by
-# persistence_static_audit.py) do not participate in I-CAT-01 coverage
-# and are not pending here.
+# (OBSERVED, cold-start dry run) does not participate in I-CAT-01
+# coverage. I-PERSIST-16 was later reclassified to STRUCTURAL at v0.19
+# and is registered below by reusing persistence_static_audit.py.
 # ---------------------------------------------------------------------------
 
 
@@ -824,8 +825,8 @@ _PHASE3_9_PENDING_ROWS: dict[str, str] = {
     # brain/ui/fixtures/persistence_commands.py. No Phase 3.9
     # Persistent Session Store rows remain pending. I-PERSIST-15
     # (OBSERVED, cold-start dry run) is documented in Step 11's
-    # PHASE3_9_PERSISTENCE_DRY_RUN.md; I-PERSIST-16 (NOT-EXERCISED,
-    # autosave absent) is structurally checked by
+    # PHASE3_9_PERSISTENCE_DRY_RUN.md. I-PERSIST-16 was reclassified
+    # to STRUCTURAL at v0.19 and is registered below by reusing
     # persistence_static_audit.py.
 }
 
@@ -916,22 +917,20 @@ for _row_id, _status in _PHASE3_10_OBSERVE_PENDING_ROWS.items():
 
 
 # ---------------------------------------------------------------------------
-# Phase 3.10c Autosave Policy pending rows. Step 17 of the Phase 3.10
-# campaign applies the accepted v0.19 catalog patch
-# (I-AUTOSAVE-01..15) before the Phase 3.10c runtime module
-# (brain/ui/autosave.py) and its eleven autosave_* fixtures exist.
-# These pending registrations keep I-CAT-01 coverage coherent while
-# making any attempted row execution fail explicitly. Step 18 replaces
-# I-AUTOSAVE-01..14 with real fixture-backed checks (11 REQUIRED +
-# 3 STRUCTURAL = 14 pending rows; I-AUTOSAVE-15 is OBSERVED and is
-# documented in Step 19's PHASE3_10C_AUTOSAVE_DRY_RUN.md without
-# participating in I-CAT-01 coverage).
+# Phase 3.10c Autosave Policy pending rows. The accepted v0.19 catalog
+# patch added I-AUTOSAVE-01..15 before the Phase 3.10c runtime module
+# (brain/ui/autosave.py) and its autosave_* fixtures existed. These
+# pending registrations kept I-CAT-01 coverage coherent while making any
+# attempted row execution fail explicitly. The live autosave fixtures later
+# replaced I-AUTOSAVE-01..14 with real fixture-backed checks; I-AUTOSAVE-15
+# is OBSERVED and is documented in PHASE3_10C_AUTOSAVE_DRY_RUN.md without
+# participating in I-CAT-01 coverage.
 # ---------------------------------------------------------------------------
 
 
 _PHASE3_10C_PENDING_ROWS: dict[str, str] = {
-    # Step 18 drained I-AUTOSAVE-01..14 via the eleven
-    # brain/ui/fixtures/autosave_*.py fixtures registered in
+    # The autosave fixture landing drained I-AUTOSAVE-01..14 via the
+    # eleven brain/ui/fixtures/autosave_*.py fixtures registered in
     # FIXTURE_MODULES. The runtime lives in brain/ui/autosave.py
     # (default-OFF opt-in autosave that hooks the central
     # OperatorSession.dispatch post-mutation site and routes through
@@ -940,9 +939,8 @@ _PHASE3_10C_PENDING_ROWS: dict[str, str] = {
     # /autosave-disable) and the --autosave-mode CLI flag are wired in
     # brain/ui/commands.py, brain/ui/command_line.py,
     # brain/ui/__main__.py, and brain/ui/session.py. I-AUTOSAVE-15
-    # (OBSERVED) is documented in Step 19's
-    # PHASE3_10C_AUTOSAVE_DRY_RUN.md and does not participate in
-    # I-CAT-01 coverage.
+    # (OBSERVED) is documented in PHASE3_10C_AUTOSAVE_DRY_RUN.md and
+    # does not participate in I-CAT-01 coverage.
 }
 
 
@@ -967,7 +965,7 @@ for _row_id, _status in _PHASE3_10C_PENDING_ROWS.items():
 # owns no autosave trigger or background autosave hook) is already
 # enforced by the I-PERSIST-12 static-AST audit body inside
 # brain.ui.fixtures.persistence_static_audit. The v0.19 patch keeps the
-# fixture file unchanged in this Step 17 catalog patch; the registration
+# fixture file unchanged in the v0.19 catalog patch; the registration
 # below re-runs the existing audit and surfaces it under the I-PERSIST-16
 # row ID so I-CAT-01 coverage stays coherent without a fixture-file
 # edit. The catalog Fixture column for I-PERSIST-16 names
@@ -1006,6 +1004,41 @@ def _check_i_persist_16_autosave_absent() -> None:
 register("I-PERSIST-16", status="STRUCTURAL")(
     _check_i_persist_16_autosave_absent
 )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.11 Codex CLI Runtime Option: pending row registrations.
+#
+# Step 8 applies the accepted v0.20 catalog patch (I-LLMTOG-16/17 REQUIRED,
+# I-LLMTOG-18 OBSERVED) before the Phase 3.11 Step 9 runtime extension
+# (CODEX_CLI enum member, _build_codex_cli_client, CodexCLIClient) and its
+# two new fixtures land. These pending registrations keep I-CAT-01 coverage
+# coherent while making any attempted row execution fail explicitly. Step 9
+# replaces I-LLMTOG-16/17 with real fixture-backed checks via the two new
+# llm_runtime_codex_cli_* modules registered in FIXTURE_MODULES.
+# I-LLMTOG-18 is OBSERVED and does not participate in I-CAT-01 coverage;
+# its smoke walk is documented in PHASE3_11_CODEX_CLI_RUNTIME_CORRIGENDA.md
+# Section 11 and recorded by the operator in
+# PHASE3_11_LLM_RUNTIME_BEHAVIOR_REPORT.md.
+# ---------------------------------------------------------------------------
+
+
+_PHASE3_11_PENDING_ROWS: dict[str, str] = {}
+
+
+def _make_phase3_11_pending_check(row_id: str) -> Callable[[], None]:
+    def _check() -> None:
+        raise NotImplementedError(
+            f"{row_id} is registered for Phase 3.11 catalog coverage "
+            "but its runtime implementation has not landed yet"
+        )
+
+    _check.__name__ = f"check_{row_id.replace('-', '_')}_pending"
+    return _check
+
+
+for _row_id, _status in _PHASE3_11_PENDING_ROWS.items():
+    register(_row_id, status=_status)(_make_phase3_11_pending_check(_row_id))
 
 
 def _import_fixtures(report: RunReport) -> None:

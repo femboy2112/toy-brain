@@ -231,19 +231,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
       non-interactive inspection and for the I-UI-12 smoke fixture.
     * ``--check-terminal`` — print the result of :func:`detect_terminal`
       and exit. Never touches curses.
-    * ``--llm-mode`` — Phase 3.8b LLM runtime toggle. Accepts
-      ``offline`` (default), ``mock``, ``anthropic-api``, or
-      ``claude-cli``. Model-backed modes require explicit opt-in.
+    * ``--llm-mode`` — Phase 3.8b/3.11 LLM runtime toggle. Accepts
+      ``offline`` (default), ``mock``, ``anthropic-api``,
+      ``claude-cli``, or ``codex-cli``. Model-backed modes require
+      explicit opt-in.
     * ``--llm-anthropic-api-key`` — explicit API key override for
       ``anthropic-api``. Otherwise resolved from
       ``BRAIN_ANTHROPIC_API_KEY`` or ``ANTHROPIC_API_KEY``.
     * ``--llm-anthropic-model`` — model name override.
     * ``--llm-claude-cli-executable`` — executable override for
       ``claude-cli``.
+    * ``--llm-codex-cli-executable`` — executable override for
+      ``codex-cli``.
     * ``--llm-timeout`` — request timeout in seconds.
     * ``--llm-enable-cache`` — wrap model-backed clients in
       :class:`CachedClient`. Only honored for ``anthropic-api`` /
-      ``claude-cli``.
+      ``claude-cli`` / ``codex-cli``.
     * ``--llm-mock-response`` — repeatable canned response for ``mock``.
     """
     parser = argparse.ArgumentParser(
@@ -286,8 +289,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "LLM runtime mode: offline (default), mock, anthropic-api, "
-            "or claude-cli. Model-backed modes require explicit opt-in. "
-            "Also honors BRAIN_LLM_MODE; --llm-mode wins."
+            "claude-cli, or codex-cli. Model-backed modes require "
+            "explicit opt-in. Also honors BRAIN_LLM_MODE; --llm-mode "
+            "wins."
         ),
     )
     parser.add_argument(
@@ -309,6 +313,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="executable override for claude-cli (default: claude)",
     )
     parser.add_argument(
+        "--llm-codex-cli-executable",
+        default=None,
+        help=(
+            "Path or name of the codex executable to invoke when "
+            "--llm-mode is codex-cli. Default: codex. Resolved via "
+            "shutil.which at session-launch time. Missing executable "
+            "fails closed before launch."
+        ),
+    )
+    parser.add_argument(
         "--llm-timeout",
         default=None,
         help="request timeout in seconds (default: 30.0)",
@@ -318,7 +332,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "wrap model-backed clients with CachedClient under "
-            "brain/.llm_cache; only honored for anthropic-api / claude-cli"
+            "brain/.llm_cache; only honored for anthropic-api / claude-cli / codex-cli"
         ),
     )
     parser.add_argument(

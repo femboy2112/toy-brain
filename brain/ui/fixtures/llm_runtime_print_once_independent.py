@@ -37,6 +37,11 @@ def check_I_LLMTOG_10_print_once_independent() -> None:
         # mock with no responses: also must succeed because --print-once
         # short-circuits before factory checks.
         ["--print-once", "--llm-mode", "mock"],
+        # Phase 3.11: codex-cli with an invalid executable; --print-once
+        # short-circuits before the factory is invoked so the missing
+        # binary does not fail the exit path.
+        ["--print-once", "--llm-mode", "codex-cli",
+         "--llm-codex-cli-executable", "/nonexistent/codex-I-LLMTOG-10"],
     )
 
     for argv in combos:

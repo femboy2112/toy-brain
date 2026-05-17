@@ -26,7 +26,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from brain.invariants import register
-from brain.llm.client import MockClient
+from brain.llm.client import CodexCLIClient, MockClient
 from brain.ui.__main__ import OfflineStandInClient, main
 from brain.ui.llm_runtime import LlmRuntimeMode
 
@@ -107,6 +107,31 @@ def check_I_LLMTOG_09_tick_seam() -> None:
         assert isinstance(captured["client"], MockClient), (
             "I-LLMTOG-09 violated: MOCK main did not pass MockClient to "
             f"run_curses (got {type(captured['client']).__name__})"
+        )
+
+        # CODEX_CLI path (Phase 3.11 extension): client should be a
+        # CodexCLIClient. Use sys.executable so the local _which()
+        # check finds the binary without depending on a real codex
+        # CLI; the factory binds command[0] to the resolved path.
+        captured["calls"] = 0
+        rc = main(
+            argv=[
+                "--llm-mode", "codex-cli",
+                "--llm-codex-cli-executable", sys.executable,
+            ],
+            stdin=_FakeTerminal(),
+            stdout=_FakeTerminal(),
+            stderr=_FakeTerminal(),
+            env={"TERM": "xterm-256color"},
+        )
+        assert rc == 0, (
+            f"I-LLMTOG-09 violated: main exit code != 0 in CODEX_CLI "
+            f"path (got {rc})"
+        )
+        assert isinstance(captured["client"], CodexCLIClient), (
+            "I-LLMTOG-09 violated: CODEX_CLI main did not pass "
+            f"CodexCLIClient to run_curses "
+            f"(got {type(captured['client']).__name__})"
         )
     finally:
         _tui_mod.run_curses = saved_run_curses  # type: ignore[assignment]
