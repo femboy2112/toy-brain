@@ -890,7 +890,7 @@ These rows are Phase 3.10c engineering hypotheses. They bind deterministic Pytho
 
 ## Validation procedure
 
-`python3 -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. v0.8 is complete when every row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
+`python3 -m brain.invariants run` walks every `REQUIRED` row, loads each named fixture, and reports a structured pass/fail table. Catalog validation is complete when every gating row's row-id appears in the green column. The runner refuses to start if any `STRUCTURAL` builder check fails on construction (cogito sentinel, profile bounds, etc.) — those errors fire before any per-tick check. The runner also performs the import-graph audit for I-PCE-05 (`agency.py` never imports `pce.PCE`) and the I-CAT-01 coverage audit (every catalog REQUIRED/STRUCTURAL row has a registered check). Rows whose fixture column is `_meta` are enforced by the runner directly rather than by a fixture file; the runner registers a stub `@register` entry for each so they appear in the run summary.
 
 ---
 
