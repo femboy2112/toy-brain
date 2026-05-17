@@ -54,11 +54,11 @@ CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
-PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md
-PHASE3_11_BEHAVIOR_FINDINGS.md
-PHASE3_11_BUG_UX_TRIAGE_PLAN.md
-PHASE3_11_LLM_RUNTIME_BEHAVIOR_REPORT.md
-PHASE3_11_OFFLINE_INTERACTION_REPORT.md
+docs/campaigns/phase3_11/PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md
+docs/campaigns/phase3_11/PHASE3_11_BEHAVIOR_FINDINGS.md
+docs/campaigns/phase3_11/PHASE3_11_BUG_UX_TRIAGE_PLAN.md
+docs/campaigns/phase3_11/PHASE3_11_LLM_RUNTIME_BEHAVIOR_REPORT.md
+docs/campaigns/phase3_11/PHASE3_11_OFFLINE_INTERACTION_REPORT.md
 brain/tick.py
 brain/development/text_stream.py
 brain/development/expression.py
@@ -90,7 +90,7 @@ Counts:
   OBSERVED:         16
 Latest completed campaign: Phase 3.11 Comprehensive Live Behavior Test
 Latest merged PR: PR #10
-Latest integrated audit: PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md PASS
+Latest integrated audit: docs/campaigns/phase3_11/PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md PASS
 Current campaign: Phase 3.12 Coherent I-Loop Observatory
 Next eligible step: Step 1 repo-state sync and Phase 3.12 mission install
 ```
@@ -181,7 +181,7 @@ Allowed files:
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-PHASE3_12_COHERENT_I_LOOP_ROADMAP.md
+docs/campaigns/phase3_12/PHASE3_12_COHERENT_I_LOOP_ROADMAP.md
 ```
 
 Required work:
@@ -212,7 +212,7 @@ Commit and push.
 Create:
 
 ```text
-PHASE3_12_COHERENT_I_LOOP_SYNTHESIS.md
+docs/campaigns/phase3_12/PHASE3_12_COHERENT_I_LOOP_SYNTHESIS.md
 ```
 
 Required content:
@@ -236,7 +236,7 @@ Commit and push.
 Create:
 
 ```text
-PHASE3_12_COHERENT_I_LOOP_KICKOFF.md
+docs/campaigns/phase3_12/PHASE3_12_COHERENT_I_LOOP_KICKOFF.md
 ```
 
 Required content:
@@ -260,7 +260,7 @@ Commit and push.
 Create:
 
 ```text
-PHASE3_12_COHERENT_I_LOOP_MATRIX.md
+docs/campaigns/phase3_12/PHASE3_12_COHERENT_I_LOOP_MATRIX.md
 ```
 
 Matrix sections:
@@ -292,7 +292,7 @@ No source-code changes are allowed before this gate.
 Create:
 
 ```text
-PHASE3_12_COHERENT_I_LOOP_OBSERVATORY_REPORT.md
+docs/campaigns/phase3_12/PHASE3_12_COHERENT_I_LOOP_OBSERVATORY_REPORT.md
 ```
 
 Allowed behavior:
@@ -328,7 +328,7 @@ Commit and push.
 Create:
 
 ```text
-PHASE3_12_PATTERN_LEDGER_SYNTHESIS.md
+docs/campaigns/phase3_12/PHASE3_12_PATTERN_LEDGER_SYNTHESIS.md
 ```
 
 Purpose:
@@ -359,8 +359,8 @@ Commit and push.
 Create:
 
 ```text
-PHASE3_12_PATTERN_LEDGER_KICKOFF.md
-PHASE3_12_PATTERN_LEDGER_CORRIGENDA.md
+docs/campaigns/phase3_12/PHASE3_12_PATTERN_LEDGER_KICKOFF.md
+docs/campaigns/phase3_12/PHASE3_12_PATTERN_LEDGER_CORRIGENDA.md
 ```
 
 Commit and push.
@@ -372,7 +372,7 @@ Commit and push.
 Create:
 
 ```text
-PHASE3_12_PATTERN_LEDGER_CATALOG_PATCH_PLAN.md
+docs/campaigns/phase3_12/PHASE3_12_PATTERN_LEDGER_CATALOG_PATCH_PLAN.md
 ```
 
 Likely row family:
@@ -424,7 +424,7 @@ Allowed files depend on the accepted plan.
 Create:
 
 ```text
-PHASE3_12_SELF_MODEL_GROWTH_LEDGER_ROADMAP.md
+docs/campaigns/phase3_12/PHASE3_12_SELF_MODEL_GROWTH_LEDGER_ROADMAP.md
 ```
 
 This is a design/roadmap artifact only.
@@ -442,7 +442,7 @@ Stop unless the operator explicitly promotes SelfModel/Growth implementation int
 Create:
 
 ```text
-PHASE3_12_COHERENT_I_LOOP_AUDIT.md
+docs/campaigns/phase3_12/PHASE3_12_COHERENT_I_LOOP_AUDIT.md
 ```
 
 Validation:

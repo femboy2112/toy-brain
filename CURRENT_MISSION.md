@@ -63,11 +63,11 @@ CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
 README.md
 INVARIANT_CATALOG.md
-PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md
-PHASE3_11_BEHAVIOR_FINDINGS.md
-PHASE3_11_BUG_UX_TRIAGE_PLAN.md
-PHASE3_11_LLM_RUNTIME_BEHAVIOR_REPORT.md
-PHASE3_11_OFFLINE_INTERACTION_REPORT.md
+docs/campaigns/phase3_11/PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md
+docs/campaigns/phase3_11/PHASE3_11_BEHAVIOR_FINDINGS.md
+docs/campaigns/phase3_11/PHASE3_11_BUG_UX_TRIAGE_PLAN.md
+docs/campaigns/phase3_11/PHASE3_11_LLM_RUNTIME_BEHAVIOR_REPORT.md
+docs/campaigns/phase3_11/PHASE3_11_OFFLINE_INTERACTION_REPORT.md
 brain/tick.py
 brain/development/text_stream.py
 brain/development/expression.py
@@ -99,7 +99,7 @@ Counts:
   OBSERVED:         16
 Latest completed campaign: Phase 3.11 Comprehensive Live Behavior Test
 Latest merged PR: PR #10
-Latest audit: PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md PASS
+Latest audit: docs/campaigns/phase3_11/PHASE3_11_COMPREHENSIVE_BEHAVIOR_TEST_AUDIT.md PASS
 Known follow-ups from Step 19:
   - documentation wording refresh for SQLite backup API semantics
   - prior mission/campaign prose was stale before this Phase 3.12 sync
