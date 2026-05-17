@@ -59,6 +59,16 @@ _PHASE_3_10C_SESSION_ATTRS: frozenset[str] = frozenset({
 })
 
 
+#: Phase 3.12c (Pattern Ledger) additions to the OperatorSession
+#: attribute surface. The fixture allows this name through the
+#: I-OPSHARDEN-13 check because the v0.21 catalog patch authorizes
+#: it; the I-PLEDGER-16 resource audit fixture asserts the positive
+#: shape (no callable / handle / client) of the Pattern Ledger field.
+_PHASE_3_12C_SESSION_ATTRS: frozenset[str] = frozenset({
+    "pattern_ledger",
+})
+
+
 def _assert_session_resource_free(session: OperatorSession, *, tag: str) -> None:
     """Raise if any session field exposes a forbidden resource."""
     for attr in _ALLOWED_SESSION_ATTRS:
@@ -94,8 +104,14 @@ def _assert_session_resource_free(session: OperatorSession, *, tag: str) -> None
 def check_i_opsharden_13_session_resource_audit() -> None:
     # Phase 3.10a must not widen the OperatorSession attribute surface
     # beyond the Phase 3.9 baseline plus the Phase 3.10c (Autosave
-    # Policy) additions authorized by the v0.19 catalog patch.
-    allowed = _PHASE_3_9_SESSION_ATTRS | _PHASE_3_10C_SESSION_ATTRS
+    # Policy) additions authorized by the v0.19 catalog patch and the
+    # Phase 3.12c (Pattern Ledger) addition authorized by the v0.21
+    # catalog patch.
+    allowed = (
+        _PHASE_3_9_SESSION_ATTRS
+        | _PHASE_3_10C_SESSION_ATTRS
+        | _PHASE_3_12C_SESSION_ATTRS
+    )
     if frozenset(_ALLOWED_SESSION_ATTRS) != allowed:
         added = set(_ALLOWED_SESSION_ATTRS) - allowed
         dropped = allowed - set(_ALLOWED_SESSION_ATTRS)

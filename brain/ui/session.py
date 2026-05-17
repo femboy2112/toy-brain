@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Optional
 
+from brain.development.pattern_ledger import PatternLedger
 from brain.development.text_stream import (
     STREAM_PROMOTION_MAX,
     StreamPromotionCandidate,
@@ -203,6 +204,7 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "session_store_config",
     "autosave_config",
     "last_autosave_status",
+    "pattern_ledger",
 })
 
 
@@ -257,6 +259,7 @@ class OperatorSession:
     session_store_config: Optional["SessionStoreConfig"] = None
     autosave_config: Optional["AutosaveConfig"] = None
     last_autosave_status: Optional["AutosaveStatusReport"] = None
+    pattern_ledger: PatternLedger = field(default_factory=PatternLedger)
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -364,6 +367,11 @@ class OperatorSession:
                     "AutosaveStatusReport or None "
                     f"(got {type(self.last_autosave_status).__name__})"
                 )
+        if not isinstance(self.pattern_ledger, PatternLedger):
+            raise TypeError(
+                "OperatorSession.pattern_ledger must be a PatternLedger "
+                f"(got {type(self.pattern_ledger).__name__})"
+            )
         self._assert_no_unsafe_resources()
 
     # ------------------------------------------------------------------
@@ -733,6 +741,14 @@ class OperatorSession:
         self.stream_history = new_history
         self._append_stream_candidates((candidate,))
         self.stream_chunk_serial = prior_serial + 1
+        # I-PLEDGER-13: a successful /stream append is the sole v1
+        # Pattern Ledger trigger. observe(...) is pure copy-on-write
+        # and never reaches BrainState / MSI / PtCns / tick / LLM.
+        self.pattern_ledger = self.pattern_ledger.observe(
+            chunk,
+            candidate,
+            current_tick=self.tick_counter,
+        )
         self.set_active_view("stream_summary")
         self.set_status(
             f"stream chunk {chunk.chunk_id!r} appended "

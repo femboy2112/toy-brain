@@ -24,16 +24,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.20 expected counts — bumped by the Phase 3.11 Codex CLI Runtime
-# Option catalog patch (I-LLMTOG-16/17/18: +2 REQUIRED, +1 OBSERVED;
-# I-LLMTOG-12 row body updates in place from four-member to
-# five-member assertion). The Phase 3.8b I-LLMTOG-* family is
-# extended additively; no Phase 3.8b row is retired or renamed.
+# v0.22 expected counts — bumped by the Phase 3.12c Coherence Monitor
+# catalog patch (I-COHMON-01..14 Option A: +11 REQUIRED rows, +1
+# STRUCTURAL row, +1 NOT-EXERCISED row, +1 DEFERRED row; OBSERVED
+# unchanged). The Phase 3.12c Coherence Monitor is a read-only
+# diagnostic substrate; no UI, no observed dry run, no OperatorSession
+# slot, no DB open, no persistence schema, no autosave extension in
+# v1.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 214,
-    "STRUCTURAL": 83,
-    "NOT-EXERCISED": 9,
-    "DEFERRED": 12,
+    "REQUIRED": 240,
+    "STRUCTURAL": 85,
+    "NOT-EXERCISED": 11,
+    "DEFERRED": 14,
     "OBSERVED": 16,
 }
 
