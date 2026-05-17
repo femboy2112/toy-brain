@@ -81,12 +81,12 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 Expected current state:
 
 ```text
-Catalog: v0.20
+Catalog: v0.21
 Counts:
-  REQUIRED:        214
-  STRUCTURAL:       83
-  NOT-EXERCISED:     9
-  DEFERRED:         12
+  REQUIRED:        229
+  STRUCTURAL:       84
+  NOT-EXERCISED:    10
+  DEFERRED:         13
   OBSERVED:         16
 Latest completed campaign: Phase 3.11 Comprehensive Live Behavior Test
 Latest merged PR: PR #10

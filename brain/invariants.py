@@ -178,6 +178,12 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.autosave_trigger_set",
     "brain.ui.fixtures.autosave_static_audit",
     "brain.ui.fixtures.autosave_resource_audit",
+    "brain.development.fixtures.pattern_ledger_constructor",
+    "brain.development.fixtures.pattern_ledger_signature_id",
+    "brain.development.fixtures.pattern_ledger_observe",
+    "brain.development.fixtures.pattern_ledger_static_audit",
+    "brain.development.fixtures.pattern_ledger_no_runtime_coupling",
+    "brain.development.fixtures.pattern_ledger_stream_integration",
 ]
 
 

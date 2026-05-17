@@ -24,16 +24,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.20 expected counts — bumped by the Phase 3.11 Codex CLI Runtime
-# Option catalog patch (I-LLMTOG-16/17/18: +2 REQUIRED, +1 OBSERVED;
-# I-LLMTOG-12 row body updates in place from four-member to
-# five-member assertion). The Phase 3.8b I-LLMTOG-* family is
-# extended additively; no Phase 3.8b row is retired or renamed.
+# v0.21 expected counts — bumped by the Phase 3.12c Pattern Ledger
+# catalog patch (I-PLEDGER-01..18 Option A: +15 REQUIRED rows, +1
+# STRUCTURAL row, +1 NOT-EXERCISED row, +1 DEFERRED row; OBSERVED
+# unchanged). The Phase 3.12c family is session-local only; no
+# persistence schema, no /pattern-ledger UI, no observed dry run in
+# v1.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 214,
-    "STRUCTURAL": 83,
-    "NOT-EXERCISED": 9,
-    "DEFERRED": 12,
+    "REQUIRED": 229,
+    "STRUCTURAL": 84,
+    "NOT-EXERCISED": 10,
+    "DEFERRED": 13,
     "OBSERVED": 16,
 }
 
