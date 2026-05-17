@@ -524,7 +524,7 @@ def main(argv: list[str]) -> int:
                 error_class=error_class,
                 metadata={**metadata, "message": message, "stdout_excerpt": stdout_excerpt},
                 codex_stdout="",
-                codex_stderr_excerpt=bounded(stderr),
+                codex_stderr_excerpt=bounded(stderr, 5000),
             )
             return exit_code
         emit_report(
@@ -533,7 +533,7 @@ def main(argv: list[str]) -> int:
             error_class=error_class,
             metadata={**metadata, "message": message},
             codex_stdout=bounded(stdout, 2000),
-            codex_stderr_excerpt=bounded(stderr),
+            codex_stderr_excerpt=bounded(stderr, 5000),
         )
         return exit_code
 

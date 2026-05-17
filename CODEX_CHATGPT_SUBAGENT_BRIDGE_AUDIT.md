@@ -156,17 +156,34 @@ check_all.sh:          All checks passed
 Status:
 
 ```text
-skipped — requires operator approval in this session
+PASS — operator approved and executed
 ```
 
-If approved, record:
+Record:
 
 ```text
-model: <fill>
-effort: <fill>
-command: <fill>
-exit: <fill>
-notes: <fill>
+model:   gpt-5.5
+                 (gpt-5.1-codex, gpt-5, gpt-5-codex, gpt-5.1, o3, gpt-4o
+                  rejected by the ChatGPT-account Codex backend with HTTP 400
+                  "model is not supported when using Codex with a ChatGPT account")
+effort:  low
+timeout: 120s
+command: printf "Return a valid Stage A summarize advisory report. In the
+         Answer section, say exactly: hello from bridge\n" \
+         | python3 tools/claude_helpers/codex_chatgpt_subagent.py \
+           --mode summarize --model gpt-5.5 --effort low --timeout 120
+exit:    0
+notes:
+  - wrapper transport report rendered; Codex stdout surfaced verbatim under
+    the wrapper metadata block
+  - Codex returned the full Stage A summarize template; Answer section read
+    exactly: "hello from bridge"
+  - runtime audit JSONL appended at .claude/codex_bridge_logs/2026-05-17.jsonl
+    with prompt_sha256 + prompt_template_sha256 (no prompt content)
+  - .claude/codex_bridge_logs/ is gitignored; the audit log was not staged
+  - the wrapper's error-path stderr display bound was widened from 1000 to
+    5000 chars during smoke diagnosis; this is the only tracked-file change
+    beyond the original Stage A drop
 ```
 
 ## Remaining work
