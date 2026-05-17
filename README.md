@@ -418,7 +418,7 @@ Companion docs (consult the relevant one when editing the catalog):
 - `PHASE3_8_OPERATOR_STREAM_INTERACTION_AUDIT.md` (Phase 3.8 complete; PASS).
 - `PHASE3_8B_LLM_RUNTIME_TOGGLE_AUDIT.md` (Phase 3.8b complete; PASS).
 - `PHASE3_TEXT_INTERACTION_DRY_RUN.md` (Fast Safe Text Interaction end-to-end walk).
-- `CURRENT_MISSION.md` / `CURRENT_CAMPAIGN.md` (Phase 3.9 Persistent Session Store — current).
+- `CURRENT_MISSION.md` / `CURRENT_CAMPAIGN.md` (Phase 3.11 Comprehensive Live Behavior Test — current).
 - `PHASE3_9_PERSISTENT_SESSION_STORE_ROADMAP.md` (Phase 3.9 roadmap).
 
 ## Constraints (pre-coding rules — these are pulled from the catalog)

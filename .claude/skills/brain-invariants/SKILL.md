@@ -10,13 +10,13 @@ The `brain/` package is a theorem-constrained Python state machine.
 Lean theorems plus Phase 2 and Phase 3 engineering-hypothesis rows to Python
 checks, owning modules, and fixtures.
 
-Current baseline is catalog v0.8:
+Current baseline is catalog v0.20:
 
-- 105 REQUIRED
-- 29 STRUCTURAL
-- 3 NOT-EXERCISED
+- 214 REQUIRED
+- 83 STRUCTURAL
+- 9 NOT-EXERCISED
 - 12 DEFERRED
-- 4 OBSERVED
+- 16 OBSERVED
 
 `python3 -m tools.catalog counts` is the strict gate for banner, actual, and
 expected count agreement. `python3 -m brain.invariants run` must report every
