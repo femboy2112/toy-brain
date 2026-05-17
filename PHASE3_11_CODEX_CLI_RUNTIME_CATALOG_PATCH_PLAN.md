@@ -94,7 +94,7 @@ per line in the markdown table). Pipe-separated columns:
 ### 3.1 I-LLMTOG-16 (NEW, REQUIRED)
 
 ```text
-| I-LLMTOG-16 | Engineering hypothesis (Phase 3.11 Codex CLI Runtime Option) | `CODEX_CLI` without executable raises before launch. | `build_llm_client_from_config(LlmRuntimeConfig(mode=LlmRuntimeMode.CODEX_CLI, codex_cli_executable="<not-on-path>"))` raises `LlmRuntimeError` naming the missing executable and the mode; no `CodexCLIClient` instance is returned; the factory does not consult `os.environ`. | `brain/ui/llm_runtime.py` | `llm_runtime_codex_cli_requires_executable.py` | REQUIRED |
+| I-LLMTOG-16 | Engineering hypothesis (Phase 3.11 Codex CLI Runtime Option) | `CODEX_CLI` without executable raises before launch. | `build_llm_client_from_config(LlmRuntimeConfig(mode=LlmRuntimeMode.CODEX_CLI, codex_cli_executable="<not-on-path>"))` raises `LlmRuntimeError` naming the missing executable and the mode; no `CodexCLIClient` instance is returned; the factory does not consult credential / configuration env vars (PATH lookup is confined to `_which` for executable resolution). | `brain/ui/llm_runtime.py` | `llm_runtime_codex_cli_requires_executable.py` | REQUIRED |
 ```
 
 Mirrors I-LLMTOG-06 exactly; only the mode / class names differ.

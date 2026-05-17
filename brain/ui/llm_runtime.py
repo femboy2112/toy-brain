@@ -11,8 +11,9 @@ permitted to import ``brain.llm.client``. It defines:
 * :class:`LlmRuntimeConfig` — frozen / slots-bearing config record.
 * :class:`LlmRuntimeError` — local exception for startup failures.
 * :func:`parse_llm_runtime_args` — pure ``(argv, env) -> config`` parser.
-* :func:`build_llm_client_from_config` — factory; never reads
-  ``os.environ``.
+* :func:`build_llm_client_from_config` — factory; does not read
+  credential / configuration env vars (PATH lookup via
+  :func:`_which` is permitted for CLI tool resolution).
 
 Catalog rows driven from here:
 
@@ -418,12 +419,14 @@ def _parse_timeout(value: str) -> float:
 def build_llm_client_from_config(config: LlmRuntimeConfig) -> object:
     """Build an ``LLMClient``-compatible backend from a config.
 
-    The factory NEVER reads ``os.environ``: every environment value
-    has already been folded into ``config`` by
-    :func:`parse_llm_runtime_args`. Per-mode credential / tool
-    availability checks happen here, before any session is constructed
-    (corrigenda ruling D). All local failures raise
-    :class:`LlmRuntimeError`.
+    The factory does NOT read credential / configuration environment
+    variables: every credential / configuration env value has already
+    been folded into ``config`` by :func:`parse_llm_runtime_args`. The
+    factory's only environment access is a PATH lookup via
+    :func:`_which`, used to resolve the CLI executable for
+    ``CLAUDE_CLI`` / ``CODEX_CLI`` modes (corrigenda ruling D; PATH
+    lookup is a tool-availability check, not a credential read). All
+    local failures raise :class:`LlmRuntimeError`.
 
     Returns one of:
 
@@ -431,11 +434,12 @@ def build_llm_client_from_config(config: LlmRuntimeConfig) -> object:
     * :class:`brain.llm.client.MockClient` — for ``MOCK``.
     * :class:`brain.llm.client.AnthropicAPIClient` — for ``ANTHROPIC_API``.
     * :class:`brain.llm.client.ClaudeCLIClient` — for ``CLAUDE_CLI``.
+    * :class:`brain.llm.client.CodexCLIClient` — for ``CODEX_CLI``.
 
     When ``config.enable_cache`` is ``True`` and the mode is one of
-    ``ANTHROPIC_API`` / ``CLAUDE_CLI``, the returned backend is wrapped
-    in :class:`brain.llm.client.CachedClient` with ``cache_dir=
-    LLM_RUNTIME_CACHE_DIR``.
+    ``ANTHROPIC_API`` / ``CLAUDE_CLI`` / ``CODEX_CLI``, the returned
+    backend is wrapped in :class:`brain.llm.client.CachedClient` with
+    ``cache_dir=LLM_RUNTIME_CACHE_DIR``.
     """
     if not isinstance(config, LlmRuntimeConfig):
         raise LlmRuntimeError(
@@ -488,12 +492,16 @@ def build_llm_client_from_config(config: LlmRuntimeConfig) -> object:
         return backend
 
     if mode is LlmRuntimeMode.CODEX_CLI:
-        if _which(config.codex_cli_executable) is None:
+        resolved = _which(config.codex_cli_executable)
+        if resolved is None:
             raise LlmRuntimeError(
                 f"mode 'codex-cli' requires executable "
                 f"{config.codex_cli_executable!r} on PATH"
             )
-        backend = _build_codex_cli_client(config)
+        backend = _build_codex_cli_client(
+            config,
+            resolved_executable=resolved,
+        )
         if config.enable_cache:
             return _wrap_cache(backend)
         return backend
@@ -543,17 +551,24 @@ def _build_claude_cli_client(config: LlmRuntimeConfig) -> object:
     )
 
 
-def _build_codex_cli_client(config: LlmRuntimeConfig) -> object:
+def _build_codex_cli_client(
+    config: LlmRuntimeConfig,
+    *,
+    resolved_executable: str,
+) -> object:
     """Construct a :class:`brain.llm.client.CodexCLIClient`.
 
     Mirrors :func:`_build_claude_cli_client`. The command tuple is
     locked to ``(<resolved-executable>, "exec")`` per the Phase 3.11
-    corrigenda Section 7.
+    corrigenda Section 7. The caller is responsible for resolving
+    ``config.codex_cli_executable`` via :func:`_which` (a PATH lookup,
+    not a credential / configuration env var read) and passing the
+    absolute path as ``resolved_executable``.
     """
     from brain.llm.client import CodexCLIClient
 
     return CodexCLIClient(
-        command=(config.codex_cli_executable, "exec"),
+        command=(resolved_executable, "exec"),
         timeout_seconds=config.timeout_seconds,
     )
 

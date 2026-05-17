@@ -27,9 +27,12 @@ STRUCTURAL:       83
 NOT-EXERCISED:     9
 DEFERRED:         12
 OBSERVED:         16
-Total fixtures:  135 (130 base + 4 autosave + 2 codex-cli - 1 mode_closed
-                    is registered twice already; effective new files in
-                    Step 9 = +2)
+Total fixtures:  132
+  v0.19 baseline:                              130
+  Phase 3.11 Codex CLI Runtime Option:          +2 fixture modules
+  New fixture modules:
+    - llm_runtime_codex_cli_requires_executable.py  (I-LLMTOG-16)
+    - llm_runtime_codex_cli_factory.py              (I-LLMTOG-17)
 Preflight at HEAD:
   catalog counts                  ok / ok / ok
   citations verify                100 citations resolve
@@ -61,7 +64,10 @@ Definition:
   and records what happened in prose.
 
 When used:
-  - curses-driven launch paths (full TUI session)
+  - curses-driven launch paths (full TUI session) — the curses
+    UI does not accept a line-oriented scripted stdin in v0.20,
+    so any sequence of typed operator commands (/stream, /step,
+    /quit, ...) inside the running TUI is recorded as MOT
   - interactive REPL paths
   - any path where stdin/stdout sequencing is the subject of
     observation (e.g., does /step actually print MSI?)
@@ -78,19 +84,30 @@ Reporting requirement:
 
 ```text
 Definition:
-  Python or bash script invokes `python3 -m brain.ui ...` and
-  optionally pipes a deterministic command sequence through stdin.
+  Python or bash script invokes `python3 -m brain.ui ...` for a
+  one-shot CLI path (no curses), OR invokes the operator
+  command parser + OperatorSession.dispatch in-process from a
+  driver script. The full curses TUI does NOT expose a
+  line-oriented stdin command runner; piping a sequence of
+  `/stream <text>` / `/step` etc. into `python3 -m brain.ui` is
+  NOT a valid SST harness in v0.20. See Section 2.1 (MOT) for
+  full-curses command sequences.
 
-When used:
-  - --print-once paths
-  - --check-terminal paths
-  - --db-status / --db-verify / --db-backup paths (one-shot)
-  - any non-curses subprocess path where output is captured as
-    bytes / text
+Valid SST paths:
+  - --print-once
+  - --check-terminal
+  - --db-status / --db-verify / --db-backup one-shot flags
+  - any other non-curses subprocess path where stdout / stderr /
+    exit code is captured as text
+  - in-process tests that import brain.ui.command_line and
+    brain.ui.session and drive `LocalCommandLine.parse` +
+    `OperatorSession.dispatch` against a real BrainState
 
 Reporting requirement:
-  - record the script's invocation under repo-root cwd
+  - record the script's invocation (or import path) under
+    repo-root cwd
   - record exit code, stdout summary, stderr summary
+    (or returned dispatch outcome for in-process tests)
   - mark the row "SST" in the report
   - all temporary DB paths under /tmp/phase3_11_*/
 ```

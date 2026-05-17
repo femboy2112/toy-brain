@@ -20,7 +20,12 @@ Gating observations (must succeed for the campaign to proceed):
   - --print-once exits 0 with the expected banner under each
     of: --llm-mode offline / mock / anthropic-api (no key) /
     claude-cli (no binary) / codex-cli (no binary)
-  - --check-terminal exits 0 on the operator's platform
+  - --check-terminal returns the correct environment-dependent
+    result: exit 0 when the injected / operator terminal is
+    usable, exit 1 when not usable, and always prints a bounded
+    reason string. Non-TTY environments (CI shells, captured
+    pipes) legitimately return exit 1; that is "works", not a
+    failure of the campaign.
   - the offline /step path mutates BrainState as the kernel
     contract demands (tick advances, MSI updates, PtCns evaluates)
   - /save-session followed by --load-session reconstructs the
@@ -215,58 +220,70 @@ the explicit review point.
 
 ```text
 Step 13 (offline interaction):
-  --print-once               SST
-  --check-terminal           SST
-  full curses launch         MOT (TTY-dependent; may be skipped)
-  /stream                    SST (driven via printable command line)
-  /stream-summary            SST
-  /stream-candidates         SST
-  /stream-promote            SST
-  /step                      SST
-  /state                     SST
-  /help                      RFI + SST
+  --print-once               SST (subprocess)
+  --check-terminal           SST (subprocess)
+  full curses launch         MOT (TTY-dependent; may be skipped;
+                                  the curses UI does not accept
+                                  scripted stdin in v0.20)
+  /stream                    SST (in-process; drive LocalCommandLine
+                                  + OperatorSession.dispatch; the
+                                  curses TUI does NOT expose a
+                                  line-oriented scripted stdin)
+  /stream-summary            SST (in-process; same harness)
+  /stream-candidates         SST (in-process; same harness)
+  /stream-promote            SST (in-process; same harness)
+  /step                      SST (in-process; same harness)
+  /state                     SST (in-process; same harness)
+  /help                      RFI + SST (in-process)
   /quit                      MOT (curses-only)
 
 Step 14 (persistence):
-  /save-session              SST
-  /load-session              SST
-  /session-status            SST
-  cold start --load-session  SST
-  session restore (profile + stream + last tick)  SST
+  /save-session              SST (in-process; via LocalCommandLine
+                                  + OperatorSession.dispatch against
+                                  a /tmp/phase3_11_* DB)
+  /load-session              SST (in-process; same harness)
+  /session-status            SST (in-process; same harness)
+  cold start --load-session  SST (subprocess; passes --load-session
+                                  to a fresh python3 -m brain.ui
+                                  --print-once invocation against the
+                                  /tmp DB)
+  session restore (profile + stream + last tick)  SST (in-process or
+                                                       subprocess)
 
 Step 15 (autosave):
-  --autosave-mode off (default)               SST
-  --autosave-mode after-successful-mutation   SST
-  /autosave-status                            SST
-  /autosave-enable / /autosave-disable        SST
-  read-only command does NOT autosave         SST
-  failed command does NOT autosave            SST
+  --autosave-mode off (default)               SST (subprocess +
+                                                   in-process)
+  --autosave-mode after-successful-mutation   SST (in-process)
+  /autosave-status                            SST (in-process)
+  /autosave-enable / /autosave-disable        SST (in-process)
+  read-only command does NOT autosave         SST (in-process)
+  failed command does NOT autosave            SST (in-process)
 
 Step 16 (DB observability + backup):
-  /db-status                 SST
-  --db-status one-shot       SST
-  /db-verify                 SST
-  --db-verify one-shot       SST
-  /db-summary                SST
-  /profile-summary           SST
-  /stream-db-summary         SST
-  /db-diff                   SST
-  /db-backup                 SST
-  --db-backup PATH one-shot  SST
-  --db-backup-force overwrite gate  SST
-  URI-scheme rejection       SST
+  /db-status                 SST (in-process)
+  --db-status one-shot       SST (subprocess)
+  /db-verify                 SST (in-process)
+  --db-verify one-shot       SST (subprocess)
+  /db-summary                SST (in-process)
+  /profile-summary           SST (in-process)
+  /stream-db-summary         SST (in-process)
+  /db-diff                   SST (in-process)
+  /db-backup                 SST (in-process)
+  --db-backup PATH one-shot  SST (subprocess)
+  --db-backup-force overwrite gate  SST (subprocess)
+  URI-scheme rejection       SST (subprocess)
 
 Step 17 (LLM runtime):
-  --llm-mode offline         SST  gating
-  --llm-mode mock            SST  gating
-  --llm-mode anthropic-api (no key)   SST  gating
+  --llm-mode offline         SST (subprocess) gating
+  --llm-mode mock            SST (subprocess) gating
+  --llm-mode anthropic-api (no key)   SST (subprocess) gating
   --llm-mode anthropic-api (with key) ORS  optional
-  --llm-mode claude-cli (no binary)   SST  gating
+  --llm-mode claude-cli (no binary)   SST (subprocess) gating
   --llm-mode claude-cli (with binary) ORS  optional
-  --llm-mode codex-cli (no binary)    SST  gating
+  --llm-mode codex-cli (no binary)    SST (subprocess) gating
   --llm-mode codex-cli (with binary)  ORS  optional
-  --llm-enable-cache mode-gating      SST
-  --print-once mode-independence      SST
+  --llm-enable-cache mode-gating      SST (in-process via factory)
+  --print-once mode-independence      SST (subprocess)
 ```
 
 Each step's report includes the commands actually run (the

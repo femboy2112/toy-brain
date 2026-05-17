@@ -5,7 +5,8 @@ Drives:
 * ``I-LLMTOG-16`` (REQUIRED) — ``CODEX_CLI`` without a discoverable
   executable raises ``LlmRuntimeError`` before launch; no
   ``CodexCLIClient`` instance is returned; the factory does not consult
-  ``os.environ``.
+  credential / configuration env vars. PATH lookup is confined to
+  :func:`brain.ui.llm_runtime._which` for executable resolution.
 """
 from __future__ import annotations
 

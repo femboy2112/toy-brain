@@ -81,7 +81,7 @@ Rules (drive the `I-LLMTOG-*` row family):
 - API key resolution order: `--llm-anthropic-api-key`, then
   `BRAIN_ANTHROPIC_API_KEY`, then `ANTHROPIC_API_KEY`.
 - `--llm-enable-cache` is only honored for `anthropic-api` /
-  `claude-cli`; it writes under `brain/.llm_cache/`. Cache writes
+  `claude-cli` / `codex-cli`; it writes under `brain/.llm_cache/`. Cache writes
   only happen when a model-backed mode is selected and the operator
   explicitly opts in.
 - `--print-once` and `--check-terminal` remain independent of the

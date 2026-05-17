@@ -192,7 +192,8 @@ def _audit_main_toggle_calls(tree: ast.Module) -> list[str]:
     We confirm the imports `parse_llm_runtime_args` and
     `build_llm_client_from_config` appear, and that no second
     classification path (a direct AnthropicAPIClient / ClaudeCLIClient /
-    MockClient construction) exists at module level in __main__.py.
+    CodexCLIClient / MockClient / CachedClient construction) exists at
+    module level in __main__.py.
     """
     errors: list[str] = []
     found_parse = False
@@ -209,6 +210,7 @@ def _audit_main_toggle_calls(tree: ast.Module) -> list[str]:
             for forbidden in (
                 "AnthropicAPIClient",
                 "ClaudeCLIClient",
+                "CodexCLIClient",
                 "MockClient",
                 "CachedClient",
             ):

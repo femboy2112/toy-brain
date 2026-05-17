@@ -246,7 +246,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     * ``--llm-timeout`` — request timeout in seconds.
     * ``--llm-enable-cache`` — wrap model-backed clients in
       :class:`CachedClient`. Only honored for ``anthropic-api`` /
-      ``claude-cli``.
+      ``claude-cli`` / ``codex-cli``.
     * ``--llm-mock-response`` — repeatable canned response for ``mock``.
     """
     parser = argparse.ArgumentParser(
@@ -332,7 +332,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "wrap model-backed clients with CachedClient under "
-            "brain/.llm_cache; only honored for anthropic-api / claude-cli"
+            "brain/.llm_cache; only honored for anthropic-api / claude-cli / codex-cli"
         ),
     )
     parser.add_argument(

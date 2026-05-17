@@ -297,7 +297,7 @@ class ClaudeCLIClient:
 # ---------------------------------------------------------------------------
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class CodexCLIClient:
     """``LLMClient`` that delegates to the local OpenAI Codex CLI in
     non-interactive mode (``codex exec <prompt>``).
