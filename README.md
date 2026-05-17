@@ -525,8 +525,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.19, the expected count is:
-**212 REQUIRED · 83 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 15 OBSERVED**.
+For catalog v0.20, the expected count is:
+**214 REQUIRED · 83 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 16 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage
