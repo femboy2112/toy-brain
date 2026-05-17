@@ -90,12 +90,12 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 Expected current baseline:
 
 ```text
-Catalog: v0.21
+Catalog: v0.22
 Counts:
-  REQUIRED:        229
-  STRUCTURAL:       84
-  NOT-EXERCISED:    10
-  DEFERRED:         13
+  REQUIRED:        240
+  STRUCTURAL:       85
+  NOT-EXERCISED:    11
+  DEFERRED:         14
   OBSERVED:         16
 Latest completed campaign: Phase 3.11 Comprehensive Live Behavior Test
 Latest merged PR: PR #10

@@ -184,6 +184,12 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.pattern_ledger_static_audit",
     "brain.development.fixtures.pattern_ledger_no_runtime_coupling",
     "brain.development.fixtures.pattern_ledger_stream_integration",
+    "brain.development.fixtures.coherence_monitor_constructor",
+    "brain.development.fixtures.coherence_monitor_kernel_checks",
+    "brain.development.fixtures.coherence_monitor_session_checks",
+    "brain.development.fixtures.coherence_monitor_pattern_ledger_checks",
+    "brain.development.fixtures.coherence_monitor_static_audit",
+    "brain.development.fixtures.coherence_monitor_no_runtime_coupling",
 ]
 
 

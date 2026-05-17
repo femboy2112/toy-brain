@@ -24,17 +24,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.21 expected counts — bumped by the Phase 3.12c Pattern Ledger
-# catalog patch (I-PLEDGER-01..18 Option A: +15 REQUIRED rows, +1
+# v0.22 expected counts — bumped by the Phase 3.12c Coherence Monitor
+# catalog patch (I-COHMON-01..14 Option A: +11 REQUIRED rows, +1
 # STRUCTURAL row, +1 NOT-EXERCISED row, +1 DEFERRED row; OBSERVED
-# unchanged). The Phase 3.12c family is session-local only; no
-# persistence schema, no /pattern-ledger UI, no observed dry run in
+# unchanged). The Phase 3.12c Coherence Monitor is a read-only
+# diagnostic substrate; no UI, no observed dry run, no OperatorSession
+# slot, no DB open, no persistence schema, no autosave extension in
 # v1.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 229,
-    "STRUCTURAL": 84,
-    "NOT-EXERCISED": 10,
-    "DEFERRED": 13,
+    "REQUIRED": 240,
+    "STRUCTURAL": 85,
+    "NOT-EXERCISED": 11,
+    "DEFERRED": 14,
     "OBSERVED": 16,
 }
 
