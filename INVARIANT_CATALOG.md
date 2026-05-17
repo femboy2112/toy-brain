@@ -884,7 +884,7 @@ These rows are Phase 3.10c engineering hypotheses. They bind deterministic Pytho
 | `brain/ui/fixtures/autosave_static_audit.py` | I-AUTOSAVE-13 |
 | `brain/ui/fixtures/autosave_resource_audit.py` | I-AUTOSAVE-14 |
 
-131 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1, Phase 3.2, Phase 3.3, Phase 3.4, Operator TUI, Phase 3.5, Phase 3.6, Phase 3.7, Phase 3.8, Phase 3.8b, Phase 3.9, Phase 3.10 (tracks A + B), and Phase 3.10c fixture files are introduced incrementally by their campaigns; until their implementation steps land, explicit pending registrations in `brain/invariants.py` keep catalog coverage coherent without claiming the rows green. The reclassified `I-PERSIST-16` row reuses the existing `persistence_static_audit.py` fixture and is registered in `brain/invariants.py` so the runner reports the row green from v0.19 onward without any change to the fixture file's audit body.
+137 fixtures total. I-CAT-01 is enforced at runner entry; its catalog fixture column is `_meta`. The Phase 3.1, Phase 3.2, Phase 3.3, Phase 3.4, Operator TUI, Phase 3.5, Phase 3.6, Phase 3.7, Phase 3.8, Phase 3.8b, Phase 3.9, Phase 3.10 (tracks A + B), Phase 3.10c, and Phase 3.11 Codex CLI Runtime Option fixture files are introduced incrementally by their campaigns. The Phase 3.11 Codex CLI runtime fixtures for I-LLMTOG-16 and I-LLMTOG-17 are live; `_PHASE3_11_PENDING_ROWS` is empty. The reclassified `I-PERSIST-16` row reuses the existing `persistence_static_audit.py` fixture and is registered in `brain/invariants.py` so the runner reports the row green from v0.19 onward without any change to the fixture file's audit body.
 
 ---
 

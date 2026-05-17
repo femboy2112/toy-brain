@@ -27,8 +27,8 @@ STRUCTURAL:       83
 NOT-EXERCISED:     9
 DEFERRED:         12
 OBSERVED:         16
-Total fixtures:  132
-  v0.19 baseline:                              130
+Total fixtures:  137
+  Current non-helper fixture modules:          137
   Phase 3.11 Codex CLI Runtime Option:          +2 fixture modules
   New fixture modules:
     - llm_runtime_codex_cli_requires_executable.py  (I-LLMTOG-16)

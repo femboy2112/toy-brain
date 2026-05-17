@@ -427,7 +427,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.20**. Confirmation numbers: **214 REQUIRED · 83 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 16 OBSERVED · 135 fixtures** (Phase 3.11 Codex CLI Runtime Option catalog patch lands the I-LLMTOG-16/17/18 rows in Step 8; pending registrations hold I-LLMTOG-16/17 coverage coherent until Step 9 lands the two new fixtures; I-LLMTOG-18 is OBSERVED and does not participate in I-CAT-01 coverage). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.20**. Confirmation numbers: **214 REQUIRED · 83 STRUCTURAL · 9 NOT-EXERCISED · 12 DEFERRED · 16 OBSERVED · 137 fixtures** (Phase 3.11 Codex CLI Runtime Option catalog patch landed the I-LLMTOG-16/17/18 rows in Step 8; Step 9 landed the two Codex CLI runtime fixtures for I-LLMTOG-16/17; I-LLMTOG-18 is OBSERVED and does not participate in I-CAT-01 coverage). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
