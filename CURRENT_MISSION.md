@@ -107,12 +107,13 @@ Required latest audit:
 Required latest PR:
   PR #9 merged
 In-flight: Phase 3.11 Comprehensive Live Behavior Test
-  Steps 8-11 complete on campaign branch:
+  Steps 8-12 complete on campaign branch:
     Step 8 Codex CLI catalog patch applied (v0.19 -> v0.20)
     Step 9 Codex CLI runtime option implemented
     Step 10 live test kickoff created
     Step 11 live test corrigenda created
-  Next eligible step: Step 12 live test matrix
+    Step 12 live test matrix created
+  Next eligible step: Step 13 launch/offline/basic interaction tests
 ```
 
 Stop if these facts are false or the catalog gate disagrees.
