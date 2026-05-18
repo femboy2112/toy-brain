@@ -12,7 +12,8 @@ Phase 3.13 follows the completed Phase 3.12 Coherent I-Loop Observatory. Phase 3
 measurement-first observatory over the existing /stream -> /stream-promote -> /step path
 Pattern Ledger     brain/development/pattern_ledger.py     I-PLEDGER-01..18    catalog v0.21
 Coherence Monitor  brain/development/coherence_monitor.py  I-COHMON-01..14     catalog v0.22
-SelfModel / Growth Ledger ROADMAP (Step 15) deferred to Review Gate D
+Growth Ledger      brain/development/growth_ledger.py      I-GROW-01..22       catalog v0.23
+SelfModel ROADMAP (Step 15) deferred to a separate follow-up campaign
 ```
 
 Subsequent merges on main:
@@ -92,12 +93,12 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 Expected current state:
 
 ```text
-Catalog: v0.22
+Catalog: v0.23
 Counts:
-  REQUIRED:        240
-  STRUCTURAL:       85
-  NOT-EXERCISED:    11
-  DEFERRED:         14
+  REQUIRED:        259
+  STRUCTURAL:       86
+  NOT-EXERCISED:    12
+  DEFERRED:         15
   OBSERVED:         16
 Latest completed campaign:  Phase 3.12 Coherent I-Loop Observatory
 Latest merged PRs:          PR #11 (Phase 3.12), PR #12 (docs archive),

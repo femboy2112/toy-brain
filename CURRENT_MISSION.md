@@ -67,12 +67,12 @@ never merge the PR without explicit user approval
 Expected current baseline (must match before any step runs):
 
 ```text
-Catalog: v0.22
+Catalog: v0.23
 Counts:
-  REQUIRED:        240
-  STRUCTURAL:       85
-  NOT-EXERCISED:    11
-  DEFERRED:         14
+  REQUIRED:        259
+  STRUCTURAL:       86
+  NOT-EXERCISED:    12
+  DEFERRED:         15
   OBSERVED:         16
 Latest completed campaign:    Phase 3.12 Coherent I-Loop Observatory
 Latest cleanup merged:        docs archive (PR #12)
@@ -81,7 +81,10 @@ Available advisory bridge:    Stage A /ask-chatgpt through Codex CLI wrapper
 Canonical Phase 3.13 design seed:
   docs/campaigns/phase3_12/PHASE3_12_SELF_MODEL_GROWTH_LEDGER_ROADMAP.md
 Current mission:              Phase 3.13 Growth Ledger
-Next eligible step:           Step 1 repo-state sync and Phase 3.13 mission install
+Phase 3.13 Steps 1-7 status:  complete on campaign branch (Step 7
+                              landed the I-GROW-01..22 row family at
+                              v0.23 over brain/development/growth_ledger.py)
+Next eligible step:           Step 8 Growth Ledger behavior report
 ```
 
 Stop if the catalog counts disagree or if the Phase 3.12 roadmap seed is missing.
