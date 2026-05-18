@@ -55,9 +55,11 @@ from brain.development.pattern_ledger import (
 from brain.development.processing_window import (
     FeedbackMode,
     InternalEventSource,
+    WORLDLET_SUMMARY_ABSENT_SENTINEL,
     build_cohmon_summary_text,
     build_pledger_summary_text,
     build_rehearsal_provenance,
+    build_worldlet_summary_text,
     plan_rehearsals,
     validate_feedback_mode,
     validate_processing_window_call_budget,
@@ -243,6 +245,20 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
 # against the LocalCommandLine defaults by the constant-parity fixture
 # (``stream_constant_parity.py``).
 _STREAM_PROMOTE_DEFAULT_RHO = Fraction(1, 2)
+
+
+# Phase 3.24 worldlet-pushback reason set, mirrored inline. Matches
+# ``brain.development.worldlet.WORLDLET_PUSHBACK_REASONS`` exactly; we
+# mirror the closed set here so ``_run_worldlet_feedback_step`` can
+# compute the bounded pushback count without importing the worldlet
+# substrate at module load time (the substrate is only typing-imported
+# above). The pattern mirrors the deferred-import discipline used for
+# ``build_full_coherence_report`` in ``_run_cohmon_feedback_step``.
+_WORLDLET_PUSHBACK_REASONS_SESSION: frozenset[str] = frozenset({
+    "missing-target",
+    "rejected",
+    "target-unavailable",
+})
 
 
 def _stream_promote_default_content_state() -> "ContentState":
@@ -1283,10 +1299,16 @@ class OperatorSession:
         pledger_feedback_enabled = self.feedback_mode in (
             FeedbackMode.PATTERN_LEDGER,
             FeedbackMode.PATTERN_AND_COHERENCE,
+            FeedbackMode.PATTERN_COHERENCE_WORLDLET,
         )
         cohmon_feedback_enabled = self.feedback_mode in (
             FeedbackMode.COHERENCE,
             FeedbackMode.PATTERN_AND_COHERENCE,
+            FeedbackMode.PATTERN_COHERENCE_WORLDLET,
+        )
+        worldlet_feedback_enabled = self.feedback_mode in (
+            FeedbackMode.WORLDLET,
+            FeedbackMode.PATTERN_COHERENCE_WORLDLET,
         )
         seed_pattern_id: Optional[str] = None
         if pledger_feedback_enabled:
@@ -1322,6 +1344,15 @@ class OperatorSession:
                     tick_index=step.tick_index,
                 ):
                     # A bounded substrate refused the cohmon
+                    # feedback chunk; error_message is set by
+                    # _append_stream_chunk or the helper. Abort
+                    # the window cleanly.
+                    break
+            if worldlet_feedback_enabled:
+                if not self._run_worldlet_feedback_step(
+                    tick_index=step.tick_index,
+                ):
+                    # A bounded substrate refused the worldlet
                     # feedback chunk; error_message is set by
                     # _append_stream_chunk or the helper. Abort
                     # the window cleanly.
@@ -1443,6 +1474,89 @@ class OperatorSession:
         except (TypeError, ValueError) as exc:
             self.set_error(
                 f"processing window cohmon feedback rejected: {exc}"
+            )
+            return False
+        chunk = self._append_stream_chunk(
+            text=summary_text,
+            chunk_provenance=summary_provenance,
+            growth_provenance="stream_append:_run_processing_window",
+        )
+        return chunk is not None
+
+    def _run_worldlet_feedback_step(
+        self,
+        *,
+        tick_index: int,
+    ) -> bool:
+        """Fire one Phase 3.24 worldlet-summary feedback chunk.
+
+        Reads bounded primitives from :attr:`worldlet_history` (or
+        falls back to the Phase 3.24 ``"absent"`` sentinel when no
+        worldlet history is present), composes a bounded
+        deterministic summary via
+        :func:`build_worldlet_summary_text`, composes the bounded
+        worldlet-summary provenance via
+        :func:`build_rehearsal_provenance`, and dispatches the
+        chunk through :meth:`_append_stream_chunk`. Returns
+        ``True`` on success and ``False`` on any bounded substrate
+        refusal (with :attr:`error_message` already set).
+
+        Drives ``I-WFDBK-04``. Consumes zero real model calls
+        because the entire path is offline / structural. Does NOT
+        mutate :attr:`worldlet_history` (the Phase 3.24 feedback
+        path is read-only on the worldlet substrate).
+        """
+        history = self.worldlet_history
+        if history is None:
+            state_id_value = WORLDLET_SUMMARY_ABSENT_SENTINEL
+            step_index = 0
+            object_count = 0
+            attempt_count = 0
+            response_count = 0
+            accepted_count = 0
+            pushback_count = 0
+            last_reason_value = WORLDLET_SUMMARY_ABSENT_SENTINEL
+        else:
+            latest_state = history.latest_state
+            state_id_value = latest_state.state_id
+            step_index = latest_state.step_index
+            object_count = len(latest_state.objects)
+            attempts = history.attempts
+            responses = history.responses
+            attempt_count = len(attempts)
+            response_count = len(responses)
+            accepted_count = sum(
+                1 for r in responses if r.accepted
+            )
+            pushback_count = sum(
+                1
+                for r in responses
+                if (not r.accepted)
+                and r.reason in _WORLDLET_PUSHBACK_REASONS_SESSION
+            )
+            if responses:
+                last_reason_value = responses[-1].reason
+            else:
+                last_reason_value = WORLDLET_SUMMARY_ABSENT_SENTINEL
+
+        try:
+            summary_text = build_worldlet_summary_text(
+                state_id_value=state_id_value,
+                step_index=step_index,
+                object_count=object_count,
+                attempt_count=attempt_count,
+                response_count=response_count,
+                accepted_count=accepted_count,
+                pushback_count=pushback_count,
+                last_reason_value=last_reason_value,
+            )
+            summary_provenance = build_rehearsal_provenance(
+                tick_index=tick_index,
+                source=InternalEventSource.WORLDLET_SUMMARY,
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(
+                f"processing window worldlet feedback rejected: {exc}"
             )
             return False
         chunk = self._append_stream_chunk(
