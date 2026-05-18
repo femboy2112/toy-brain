@@ -98,6 +98,14 @@ class LearningEvidenceKind(str, Enum):
     # itself is bounded printable text stored in post_facts; no raw
     # trace is stored on the record.
     DISPATCH_TRACE_RECORDED = "dispatch_trace_recorded"
+    # Phase 3.24 (I-WFDBK-09): cite the bounded worldlet-summary
+    # facts that re-entered the session stream when the processing
+    # window fired under feedback_mode in
+    # {WORLDLET, PATTERN_COHERENCE_WORLDLET}. The cite carries only
+    # the bounded counts plus the dispatch trace digest the trace
+    # already records; no raw worldlet payload is stored on the
+    # record.
+    WORLDLET_FEEDBACK_RECORDED = "worldlet_feedback_recorded"
 
 
 # ---------------------------------------------------------------------------
@@ -290,8 +298,9 @@ class LearningProofReport:
     diminishing_returns_updated_count: int
     limitation_recorded_count: int
     dispatch_trace_recorded_count: int
-    digest_hex16: str
-    summary_line: str
+    worldlet_feedback_recorded_count: int = 0
+    digest_hex16: str = ""
+    summary_line: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.trace, LearningEvidenceTrace):
@@ -327,6 +336,10 @@ class LearningProofReport:
             (
                 "dispatch_trace_recorded_count",
                 self.dispatch_trace_recorded_count,
+            ),
+            (
+                "worldlet_feedback_recorded_count",
+                self.worldlet_feedback_recorded_count,
             ),
         ):
             if not isinstance(value, int) or isinstance(value, bool):
@@ -451,6 +464,9 @@ def build_learning_proof_report(
     dispatch_trace = counts.get(
         LearningEvidenceKind.DISPATCH_TRACE_RECORDED, 0
     )
+    worldlet_feedback = counts.get(
+        LearningEvidenceKind.WORLDLET_FEEDBACK_RECORDED, 0
+    )
     record_total = len(trace.records)
     digest = _compute_trace_digest(trace)
     summary = (
@@ -464,6 +480,7 @@ def build_learning_proof_report(
         f"diminishing={diminishing} "
         f"limitations={limitation} "
         f"dispatch_trace={dispatch_trace} "
+        f"worldlet_feedback={worldlet_feedback} "
         f"digest={digest}"
     )
     if len(summary) > LEARNING_REPORT_SUMMARY_MAX_LEN:
@@ -480,6 +497,7 @@ def build_learning_proof_report(
         diminishing_returns_updated_count=diminishing,
         limitation_recorded_count=limitation,
         dispatch_trace_recorded_count=dispatch_trace,
+        worldlet_feedback_recorded_count=worldlet_feedback,
         digest_hex16=digest,
         summary_line=summary,
     )
@@ -713,6 +731,56 @@ def make_dispatch_trace_recorded_record(
     )
 
 
+def make_worldlet_feedback_recorded_record(
+    *,
+    interaction_id: str,
+    dispatch_trace_digest_hex16: str,
+    feedback_mode_value: str,
+    worldlet_summary_count: int,
+    stream_chunk_count: int,
+) -> LearningEvidenceRecord:
+    """Build a WORLDLET_FEEDBACK_RECORDED evidence record.
+
+    Drives ``I-WFDBK-09``: structural learning evidence can cite the
+    bounded worldlet-summary chunks that re-entered the session
+    stream after a STREAM_APPEND dispatch fired under
+    ``feedback_mode in {WORLDLET, PATTERN_COHERENCE_WORLDLET}``. The
+    cite carries only the bounded counts plus the dispatch trace
+    digest; no raw worldlet payload is stored on the record.
+    """
+    summary = (
+        f"worldlet feedback recorded: "
+        f"feedback_mode={feedback_mode_value} "
+        f"worldlet_summary_chunks={worldlet_summary_count} "
+        f"stream_chunks={stream_chunk_count} "
+        f"dispatch_digest={dispatch_trace_digest_hex16}"
+    )
+    return LearningEvidenceRecord(
+        kind=LearningEvidenceKind.WORLDLET_FEEDBACK_RECORDED,
+        interaction_id=interaction_id,
+        abstract_pattern_digest="",
+        pattern_id="",
+        pre_facts=(
+            ("feedback_mode", _bounded_value(feedback_mode_value)),
+        ),
+        post_facts=(
+            (
+                "worldlet_summary_chunks",
+                _bounded_value(str(worldlet_summary_count)),
+            ),
+            (
+                "stream_chunks",
+                _bounded_value(str(stream_chunk_count)),
+            ),
+            (
+                "dispatch_digest",
+                _bounded_value(dispatch_trace_digest_hex16),
+            ),
+        ),
+        summary=summary,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Trace querying.
 # ---------------------------------------------------------------------------
@@ -774,6 +842,7 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     LearningEvidenceKind.DIMINISHING_RETURNS_UPDATED.value,
     LearningEvidenceKind.LIMITATION_RECORDED.value,
     LearningEvidenceKind.DISPATCH_TRACE_RECORDED.value,
+    LearningEvidenceKind.WORLDLET_FEEDBACK_RECORDED.value,
 )
 
 
@@ -802,6 +871,7 @@ __all__ = (
     "make_abstract_pattern_reused_record",
     "make_diminishing_returns_record",
     "make_dispatch_trace_recorded_record",
+    "make_worldlet_feedback_recorded_record",
     "make_limitation_recorded_record",
     "make_observed_record",
     "make_recurrence_increased_record",

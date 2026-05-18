@@ -81,6 +81,13 @@ class ReasoningStepKind(str, Enum):
     CHECK_REPL = "check_repl"
     SELECT_REPLY_DISPOSITION = "select_reply_disposition"
     CHECK_LIMITATION = "check_limitation"
+    # Phase 3.24 (I-WFDBK-08): record the bounded worldlet-summary
+    # facts that re-entered the session stream when the processing
+    # window fired under feedback_mode in
+    # {WORLDLET, PATTERN_COHERENCE_WORLDLET}. Inserted immediately
+    # before CHECK_DISPATCH_TRACE so the dispatch trace digest is
+    # the citation that follows.
+    CHECK_WORLDLET_FEEDBACK = "check_worldlet_feedback"
     # Phase 3.23 (I-DTRACE-09): record the dispatch trace digest that
     # accompanies this reasoning trace. Inserted immediately before
     # EMIT_REPLY so the reply can cite the dispatch route via the
@@ -233,8 +240,9 @@ class ReasoningTraceReport:
     check_limitation_count: int
     check_dispatch_trace_count: int
     emit_reply_count: int
-    trace_digest_hex16: str
-    summary_line: str
+    check_worldlet_feedback_count: int = 0
+    trace_digest_hex16: str = ""
+    summary_line: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.trace, ReasoningTrace):
@@ -255,6 +263,10 @@ class ReasoningTraceReport:
             ("check_limitation_count", self.check_limitation_count),
             ("check_dispatch_trace_count", self.check_dispatch_trace_count),
             ("emit_reply_count", self.emit_reply_count),
+            (
+                "check_worldlet_feedback_count",
+                self.check_worldlet_feedback_count,
+            ),
         ):
             if not isinstance(value, int) or isinstance(value, bool):
                 raise TypeError(
@@ -416,6 +428,7 @@ def build_reasoning_trace_report(
         f"rpl={counts.get(ReasoningStepKind.CHECK_REPL, 0)} "
         f"sel={counts.get(ReasoningStepKind.SELECT_REPLY_DISPOSITION, 0)} "
         f"lim={counts.get(ReasoningStepKind.CHECK_LIMITATION, 0)} "
+        f"wfb={counts.get(ReasoningStepKind.CHECK_WORLDLET_FEEDBACK, 0)} "
         f"dtr={counts.get(ReasoningStepKind.CHECK_DISPATCH_TRACE, 0)} "
         f"emit={counts.get(ReasoningStepKind.EMIT_REPLY, 0)} "
         f"digest={digest}"
@@ -452,6 +465,9 @@ def build_reasoning_trace_report(
             ReasoningStepKind.CHECK_DISPATCH_TRACE, 0
         ),
         emit_reply_count=counts.get(ReasoningStepKind.EMIT_REPLY, 0),
+        check_worldlet_feedback_count=counts.get(
+            ReasoningStepKind.CHECK_WORLDLET_FEEDBACK, 0
+        ),
         trace_digest_hex16=digest,
         summary_line=summary,
     )
@@ -496,6 +512,7 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     ReasoningStepKind.CHECK_REPL.value,
     ReasoningStepKind.SELECT_REPLY_DISPOSITION.value,
     ReasoningStepKind.CHECK_LIMITATION.value,
+    ReasoningStepKind.CHECK_WORLDLET_FEEDBACK.value,
     ReasoningStepKind.CHECK_DISPATCH_TRACE.value,
     ReasoningStepKind.EMIT_REPLY.value,
 )

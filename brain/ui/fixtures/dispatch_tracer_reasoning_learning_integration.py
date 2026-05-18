@@ -81,7 +81,8 @@ def check_reasoning_trace_cites_dispatch_digest() -> None:
     second_digest = r2.latest_dispatch_trace.trace_digest_hex16
     assert f"dispatch_digest={second_digest}" in cdt_step.input_facts
 
-    # 5. ReasoningStepKind has exactly 11 values including check_dispatch_trace.
+    # 5. ReasoningStepKind has the locked closed value set including the
+    # Phase 3.24 check_worldlet_feedback step.
     expected_values = frozenset(
         {
             "observe_input",
@@ -93,6 +94,7 @@ def check_reasoning_trace_cites_dispatch_digest() -> None:
             "check_repl",
             "select_reply_disposition",
             "check_limitation",
+            "check_worldlet_feedback",
             "check_dispatch_trace",
             "emit_reply",
         }
@@ -132,7 +134,8 @@ def check_learning_evidence_cites_dispatch_digest() -> None:
     report = build_learning_proof_report(state.learning_trace)
     assert report.dispatch_trace_recorded_count == n
 
-    # 3. LearningEvidenceKind has exactly 9 values including the new kind.
+    # 3. LearningEvidenceKind has the locked closed value set, now
+    # including the Phase 3.24 worldlet_feedback_recorded value.
     expected_values = frozenset(
         {
             "observed",
@@ -144,6 +147,7 @@ def check_learning_evidence_cites_dispatch_digest() -> None:
             "diminishing_returns_updated",
             "limitation_recorded",
             "dispatch_trace_recorded",
+            "worldlet_feedback_recorded",
         }
     )
     actual = frozenset(k.value for k in LearningEvidenceKind)

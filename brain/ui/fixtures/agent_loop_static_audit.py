@@ -151,6 +151,10 @@ def check_agent_loop_static_audit() -> None:
             "coherence_check_total",
             "repl_emit_total",
             "forbidden_term_hits",
+            # Phase 3.24 worldlet-feedback observation fields.
+            "worldlet_feedback_present",
+            "worldlet_summary_count",
+            "feedback_mode_value",
         ),
         AgentReply: (
             "input_id",

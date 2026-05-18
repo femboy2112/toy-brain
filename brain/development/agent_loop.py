@@ -88,6 +88,7 @@ from brain.development.learning_evidence import (
     make_abstract_pattern_reused_record,
     make_diminishing_returns_record,
     make_dispatch_trace_recorded_record,
+    make_worldlet_feedback_recorded_record,
     make_limitation_recorded_record,
     make_observed_record,
     make_recurrence_increased_record,
@@ -218,6 +219,28 @@ _VALID_SATURATION_VALUES: frozenset[str] = frozenset(
         "none",
     }
 )
+
+
+# Phase 3.24 (I-WFDBK-10): closed set of FeedbackMode values the
+# observation summary is allowed to carry. Mirrored inline so this
+# module avoids a hard import on processing_window's FeedbackMode
+# enum; the static-audit fixture asserts the set matches.
+_VALID_FEEDBACK_MODE_VALUES: frozenset[str] = frozenset(
+    {
+        "off",
+        "pattern_ledger",
+        "coherence",
+        "pattern_and_coherence",
+        "worldlet",
+        "pattern_coherence_worldlet",
+    }
+)
+
+
+# Phase 3.24 (I-WFDBK-10): bounded printable provenance suffix that
+# every worldlet-summary internal chunk carries. The observation
+# helper counts chunks whose provenance ends in this exact suffix.
+_WORLDLET_SUMMARY_PROVENANCE_SUFFIX: str = ":worldlet_summary"
 
 
 # ---------------------------------------------------------------------------
@@ -397,6 +420,12 @@ class AgentObservationSummary:
     coherence_check_total: int
     repl_emit_total: int
     forbidden_term_hits: int
+    # Phase 3.24 worldlet-feedback observation fields (I-WFDBK-10).
+    # Default 0 / False so all pre-Phase-3.24 fixtures and callers
+    # are unaffected.
+    worldlet_feedback_present: bool = False
+    worldlet_summary_count: int = 0
+    feedback_mode_value: str = "off"
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -407,6 +436,7 @@ class AgentObservationSummary:
             ("coherence_check_total", self.coherence_check_total),
             ("repl_emit_total", self.repl_emit_total),
             ("forbidden_term_hits", self.forbidden_term_hits),
+            ("worldlet_summary_count", self.worldlet_summary_count),
         ):
             if not isinstance(value, int) or isinstance(value, bool):
                 raise TypeError(
@@ -454,6 +484,36 @@ class AgentObservationSummary:
                 "I-AGENTLOOP-02 violated: AgentObservationSummary."
                 "coherence_overall_status must be in "
                 f"{sorted(_VALID_COHERENCE_OVERALL_VALUES)!r}"
+            )
+        if not isinstance(self.worldlet_feedback_present, bool):
+            raise TypeError(
+                "I-WFDBK-10 violated: AgentObservationSummary."
+                "worldlet_feedback_present must be bool"
+            )
+        if self.worldlet_summary_count > STREAM_HISTORY_MAX_CHUNKS:
+            raise ValueError(
+                "I-WFDBK-10 violated: AgentObservationSummary."
+                "worldlet_summary_count exceeds STREAM_HISTORY_MAX_CHUNKS"
+            )
+        if (
+            self.worldlet_feedback_present
+            and self.worldlet_summary_count == 0
+        ):
+            raise ValueError(
+                "I-WFDBK-10 violated: AgentObservationSummary."
+                "worldlet_feedback_present is True but "
+                "worldlet_summary_count is zero"
+            )
+        if not isinstance(self.feedback_mode_value, str):
+            raise TypeError(
+                "I-WFDBK-10 violated: AgentObservationSummary."
+                "feedback_mode_value must be str"
+            )
+        if self.feedback_mode_value not in _VALID_FEEDBACK_MODE_VALUES:
+            raise ValueError(
+                "I-WFDBK-10 violated: AgentObservationSummary."
+                "feedback_mode_value must be in "
+                f"{sorted(_VALID_FEEDBACK_MODE_VALUES)!r}"
             )
 
 
@@ -806,6 +866,17 @@ def summarize_session_for_agent(
     # constructor. The counter is provided so callers can record it.
     forbidden_hits = 0
 
+    # Phase 3.24 (I-WFDBK-10): count bounded worldlet-summary internal
+    # chunks already in the session stream. The provenance suffix is
+    # the stable contract.
+    worldlet_summary_count = 0
+    for chunk in chunks:
+        if chunk.provenance.endswith(_WORLDLET_SUMMARY_PROVENANCE_SUFFIX):
+            worldlet_summary_count += 1
+    worldlet_feedback_present = worldlet_summary_count > 0
+
+    feedback_mode_value = session.feedback_mode.value
+
     return AgentObservationSummary(
         stream_chunk_count=len(chunks),
         pattern_entry_count=len(entries),
@@ -817,6 +888,9 @@ def summarize_session_for_agent(
         coherence_check_total=check_total,
         repl_emit_total=repl_emit_total,
         forbidden_term_hits=forbidden_hits,
+        worldlet_feedback_present=worldlet_feedback_present,
+        worldlet_summary_count=worldlet_summary_count,
+        feedback_mode_value=feedback_mode_value,
     )
 
 
@@ -826,13 +900,26 @@ def summarize_session_for_agent(
 
 
 def _pattern_section_body(obs: AgentObservationSummary) -> str:
-    return (
+    base = (
         f"pattern stream_chunks={obs.stream_chunk_count} "
         f"entries={obs.pattern_entry_count} "
         f"seed_id={obs.seed_pattern_id!r} "
         f"seed_recur={obs.seed_recurrence} "
         f"seed_sat={obs.seed_saturation_state}"
     )
+    # Phase 3.24 (I-WFDBK-10): cite the bounded worldlet-feedback
+    # facts only when a worldlet_summary chunk landed in the
+    # session stream. The line says nothing about external-world
+    # perception; it is a structural-state line only.
+    if obs.worldlet_feedback_present:
+        base += (
+            " worldlet_feedback=present "
+            f"worldlet_summary_chunks={obs.worldlet_summary_count} "
+            "route=internal_worldlet_summary"
+        )
+    else:
+        base += " worldlet_feedback=absent"
+    return base
 
 
 def _repl_section_body(
@@ -1360,6 +1447,9 @@ def _build_reasoning_trace_for_step(
     reply_section_count: int,
     extra_hints: tuple[ReasoningStepHint, ...],
     dispatch_trace_report: Optional[DispatchTraceReport] = None,
+    worldlet_feedback_present: bool = False,
+    worldlet_summary_count: int = 0,
+    feedback_mode_value: str = "off",
 ) -> ReasoningTrace:
     """Compose the deterministic reasoning trace for one interaction."""
     builder = new_trace_builder(input_id)
@@ -1461,6 +1551,28 @@ def _build_reasoning_trace_for_step(
         input_facts=f"path={dispatch_path}",
         derived_facts=f"disposition={disposition.value}",
         next_action="emit_reply",
+    )
+    # Phase 3.24 (I-WFDBK-08): record the bounded worldlet-feedback
+    # facts that re-entered the session stream this step, when any
+    # worldlet_summary chunk is present in the post-state. Inserted
+    # before CHECK_DISPATCH_TRACE so the dispatch trace digest comes
+    # right after as the citation step. The CHECK_WORLDLET_FEEDBACK
+    # step always fires (even when absent) so the reasoning-trace
+    # report carries a stable count per interaction.
+    builder.add(
+        ReasoningStepKind.CHECK_WORLDLET_FEEDBACK,
+        input_facts=(
+            f"feedback_mode={feedback_mode_value} "
+            f"present={worldlet_feedback_present}"
+        ),
+        derived_facts=(
+            f"worldlet_summary_chunks={worldlet_summary_count}"
+        ),
+        next_action=(
+            "check_dispatch_trace"
+            if dispatch_trace_report is not None
+            else "emit_reply"
+        ),
     )
     # Phase 3.23 (I-DTRACE-09): record the dispatch trace digest the
     # reasoning trace is citing. Always inserted before EMIT_REPLY so
@@ -1792,6 +1904,30 @@ def run_agent_interaction_step(
             ),
         )
 
+    # Phase 3.24 (I-WFDBK-09): append a WORLDLET_FEEDBACK_RECORDED
+    # evidence record when the post-state stream has at least one
+    # worldlet_summary internal chunk. The cite carries only the
+    # bounded counts plus the dispatch trace digest the trace
+    # already cited.
+    if (
+        observation.worldlet_feedback_present
+        and latest_dispatch_trace is not None
+    ):
+        new_learning_trace = append_record(
+            new_learning_trace,
+            make_worldlet_feedback_recorded_record(
+                interaction_id=input_id,
+                dispatch_trace_digest_hex16=(
+                    latest_dispatch_trace.trace_digest_hex16
+                ),
+                feedback_mode_value=observation.feedback_mode_value,
+                worldlet_summary_count=(
+                    observation.worldlet_summary_count
+                ),
+                stream_chunk_count=observation.stream_chunk_count,
+            ),
+        )
+
     reasoning_trace = _build_reasoning_trace_for_step(
         input_id=input_id,
         operator_text=operator_text,
@@ -1809,6 +1945,9 @@ def run_agent_interaction_step(
         reply_section_count=len(reply.sections),
         extra_hints=tuple(hints),
         dispatch_trace_report=latest_dispatch_trace,
+        worldlet_feedback_present=observation.worldlet_feedback_present,
+        worldlet_summary_count=observation.worldlet_summary_count,
+        feedback_mode_value=observation.feedback_mode_value,
     )
 
     result = AgentLoopResult(

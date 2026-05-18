@@ -47,6 +47,10 @@ _EXPECTED_LEARNING_EVIDENCE_KIND_VALUES = frozenset(
         # Phase 3.23 (I-DTRACE-10): cite the dispatch trace digest in
         # structural learning evidence.
         "dispatch_trace_recorded",
+        # Phase 3.24 (I-WFDBK-09): cite the bounded worldlet-feedback
+        # facts when worldlet_summary chunks landed in the session
+        # stream.
+        "worldlet_feedback_recorded",
     }
 )
 
@@ -62,6 +66,10 @@ _EXPECTED_REASONING_STEP_KIND_VALUES = frozenset(
         "check_repl",
         "select_reply_disposition",
         "check_limitation",
+        # Phase 3.24 (I-WFDBK-08): cite the bounded worldlet-feedback
+        # facts in the reasoning trace, immediately before
+        # CHECK_DISPATCH_TRACE.
+        "check_worldlet_feedback",
         # Phase 3.23 (I-DTRACE-09): cite the dispatch trace digest in
         # the reasoning trace, immediately before EMIT_REPLY.
         "check_dispatch_trace",
@@ -167,6 +175,8 @@ def check_learning_reasoning_static_audit() -> None:
             "diminishing_returns_updated_count",
             "limitation_recorded_count",
             "dispatch_trace_recorded_count",
+            # Phase 3.24 (I-WFDBK-09): worldlet-feedback count.
+            "worldlet_feedback_recorded_count",
             "digest_hex16",
             "summary_line",
         ),
@@ -192,6 +202,8 @@ def check_learning_reasoning_static_audit() -> None:
             "check_limitation_count",
             "check_dispatch_trace_count",
             "emit_reply_count",
+            # Phase 3.24 (I-WFDBK-08): worldlet-feedback count.
+            "check_worldlet_feedback_count",
             "trace_digest_hex16",
             "summary_line",
         ),

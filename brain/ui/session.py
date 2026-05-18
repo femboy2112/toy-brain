@@ -934,6 +934,16 @@ class OperatorSession:
                 str(self.processing_window_size),
             ),
             ("feedback_mode", self.feedback_mode.value),
+            (
+                "worldlet_summary_chunks",
+                str(
+                    sum(
+                        1
+                        for c in self.stream_history.chunks
+                        if c.provenance.endswith(":worldlet_summary")
+                    )
+                ),
+            ),
             ("tick_counter", str(self.tick_counter)),
             (
                 "status_message_present",
