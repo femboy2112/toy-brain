@@ -4,16 +4,20 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.22 Step 1 landed (mission sync + roadmap)
+**Last updated:** Phase 3.22 COMPLETE; PR queued for Step 11
 **Active branch:** `campaign/phase3-22-agent-communication-loop`
-**Active campaign:** Phase 3.22 Agent Communication Loop + Behavioral
-                     Indistinguishability Harness (Step 2 next)
+**Active campaign:** none in flight; Phase 3.22 ready for PR open
 **Prior campaigns:**
   - Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25 open)
   - Phase 3.21 Developmental Trajectory — COMPLETE (PR #26 open)
   - Phase 3.21 corrigendum: M10 success criterion reframed against
     `STREAM_HISTORY_MAX_CHUNKS = 256` bound — landed at
     `fb870d5` on the Phase 3.21 branch.
+  - Phase 3.22 Agent Communication Loop + Behavioral
+    Indistinguishability Harness — COMPLETE; PR to be opened in
+    Step 11 (target base: `campaign/phase3-21-developmental-trajectory`
+    while PR #26 is open; retargets to `main` once #24/#25/#26
+    merge).
 
 ---
 
@@ -46,20 +50,22 @@ NOT a claim of cognitive agency, sentience, or understanding.
 ## Current step pointer
 
 ```text
-campaign:   Phase 3.22 Agent Communication Loop
-status:     Step 1 landed; Step 2 next
-gates:      v0.29 baseline; all 5 gates PASS at Phase 3.21 close
+campaign:   none in flight; Phase 3.22 COMPLETE
+status:     three PRs (#25 + #26 + queued #27) awaiting operator
+            merge decision
+gates:      v0.30 baseline; all 5 gates PASS at Phase 3.22 close
 branch:     campaign/phase3-22-agent-communication-loop
-base PR:    will target campaign/phase3-21-developmental-trajectory
-            while PR #26 is open; retarget to main once #24/#25/#26
-            merge.
 
-queued next-campaign candidates (post Phase 3.22):
+queued next-campaign candidate:
   - Phase 3.23 tracer wiring through OperatorSession.dispatch
     (deferred since Phase 3.7); enables per-loop observability
-    without new runtime state.
-  - Phase 3.24 worldlet feedback bridge (deferred Phase 3.19 / 3.20
-    architecture review).
+    without new runtime state. Recommended in
+    PHASE3_22_AGENT_COMMUNICATION_LOOP_AUDIT.md section 7.
+
+alternative next-campaign candidate:
+  - Phase 3.24 worldlet feedback bridge (deferred Phase 3.19 /
+    3.20 architecture review). Bounded extension following the
+    FeedbackMode precedent.
 ```
 
 ---
@@ -125,27 +131,32 @@ M10  Sustained behavior       long sequence saturates bounded
 
 ---
 
-## Phase 3.22 step ledger (IN PROGRESS)
+## Phase 3.22 step ledger (COMPLETE)
 
 ```text
-Step  1  Mission sync + roadmap + handoff state        DONE   (this commit, pending)
-Step  2  Benchmark spec + design locks                 TODO
-Step  3  REPL bridge pure helpers                      TODO
-Step  4  Agent loop / communication module             TODO
-Step  5  Pattern recognition benchmark battery         TODO
-Step  6  Coherence variation probe (W3 follow-up)      TODO
-Step  7  Benchmark runner + transcript generator       TODO
-Step  8  Run + iterate until PASS or blocker           TODO
-Step  9  Catalog reconciliation + canonical gates      TODO
-Step 10  Behavior report + findings + final audit      TODO
-Step 11  PR preparation                                TODO
+Step  1  Mission sync + roadmap + handoff state        DONE   commit 13f8206 (pushed)
+Step  2  Benchmark spec + design locks                 DONE   commit 91b3963 (pushed)
+Step  3  REPL bridge pure helpers                      DONE   commit 2b32e06 (pushed)
+Step  4  Agent loop / communication module             DONE   commit 7419a82 (pushed)
+Step  5  Pattern recognition benchmark battery         DONE   commit 7d78cb8 (pushed)
+Step  6  Coherence variation probe (W3 follow-up)      DONE   commit b6b600a (pushed)
+Step  7  Benchmark runner + transcript generator       DONE   commit ae98933 (pushed)
+Step  8  Run + iterate until PASS or blocker           DONE   (no-op; benchmark PASSed on first run)
+Step  9  Catalog reconciliation + canonical gates      DONE   commit a158ea5 (pushed)
+Step 10  Behavior report + findings + final audit      DONE   commit 4f6e25f (pushed)
+Step 11  PR preparation                                IN PROGRESS
 ```
 
-Target catalog: v0.30 (Phase 3.22 catalog patch).
+Verdict: **PASS WITH DEFERRED FOLLOW-UPS**. Catalog v0.30.
 
-Row family: `I-AGENTLOOP-01..I-AGENTLOOP-11` (Engineering
-hypothesis; provisional split 9 REQUIRED + 2 STRUCTURAL — exact
-split locked in Step 2).
+Catalog patch: `I-AGENTLOOP-01..I-AGENTLOOP-11` (9 REQUIRED + 2
+STRUCTURAL); all rows green in the runner. Three new modules:
+`brain/development/agent_repl_bridge.py`,
+`brain/development/agent_loop.py`,
+`brain/development/agent_benchmark.py`. Eleven new fixtures.
+Benchmark: 39 cases, 38 PASS + 1 documented WARN (A3.04 — the
+Phase 3.21 W3 follow-up not_applicable-overall blocker), 0 FAIL,
+0 real model calls, transcript digest `b6a93e11a105edd3`.
 
 ---
 
@@ -208,7 +219,7 @@ Then resume at the step named under **Current step pointer** above.
   Retargets to `main` once PR #24 merges.
 - PR #26 Phase 3.21 → `campaign/phase3-20-coherence-feedback-bridge`, OPEN.
   Retargets to `main` once both PR #24 and PR #25 merge.
-- PR #27 (planned at Phase 3.22 close) → `campaign/phase3-21-developmental-trajectory`
+- PR #27 (Phase 3.22) → `campaign/phase3-21-developmental-trajectory`
   while PR #26 is open; retargets to `main` once #24/#25/#26 merge.
 - Stack merge order (operator-controlled): PR #24 → #25 → #26 → #27.
 
