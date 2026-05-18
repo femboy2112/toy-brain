@@ -1,3 +1,14 @@
+# CURRENT_CAMPAIGN.md — Phase 3.22b Learning Evidence + Reasoning Trace (COMPLETE)
+
+> Phase 3.22b is COMPLETE on the
+> `campaign/phase3-22-agent-communication-loop` branch and is pushed
+> to PR #27 along with Phase 3.22. The original Phase 3.22 campaign
+> text follows; Phase 3.22b artifacts are catalogued under
+> `docs/campaigns/phase3_22/PHASE3_22B_*.md` and the catalog row family
+> `I-AGENTLEARN-01..11`. Catalog version: v0.31.
+
+---
+
 # CURRENT_CAMPAIGN.md — Phase 3.22 Agent Communication Loop
 
 ## Campaign status

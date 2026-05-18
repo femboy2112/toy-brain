@@ -4,9 +4,9 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.22 COMPLETE; PR queued for Step 11
+**Last updated:** Phase 3.22b COMPLETE; PR #27 updated
 **Active branch:** `campaign/phase3-22-agent-communication-loop`
-**Active campaign:** none in flight; Phase 3.22 ready for PR open
+**Active campaign:** none in flight; Phase 3.22b ready for review
 **Prior campaigns:**
   - Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25 open)
   - Phase 3.21 Developmental Trajectory — COMPLETE (PR #26 open)
@@ -14,10 +14,12 @@ a fresh session can `git status`, read this file, then keep going.
     `STREAM_HISTORY_MAX_CHUNKS = 256` bound — landed at
     `fb870d5` on the Phase 3.21 branch.
   - Phase 3.22 Agent Communication Loop + Behavioral
-    Indistinguishability Harness — COMPLETE; PR to be opened in
-    Step 11 (target base: `campaign/phase3-21-developmental-trajectory`
-    while PR #26 is open; retargets to `main` once #24/#25/#26
-    merge).
+    Indistinguishability Harness — COMPLETE; PR #27 open.
+  - Phase 3.22b Learning Evidence + Reasoning Trace Continuation —
+    COMPLETE; pushed to PR #27 (same branch).
+    Catalog v0.30 -> v0.31. +I-AGENTLEARN-01..11 (10 REQUIRED + 1
+    STRUCTURAL). Benchmark: 53 cases, 52 PASS + 1 WARN + 0 FAIL,
+    transcript digest `aa4fae94b8c9a8e4`.
 
 ---
 
@@ -50,10 +52,10 @@ NOT a claim of cognitive agency, sentience, or understanding.
 ## Current step pointer
 
 ```text
-campaign:   none in flight; Phase 3.22 COMPLETE
-status:     three PRs (#25 + #26 + queued #27) awaiting operator
-            merge decision
-gates:      v0.30 baseline; all 5 gates PASS at Phase 3.22 close
+campaign:   none in flight; Phase 3.22 + 3.22b COMPLETE
+status:     three PRs (#25 + #26 + #27) awaiting operator
+            merge decision; #27 includes both Phase 3.22 and 3.22b
+gates:      v0.31; all 5 gates PASS at Phase 3.22b close
 branch:     campaign/phase3-22-agent-communication-loop
 
 queued next-campaign candidate:
@@ -157,6 +159,46 @@ STRUCTURAL); all rows green in the runner. Three new modules:
 Benchmark: 39 cases, 38 PASS + 1 documented WARN (A3.04 — the
 Phase 3.21 W3 follow-up not_applicable-overall blocker), 0 FAIL,
 0 real model calls, transcript digest `b6a93e11a105edd3`.
+
+---
+
+## Phase 3.22b step ledger (COMPLETE)
+
+```text
+Step  1  Design docs (synthesis + proof spec + trace spec)  DONE   commit cf16b97 (pushed)
+Step  2  abstract_pattern.py + AbstractPatternSignature     DONE   commit 9f5ea5b (pushed)
+Step  3  learning_evidence.py + 8 evidence kinds            DONE   commit 660f572 (pushed)
+Step  4  reasoning_trace.py + 10 step kinds                 DONE   commit 941f34b (pushed)
+Step  5  Integrate into agent_loop                          DONE   commit c408556 (pushed)
+Step  6  Extend benchmark A8 + A9                           DONE   commit 1e58c83 (pushed)
+Step  7  Catalog v0.31 + I-AGENTLEARN fixtures              DONE   commit 3ce46ac (pushed)
+Step  8  Behavior + findings + audit + proof + trace        DONE   commit 5bfe14e (pushed)
+Step  9  Final gates + handoff + PR update                  DONE   (this commit)
+```
+
+Verdict: **PASS WITH DEFERRED FOLLOW-UPS**. Catalog v0.31.
+
+Catalog patch: `I-AGENTLEARN-01..I-AGENTLEARN-11` (10 REQUIRED + 1
+STRUCTURAL); all rows green in the runner. Three new modules:
+`brain/development/abstract_pattern.py`,
+`brain/development/learning_evidence.py`,
+`brain/development/reasoning_trace.py`. Eleven new fixtures.
+Benchmark: 53 cases (39 from Phase 3.22 + 14 from Phase 3.22b), 52
+PASS + 1 documented WARN (A3.04 carry-over) + 0 FAIL, 0 real model
+calls, transcript digest `aa4fae94b8c9a8e4`. Learning proof digest
+(sample 6-step sequence): `df75162f93605181`. Reasoning trace
+digest (renamed-transfer reply): `5d8feb2a3096c3ad`.
+
+Phase 3.22 W2 (renamed-structure transfer) — RESOLVED.
+Phase 3.22 W3 (refusal overbreadth) — REFINED with narrower
+  cognitive-claim classifier; wider audit-tuple scan retained as
+  defense-in-depth floor.
+Phase 3.22 W4 (tick routing) — DOCUMENTED via dispatch-path label
+  in reasoning trace's OBSERVE_INPUT step; OFFLINE path preserved.
+Phase 3.22 W5 (REPL valid-effective) — RESOLVED with
+  DIMINISHING_RETURNS_UPDATED evidence + CORRECTION evidence.
+Phase 3.22 W1 (not_applicable overall blocker) — REMAINS WARN,
+  documented as A3.04.
 
 ---
 

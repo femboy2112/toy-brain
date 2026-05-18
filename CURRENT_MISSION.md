@@ -1,3 +1,13 @@
+# CURRENT_MISSION.md — Phase 3.22b Learning Evidence + Reasoning Trace (COMPLETE)
+
+> Phase 3.22b extends Phase 3.22 with documented operational proof of
+> structural learning and structural reasoning trace. Both campaigns
+> are now COMPLETE on the `campaign/phase3-22-agent-communication-loop`
+> branch and pushed to PR #27. The original Phase 3.22 mission text
+> follows.
+
+---
+
 # CURRENT_MISSION.md — Phase 3.22 Agent Communication Loop
 
 ## One-line instruction
