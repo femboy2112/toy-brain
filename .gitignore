@@ -32,3 +32,6 @@ brain/.llm_cache/
 
 # Runtime state from codex_chatgpt_write_worker.py (do not commit)
 .claude/codex_bridge_state/
+
+# Local Claude harness scheduler lock (do not commit)
+.claude/scheduled_tasks.lock
