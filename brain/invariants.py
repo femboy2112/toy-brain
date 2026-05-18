@@ -196,6 +196,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.development.fixtures.growth_ledger_static_audit",
     "brain.development.fixtures.growth_ledger_no_runtime_coupling",
     "brain.development.fixtures.growth_ledger_session_integration",
+    "brain.ui.fixtures.processing_window_static_audit",
+    "brain.ui.fixtures.processing_window_integration",
     "brain.ui.fixtures.llm_cache_runtime_policy",
     "brain.ui.fixtures.llm_cache_transport",
     "brain.ui.fixtures.llm_cache_semantic_key",
