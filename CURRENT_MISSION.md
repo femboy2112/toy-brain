@@ -133,10 +133,10 @@ never edit brain/tick.py in Phase 3.19
 Expected current baseline (must match before any step runs):
 
 ```text
-Catalog: v0.26
+Catalog: v0.27
 Counts:
-  REQUIRED:        282
-  STRUCTURAL:       89
+  REQUIRED:        283
+  STRUCTURAL:       90
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
@@ -144,7 +144,9 @@ Latest completed campaign:    Phase 3.18 Bounded Internal Processing
                               Window (PR #23, merged into the
                               phase3.17 branch upstream; phase3.18
                               content is brought along by the
-                              phase3.19 campaign branch)
+                              phase3.19 campaign branch); Phase 3.19
+                              Step 7 implementation now in flight on
+                              the campaign branch
 Available advisory bridge:    Stage A /ask-chatgpt (PR #13)
 Available limited-write bridge: Stage B /ask-chatgpt-write (PR #15)
 Available orchestration bridge: Stage C.1 /orchestrate-flow-with-codex

@@ -47,9 +47,18 @@ from brain.development.growth_ledger import (
     GrowthEventType,
     GrowthLedger,
 )
-from brain.development.pattern_ledger import PatternLedger
+from brain.development.pattern_ledger import (
+    PatternLedger,
+    derive_pattern_id,
+    derive_pattern_signature,
+)
 from brain.development.processing_window import (
+    FeedbackMode,
+    InternalEventSource,
+    build_pledger_summary_text,
+    build_rehearsal_provenance,
     plan_rehearsals,
+    validate_feedback_mode,
     validate_processing_window_call_budget,
     validate_processing_window_size,
 )
@@ -219,6 +228,7 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "growth_ledger",
     "processing_window_size",
     "processing_window_call_budget",
+    "feedback_mode",
 })
 
 
@@ -282,6 +292,11 @@ class OperatorSession:
     # by ``brain.development.processing_window.PROCESSING_WINDOW_SIZE_MAX``).
     processing_window_size: int = 0
     processing_window_call_budget: int = 0
+    # Phase 3.19 internal-feedback control. Default
+    # ``FeedbackMode.OFF`` so the rehearsal-only path is preserved
+    # bit-identically. Operators opt into pattern-ledger feedback
+    # by setting this to ``FeedbackMode.PATTERN_LEDGER``.
+    feedback_mode: FeedbackMode = FeedbackMode.OFF
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -413,6 +428,12 @@ class OperatorSession:
             validate_processing_window_call_budget(
                 self.processing_window_call_budget
             ),
+        )
+        # Phase 3.19 feedback-mode field validation.
+        object.__setattr__(
+            self,
+            "feedback_mode",
+            validate_feedback_mode(self.feedback_mode),
         )
         self._assert_no_unsafe_resources()
 
@@ -915,7 +936,8 @@ class OperatorSession:
     def _run_processing_window(
         self, *, seed_chunk: TextStreamChunk
     ) -> int:
-        """Phase 3.18 architecture A rehearsal loop.
+        """Phase 3.18 architecture A rehearsal loop, extended by
+        Phase 3.19 with bounded internal feedback.
 
         After a successful external STREAM_APPEND, fire up to
         :attr:`processing_window_size` internal rehearsals whose text
@@ -926,19 +948,35 @@ class OperatorSession:
         identical to the operator path — only the bounded printable
         provenance strings differ.
 
+        Phase 3.19 addition: when
+        :attr:`feedback_mode` is
+        :class:`brain.development.processing_window.FeedbackMode.PATTERN_LEDGER`,
+        each rehearsal is followed by one deterministic Pattern
+        Ledger summary chunk produced by
+        :func:`brain.development.processing_window.build_pledger_summary_text`
+        and dispatched through the same
+        :meth:`_append_stream_chunk` helper under provenance
+        ``"internal_processing_window:<k>:pledger_summary"``. The
+        summary text has a structurally distinct signature from the
+        seed text, so Pattern Ledger.observe records a SECOND-ORDER
+        entry. The feedback path consumes zero real model calls
+        because STREAM_APPEND does not invoke ``brain.tick.tick`` or
+        the LLM.
+
         Returns the number of internal rehearsals that actually fired
-        (which may be less than ``processing_window_size`` if a
-        bounded substrate raised partway through). Drives
-        ``I-PWND-01``: at OFF (size == 0) the call is a no-op and
-        returns 0; otherwise the call is synchronous, bounded, and
-        consumes zero real model calls because STREAM_APPEND does
-        not invoke ``brain.tick.tick`` or the LLM.
+        (each rehearsal counts as 1 regardless of whether the paired
+        feedback chunk fired, mirroring Phase 3.18 accounting).
+        Drives ``I-PWND-01`` and ``I-IFBK-01``: at OFF (size == 0)
+        the call is a no-op and returns 0; otherwise the call is
+        synchronous, bounded, and consumes zero real model calls.
 
         Failure semantics: if a rehearsal's
         :meth:`_append_stream_chunk` returns ``None``, the loop
-        stops; :attr:`error_message` carries the failure reason. The
-        external operator status message (set by the caller) is
-        preserved.
+        stops; :attr:`error_message` carries the failure reason. If
+        a feedback chunk's :meth:`_append_stream_chunk` returns
+        ``None``, the rehearsal is still counted, the failure is
+        recorded, and the loop stops. The external operator status
+        message (set by the caller) is preserved.
         """
         n = self.processing_window_size
         if n <= 0:
@@ -948,6 +986,11 @@ class OperatorSession:
         except (TypeError, ValueError) as exc:
             self.set_error(f"processing window plan rejected: {exc}")
             return 0
+        seed_pattern_id: Optional[str] = None
+        if self.feedback_mode is FeedbackMode.PATTERN_LEDGER:
+            seed_pattern_id = derive_pattern_id(
+                derive_pattern_signature(seed_chunk)
+            )
         fired = 0
         for step in plan:
             chunk = self._append_stream_chunk(
@@ -962,7 +1005,63 @@ class OperatorSession:
                 # cleanly without retrying.
                 break
             fired += 1
+            if self.feedback_mode is FeedbackMode.PATTERN_LEDGER:
+                if not self._run_feedback_step(
+                    tick_index=step.tick_index,
+                    seed_pattern_id=seed_pattern_id,
+                ):
+                    # A bounded substrate refused the feedback chunk;
+                    # error_message is set by _append_stream_chunk or
+                    # the helper below. Abort the window cleanly.
+                    break
         return fired
+
+    def _run_feedback_step(
+        self,
+        *,
+        tick_index: int,
+        seed_pattern_id: Optional[str],
+    ) -> bool:
+        """Fire one Phase 3.19 pattern-ledger feedback chunk.
+
+        Looks up the just-updated seed Pattern Ledger entry, builds
+        the deterministic summary text, composes the
+        ``pledger_summary`` provenance, and dispatches the chunk
+        through :meth:`_append_stream_chunk`. Returns ``True`` on
+        success and ``False`` on any bounded substrate refusal
+        (with :attr:`error_message` already set).
+        """
+        if seed_pattern_id is None:
+            self.set_error(
+                "processing window: feedback step missing seed pattern_id"
+            )
+            return False
+        seed_entry = self.pattern_ledger.find(seed_pattern_id)
+        if seed_entry is None:
+            self.set_error(
+                "processing window: feedback step could not locate seed entry "
+                f"for pattern_id={seed_pattern_id!r}"
+            )
+            return False
+        try:
+            summary_text = build_pledger_summary_text(
+                pattern_id=seed_entry.pattern_id,
+                recurrence_count=seed_entry.recurrence_count,
+                saturation_state_value=seed_entry.saturation_state.value,
+            )
+            summary_provenance = build_rehearsal_provenance(
+                tick_index=tick_index,
+                source=InternalEventSource.PLEDGER_SUMMARY,
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(f"processing window feedback rejected: {exc}")
+            return False
+        chunk = self._append_stream_chunk(
+            text=summary_text,
+            chunk_provenance=summary_provenance,
+            growth_provenance="stream_append:_run_processing_window",
+        )
+        return chunk is not None
 
     def _resolve_stream_candidate(
         self, candidate_id: str

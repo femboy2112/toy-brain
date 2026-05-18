@@ -1,12 +1,17 @@
-"""Phase 3.18 Bounded Internal Processing Window substrate.
+"""Phase 3.18 Bounded Internal Processing Window substrate
+(extended by Phase 3.19 Internal Feedback Loop).
 
-A session-level rehearsal helper for architecture A from the
-Phase 3.17 synthesis: after a successful external STREAM_APPEND
-dispatch, the session may fire up to N internal STREAM_APPEND
-events whose text is the EXACT text of the most recent operator
-chunk. This drives ``brain.development.pattern_ledger`` recurrence
-counts up deterministically without touching the kernel, the LLM,
-the parser, or the cache.
+A session-level rehearsal + feedback helper. After a successful
+external STREAM_APPEND dispatch, the session fires up to N
+internal STREAM_APPEND events whose text is the EXACT text of the
+most recent operator chunk (the Phase 3.18 rehearsal path).
+When :class:`FeedbackMode` is :data:`FeedbackMode.PATTERN_LEDGER`,
+each rehearsal is followed by a deterministic Pattern Ledger
+summary chunk whose text is built by
+:func:`build_pledger_summary_text` and re-enters the same
+STREAM_APPEND path. The summary chunk's structural signature
+differs from the seed chunk's, so Pattern Ledger.observe records
+a second-order pattern entry distinct from the seed entry.
 
 The module is deliberately closed:
 
@@ -18,10 +23,11 @@ The module is deliberately closed:
   module produces.
 * Every bounded printable string this module produces is audited
   against ``brain.development.coherence_monitor._FORBIDDEN_NON_CLAIM_TERMS``
-  by the static-audit fixture; the module's own assertion is a
+  by the static-audit fixtures; the module's own assertion is a
   matching list at the bottom of the file.
 
-Drives Phase 3.18 catalog rows ``I-PWND-01`` and ``I-PWND-02``.
+Drives Phase 3.18 catalog rows ``I-PWND-01`` and ``I-PWND-02``
+and Phase 3.19 catalog rows ``I-IFBK-01`` and ``I-IFBK-02``.
 """
 from __future__ import annotations
 
@@ -78,21 +84,67 @@ PROCESSING_WINDOW_PROVENANCE_PREFIX: str = "internal_processing_window"
 class InternalEventSource(str, Enum):
     """Finite closed enumeration of internal-event source kinds.
 
-    v1 ships ``REHEARSAL`` only — exact-text duplication of the
-    most recent operator chunk under a fresh chunk_id. The two
-    reserved members ``PLEDGER_SUMMARY`` and ``COHMON_SUMMARY``
-    exist for future compatibility but must not be emitted by any
-    v1 call site. Drives ``I-PWND-02``.
+    Phase 3.18 shipped ``REHEARSAL`` only — exact-text duplication
+    of the most recent operator chunk under a fresh chunk_id.
+    Phase 3.19 widens the v1-emitted set to also include
+    ``PLEDGER_SUMMARY``: a deterministic Pattern Ledger summary
+    chunk produced by :func:`build_pledger_summary_text`. The
+    third member ``COHMON_SUMMARY`` remains reserved per LOCK F
+    and continues to raise from
+    :func:`build_rehearsal_provenance`. Drives ``I-PWND-02`` and
+    ``I-IFBK-02``.
     """
 
     REHEARSAL = "rehearsal"
-    PLEDGER_SUMMARY = "pledger_summary"  # reserved for a future S1 expansion
-    COHMON_SUMMARY = "cohmon_summary"  # reserved for a future S2 expansion
+    PLEDGER_SUMMARY = "pledger_summary"  # Phase 3.19 v1-emitted
+    COHMON_SUMMARY = "cohmon_summary"  # reserved (Phase 3.19 LOCK F)
 
 
 _V1_EMITTED_SOURCES: frozenset[InternalEventSource] = frozenset({
     InternalEventSource.REHEARSAL,
+    InternalEventSource.PLEDGER_SUMMARY,
 })
+
+
+class FeedbackMode(str, Enum):
+    """Finite closed enumeration of internal feedback modes (I-IFBK-02).
+
+    Phase 3.19 v1 ships exactly two members:
+
+    * ``OFF`` — no feedback chunk is generated; the processing
+      window's rehearsal path is bit-identical to Phase 3.18.
+    * ``PATTERN_LEDGER`` — after each rehearsal, one deterministic
+      Pattern Ledger summary chunk re-enters the STREAM_APPEND
+      path under provenance
+      ``"internal_processing_window:<k>:pledger_summary"``.
+
+    Coherence-monitor feedback (architecture C) is DEFERRED per
+    LOCK F; no ``COHERENCE`` member is exposed.
+    """
+
+    OFF = "off"
+    PATTERN_LEDGER = "pattern_ledger"
+
+
+_FEEDBACK_MODE_VALID: frozenset[FeedbackMode] = frozenset({
+    FeedbackMode.OFF,
+    FeedbackMode.PATTERN_LEDGER,
+})
+
+
+#: Bounded printable prefix that every feedback summary text begins
+#: with. Locked to a non-claim-clean structural marker.
+PLEDGER_SUMMARY_TEXT_PREFIX: str = "pledger_summary"
+
+
+#: Bounded printable max length of the deterministic summary text
+#: produced by :func:`build_pledger_summary_text`. Computed
+#: conservatively over the legal input domain: the prefix
+#: (15 chars) + " pattern_id=" (12) + max-length pattern_id (64)
+#: + " recurrence=" (12) + 3-digit count (3) + "/256" (4) +
+#: " sat=" (5) + "quiesced" (8) = 123. Well under
+#: STREAM_TEXT_MAX_LEN = 1024.
+PLEDGER_SUMMARY_TEXT_MAX_LEN: int = 240
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +195,27 @@ def validate_processing_window_call_budget(value: object) -> int:
         lo=0,
         hi=PROCESSING_WINDOW_CALL_BUDGET_MAX,
     )
+
+
+def validate_feedback_mode(value: object) -> "FeedbackMode":
+    """Validate ``OperatorSession.feedback_mode`` (I-IFBK-02).
+
+    Accepts only :class:`FeedbackMode` members in the v1-allowed
+    set ``{OFF, PATTERN_LEDGER}``. Rejects ``bool``, ``int``,
+    ``str``, ``None``, and any other type with a typed ``ValueError``.
+    """
+    if not isinstance(value, FeedbackMode):
+        raise ValueError(
+            "processing window: feedback_mode must be a FeedbackMode "
+            f"(got {type(value).__name__})"
+        )
+    if value not in _FEEDBACK_MODE_VALID:
+        raise ValueError(
+            "processing window: feedback_mode "
+            f"{value.value!r} is not in the v1-allowed set "
+            f"{sorted(m.value for m in _FEEDBACK_MODE_VALID)!r}"
+        )
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +277,120 @@ def build_rehearsal_provenance(
     if composed == COGITO_ID:
         raise ValueError(
             "processing window: composed provenance must not equal COGITO_ID"
+        )
+    return composed
+
+
+#: Bounded printable closed set of valid saturation-state suffix
+#: values for :func:`build_pledger_summary_text`. Mirrors the
+#: ``PatternLedgerSaturationState`` enum values without importing
+#: the enum itself (the audit forbids
+#: ``brain.development.pattern_ledger`` imports here; the bounded
+#: helper accepts the string value the caller already extracted).
+_PLEDGER_SUMMARY_VALID_SAT_STATES: frozenset[str] = frozenset({
+    "open",
+    "saturated",
+    "quiesced",
+})
+
+
+def build_pledger_summary_text(
+    *,
+    pattern_id: str,
+    recurrence_count: int,
+    saturation_state_value: str,
+) -> str:
+    """Build the deterministic Pattern Ledger summary text (I-IFBK-02).
+
+    Produces a bounded printable string of the locked shape::
+
+        "pledger_summary pattern_id=<pattern_id> recurrence=<n>/256 sat=<state>"
+
+    Pure function: no I/O, no time, no random, no PID, no hostname,
+    no ``id()``. Same inputs yield the same output across runs /
+    processes / OSes. Caller responsibilities:
+
+    * ``pattern_id`` is the bounded printable id of the Pattern
+      Ledger entry the rehearsal just updated (typically
+      ``"pledger:<16hex>"``). The helper re-validates the bound
+      and rejects ``COGITO_ID``.
+    * ``recurrence_count`` is an int in
+      ``[0, STREAM_PATTERN_RECURRENCE_MAX]`` (no bool).
+    * ``saturation_state_value`` is a member of the closed set
+      ``{"open", "saturated", "quiesced"}``.
+
+    Output non-claim audit (LOCK I) is checked by the
+    static-audit fixture; the helper itself enforces only
+    bounded-shape invariants.
+    """
+    if not isinstance(pattern_id, str):
+        raise ValueError(
+            "processing window: pattern_id must be str "
+            f"(got {type(pattern_id).__name__})"
+        )
+    if not pattern_id:
+        raise ValueError("processing window: pattern_id must be non-empty")
+    if not pattern_id.isprintable():
+        raise ValueError("processing window: pattern_id must be printable")
+    if pattern_id == COGITO_ID:
+        raise ValueError(
+            "processing window: pattern_id must not equal COGITO_ID"
+        )
+
+    if not isinstance(recurrence_count, int) or isinstance(recurrence_count, bool):
+        raise ValueError(
+            "processing window: recurrence_count must be int "
+            f"(got {type(recurrence_count).__name__})"
+        )
+    if recurrence_count < 0:
+        raise ValueError(
+            "processing window: recurrence_count must be >= 0 "
+            f"(got {recurrence_count})"
+        )
+    # Upper bound is STREAM_PATTERN_RECURRENCE_MAX = 256 in the
+    # Pattern Ledger; the helper accepts that exact ceiling.
+    # Larger values raise so a future cap change cannot silently
+    # widen the produced text.
+    if recurrence_count > 256:
+        raise ValueError(
+            "processing window: recurrence_count must be <= 256 "
+            f"(got {recurrence_count})"
+        )
+
+    if not isinstance(saturation_state_value, str):
+        raise ValueError(
+            "processing window: saturation_state_value must be str "
+            f"(got {type(saturation_state_value).__name__})"
+        )
+    if saturation_state_value not in _PLEDGER_SUMMARY_VALID_SAT_STATES:
+        raise ValueError(
+            "processing window: saturation_state_value "
+            f"{saturation_state_value!r} not in "
+            f"{sorted(_PLEDGER_SUMMARY_VALID_SAT_STATES)!r}"
+        )
+
+    composed = (
+        f"{PLEDGER_SUMMARY_TEXT_PREFIX} pattern_id={pattern_id} "
+        f"recurrence={recurrence_count}/256 sat={saturation_state_value}"
+    )
+    if len(composed) > PLEDGER_SUMMARY_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed summary length {len(composed)} "
+            f"exceeds PLEDGER_SUMMARY_TEXT_MAX_LEN="
+            f"{PLEDGER_SUMMARY_TEXT_MAX_LEN}"
+        )
+    if len(composed) > STREAM_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed summary length {len(composed)} "
+            f"exceeds STREAM_TEXT_MAX_LEN={STREAM_TEXT_MAX_LEN}"
+        )
+    if not composed or not composed.isprintable():
+        raise ValueError(
+            "processing window: composed summary must be bounded printable"
+        )
+    if composed == COGITO_ID:
+        raise ValueError(
+            "processing window: composed summary must not equal COGITO_ID"
         )
     return composed
 
@@ -339,28 +526,38 @@ def plan_rehearsals(
 
 #: Every bounded printable string this module *produces* must avoid
 #: every term in ``brain.development.coherence_monitor._FORBIDDEN_NON_CLAIM_TERMS``.
-#: The static-audit fixture imports that tuple and exhaustively
-#: scans (a) the module source, (b) every member of
-#: :class:`InternalEventSource`, (c) the constant strings here, and
-#: (d) the output of :func:`build_rehearsal_provenance` over the v1
-#: source set.
+#: The static-audit fixtures import that tuple and exhaustively
+#: scan (a) the module source, (b) every member of
+#: :class:`InternalEventSource`, (c) every member of
+#: :class:`FeedbackMode`, (d) the constant strings here, (e) the
+#: output of :func:`build_rehearsal_provenance` over the v1 source
+#: set, and (f) the output of :func:`build_pledger_summary_text`
+#: over a representative input set.
 MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     PROCESSING_WINDOW_PROVENANCE_PREFIX,
+    PLEDGER_SUMMARY_TEXT_PREFIX,
     InternalEventSource.REHEARSAL.value,
     InternalEventSource.PLEDGER_SUMMARY.value,
     InternalEventSource.COHMON_SUMMARY.value,
+    FeedbackMode.OFF.value,
+    FeedbackMode.PATTERN_LEDGER.value,
 )
 
 
 __all__ = [
+    "FeedbackMode",
     "InternalEventSource",
     "MODULE_PRODUCED_STRINGS",
+    "PLEDGER_SUMMARY_TEXT_MAX_LEN",
+    "PLEDGER_SUMMARY_TEXT_PREFIX",
     "PROCESSING_WINDOW_CALL_BUDGET_MAX",
     "PROCESSING_WINDOW_PROVENANCE_PREFIX",
     "PROCESSING_WINDOW_SIZE_MAX",
     "RehearsalStep",
+    "build_pledger_summary_text",
     "build_rehearsal_provenance",
     "plan_rehearsals",
+    "validate_feedback_mode",
     "validate_processing_window_call_budget",
     "validate_processing_window_size",
     "validate_rehearsal_text",

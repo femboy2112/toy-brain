@@ -313,15 +313,20 @@ def check_processing_window_static_audit() -> None:
 
     # 8. build_rehearsal_provenance over the v1-emitted source set
     # produces strings that contain no forbidden non-claim term.
-    for k in (1, 2, 3, 42, 255):
-        provenance = build_rehearsal_provenance(
-            tick_index=k, source=InternalEventSource.REHEARSAL
-        )
-        term = _has_forbidden_term(provenance)
-        assert term is None, (
-            "I-PWND-02 violated: build_rehearsal_provenance output "
-            f"{provenance!r} contains forbidden non-claim term {term!r}"
-        )
+    # Phase 3.19 widened the v1-emitted set to include
+    # ``InternalEventSource.PLEDGER_SUMMARY`` (LOCK F keeps
+    # ``COHMON_SUMMARY`` reserved).
+    for source in (
+        InternalEventSource.REHEARSAL,
+        InternalEventSource.PLEDGER_SUMMARY,
+    ):
+        for k in (1, 2, 3, 42, 255):
+            provenance = build_rehearsal_provenance(tick_index=k, source=source)
+            term = _has_forbidden_term(provenance)
+            assert term is None, (
+                "I-PWND-02 violated: build_rehearsal_provenance output "
+                f"{provenance!r} contains forbidden non-claim term {term!r}"
+            )
 
     # 9. RehearsalStep has no callable / handle / client / scalar-
     # aggregate field. We construct one and walk its slots.
@@ -355,8 +360,10 @@ def check_processing_window_static_audit() -> None:
 
     # 10. Reserved enum members raise when passed to
     # build_rehearsal_provenance — they MUST NOT be emitted by v1.
+    # Phase 3.19 LOCK F keeps ``COHMON_SUMMARY`` reserved; the
+    # previously reserved ``PLEDGER_SUMMARY`` is now v1-emitted
+    # (see step 8 above) and is no longer in this rejection set.
     for reserved in (
-        InternalEventSource.PLEDGER_SUMMARY,
         InternalEventSource.COHMON_SUMMARY,
     ):
         raised = False

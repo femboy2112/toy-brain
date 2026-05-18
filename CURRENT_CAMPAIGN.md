@@ -128,10 +128,10 @@ Then read whichever files the next campaign step names.
 Expected current state:
 
 ```text
-Catalog: v0.26
+Catalog: v0.27
 Counts:
-  REQUIRED:        282
-  STRUCTURAL:       89
+  REQUIRED:        283
+  STRUCTURAL:       90
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
@@ -139,8 +139,9 @@ Latest completed campaign:    Phase 3.18 Bounded Internal Processing
                               Window (PR #23)
 Current campaign:             Phase 3.19 Internal Feedback Loop
                               Prototype
-Next eligible step:           Step 1 mission sync and roadmap
-                              install (this file's first step)
+Next eligible step:           Step 8 internal feedback behavior
+                              report (Steps 1-7 + Review Gate A
+                              complete)
 Canonical design seed:        PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
 ```
 
