@@ -29,6 +29,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+from brain.development.abstract_pattern import (
+    derive_abstract_pattern_signature,
+)
 from brain.development.agent_loop import (
     AGENT_INPUT_MAX_LEN,
     AGENT_LOOP_VERSION,
@@ -39,6 +42,14 @@ from brain.development.agent_loop import (
     make_initial_agent_loop_state,
     run_agent_interaction_step,
     summarize_session_for_agent,
+)
+from brain.development.learning_evidence import (
+    LearningEvidenceKind,
+    build_learning_proof_report,
+)
+from brain.development.reasoning_trace import (
+    ReasoningStepKind,
+    build_reasoning_trace_report,
 )
 from brain.development.agent_repl_bridge import (
     AGENT_REPL_LINE_ID_PREFIX,
@@ -92,6 +103,8 @@ class BenchmarkAxis(str, Enum):
     COMMUNICATION = "communication"
     SESSION_CONTINUITY = "session_continuity"
     BLIND_TRANSCRIPT = "blind_transcript"
+    LEARNING_EVIDENCE = "learning_evidence"
+    REASONING_TRACE = "reasoning_trace"
 
 
 class BenchmarkCaseStatus(str, Enum):
@@ -1561,8 +1574,497 @@ def run_axis_a7_blind_transcript(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Axis A8 — Learning evidence (Phase 3.22b).
+# ---------------------------------------------------------------------------
+
+
+def run_axis_a8_learning_evidence() -> AxisResult:
+    cases: list[BenchmarkCaseResult] = []
+
+    # A8.01 — exact recurrence produces RECURRENCE_INCREASED evidence.
+    state = make_initial_agent_loop_state()
+    state, _ = run_agent_interaction_step(state, "alpha line one")
+    state, _ = run_agent_interaction_step(state, "alpha line one")
+    rec_increased = sum(
+        1
+        for r in state.learning_trace.records
+        if r.kind is LearningEvidenceKind.RECURRENCE_INCREASED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A8.01",
+            axis=BenchmarkAxis.LEARNING_EVIDENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if rec_increased >= 1
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"exact recurrence: recurrence_increased_count="
+                f"{rec_increased}"
+            ),
+            primary_metric=rec_increased,
+            secondary_metric=len(state.learning_trace.records),
+        )
+    )
+
+    # A8.02 — ABAB abstract pattern acquired after first exposure.
+    state = make_initial_agent_loop_state()
+    sig = derive_abstract_pattern_signature("red blue red blue")
+    pre_acquired = any(
+        r.kind is LearningEvidenceKind.ABSTRACT_PATTERN_ACQUIRED
+        and r.abstract_pattern_digest == sig.digest_hex16
+        for r in state.learning_trace.records
+    )
+    state, _ = run_agent_interaction_step(state, "red blue red blue")
+    post_acquired = any(
+        r.kind is LearningEvidenceKind.ABSTRACT_PATTERN_ACQUIRED
+        and r.abstract_pattern_digest == sig.digest_hex16
+        for r in state.learning_trace.records
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A8.02",
+            axis=BenchmarkAxis.LEARNING_EVIDENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (not pre_acquired and post_acquired)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"ABAB abstract acquired: pre={pre_acquired} "
+                f"post={post_acquired} digest={sig.digest_hex16}"
+            ),
+            primary_metric=int(post_acquired),
+            secondary_metric=int(not pre_acquired),
+        )
+    )
+
+    # A8.03 — renamed ABAB input recognized as transfer.
+    state = make_initial_agent_loop_state()
+    state, _ = run_agent_interaction_step(state, "red blue red blue")
+    state, r2 = run_agent_interaction_step(state, "cat dog cat dog")
+    transfer = any(
+        r.kind is LearningEvidenceKind.TRANSFER_RECOGNIZED
+        for r in state.learning_trace.records
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A8.03",
+            axis=BenchmarkAxis.LEARNING_EVIDENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if transfer
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"renamed ABAB transfer: detected={transfer}",
+            primary_metric=int(transfer),
+            secondary_metric=0,
+        )
+    )
+
+    # A8.04 — later reply's NEXT_ACTION section reflects climbed
+    # recurrence (cites prior acquired/reused structure via the
+    # pattern-section recurrence count).
+    state = make_initial_agent_loop_state()
+    state, r1 = run_agent_interaction_step(state, "alpha line one")
+    state, r2 = run_agent_interaction_step(state, "alpha line one")
+    pattern_section = next(
+        (
+            body
+            for status, body in r2.reply.sections
+            if status is AgentReplyStatus.PATTERN_REPORT
+        ),
+        "",
+    )
+    # The pattern-section body includes the (climbed) recurrence value.
+    cite_ok = (
+        "seed_recur=" in pattern_section
+        and r2.observation.seed_recurrence > r1.observation.seed_recurrence
+    )
+    # Also confirm the learning trace contains a reused / recurrence
+    # record for the second step.
+    has_reuse_or_recur = any(
+        r.kind
+        in (
+            LearningEvidenceKind.ABSTRACT_PATTERN_REUSED,
+            LearningEvidenceKind.RECURRENCE_INCREASED,
+        )
+        for r in r2.learning_evidence_trace.records[-3:]
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A8.04",
+            axis=BenchmarkAxis.LEARNING_EVIDENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (cite_ok and has_reuse_or_recur)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"later reply cites prior structure: "
+                f"recur_climbed={cite_ok} reuse_or_recur={has_reuse_or_recur}"
+            ),
+            primary_metric=int(cite_ok),
+            secondary_metric=int(has_reuse_or_recur),
+        )
+    )
+
+    # A8.05 — near-miss REPL correction creates learning evidence.
+    state = make_initial_agent_loop_state()
+    state, _ = run_agent_interaction_step(state, "emit alpha")  # near-miss
+    state, _ = run_agent_interaction_step(state, "EMIT ALPHA")  # valid
+    correction_count = sum(
+        1
+        for r in state.learning_trace.records
+        if r.kind is LearningEvidenceKind.REPL_CORRECTION_APPLIED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A8.05",
+            axis=BenchmarkAxis.LEARNING_EVIDENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if correction_count >= 1
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"near-miss correction evidence: "
+                f"corrections={correction_count}"
+            ),
+            primary_metric=correction_count,
+            secondary_metric=0,
+        )
+    )
+
+    # A8.06 — repeated valid-effective REPL action changes
+    # diminishing-returns evidence.
+    state = make_initial_agent_loop_state()
+    for _ in range(4):
+        state, _ = run_agent_interaction_step(state, "EMIT BETA")
+    drf_records = [
+        r
+        for r in state.learning_trace.records
+        if r.kind is LearningEvidenceKind.DIMINISHING_RETURNS_UPDATED
+    ]
+    # Expect 3 DRF records (calls 2, 3, 4).
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A8.06",
+            axis=BenchmarkAxis.LEARNING_EVIDENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if len(drf_records) >= 3
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"DRF evidence over 4 emits: "
+                f"drf_records={len(drf_records)}"
+            ),
+            primary_metric=len(drf_records),
+            secondary_metric=0,
+        )
+    )
+
+    # A8.07 — deterministic learning proof digest stable across two runs.
+    state_a = make_initial_agent_loop_state()
+    state_b = make_initial_agent_loop_state()
+    seq = (
+        "alpha line one",
+        "alpha line one",
+        "red blue red blue",
+        "cat dog cat dog",
+        "EMIT ALPHA",
+        "EMIT ALPHA",
+    )
+    for text in seq:
+        state_a, _ = run_agent_interaction_step(state_a, text)
+        state_b, _ = run_agent_interaction_step(state_b, text)
+    report_a = build_learning_proof_report(state_a.learning_trace)
+    report_b = build_learning_proof_report(state_b.learning_trace)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A8.07",
+            axis=BenchmarkAxis.LEARNING_EVIDENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if report_a.digest_hex16 == report_b.digest_hex16
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"learning proof digest stable: "
+                f"digest={report_a.digest_hex16} match={report_a.digest_hex16 == report_b.digest_hex16}"
+            ),
+            primary_metric=report_a.record_total,
+            secondary_metric=int(report_a.digest_hex16 == report_b.digest_hex16),
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.LEARNING_EVIDENCE,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Axis A9 — Reasoning trace (Phase 3.22b).
+# ---------------------------------------------------------------------------
+
+
+def run_axis_a9_reasoning_trace() -> AxisResult:
+    cases: list[BenchmarkCaseResult] = []
+
+    # A9.01 — every agent reply has a non-empty reasoning trace.
+    # The cognitive-claim probe input is composed from the imported
+    # ``_FORBIDDEN_NON_CLAIM_TERMS`` tuple so this source file itself
+    # contains no literal forbidden term (audited by I-AGENTLOOP-11).
+    cognitive_probe = "are you " + _FORBIDDEN_NON_CLAIM_TERMS[0]
+    state = make_initial_agent_loop_state()
+    inputs = (
+        "alpha line one",
+        "red blue red blue",
+        "",
+        "EMIT ALPHA",
+        cognitive_probe,
+        "x" * (AGENT_INPUT_MAX_LEN + 1),
+    )
+    non_empty = 0
+    total = 0
+    for text in inputs:
+        state, r = run_agent_interaction_step(state, text)
+        total += 1
+        if r.reasoning_trace is not None and len(r.reasoning_trace.steps) > 0:
+            non_empty += 1
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A9.01",
+            axis=BenchmarkAxis.REASONING_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if non_empty == total
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"every reply has non-empty trace: "
+                f"{non_empty}/{total}"
+            ),
+            primary_metric=non_empty,
+            secondary_metric=total,
+        )
+    )
+
+    # A9.02 — refusal reply trace shows classify-refusal match path.
+    state = make_initial_agent_loop_state()
+    state, r = run_agent_interaction_step(state, cognitive_probe)
+    classify_steps = [
+        s
+        for s in r.reasoning_trace.steps
+        if s.kind is ReasoningStepKind.CLASSIFY_REFUSAL
+    ]
+    match_ok = any(
+        "classifier_match=True" in s.input_facts for s in classify_steps
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A9.02",
+            axis=BenchmarkAxis.REASONING_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (
+                    r.reply.disposition is AgentReplyDisposition.REFUSAL
+                    and match_ok
+                )
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"refusal trace classifier match: disp={r.reply.disposition.value} "
+                f"match_ok={match_ok}"
+            ),
+            primary_metric=int(match_ok),
+            secondary_metric=len(classify_steps),
+        )
+    )
+
+    # A9.03 — pattern reply trace shows derive-pattern ->
+    # lookup-prior -> select-reply path.
+    state = make_initial_agent_loop_state()
+    state, _ = run_agent_interaction_step(state, "red blue red blue")
+    state, r = run_agent_interaction_step(state, "cat dog cat dog")
+    kinds = tuple(s.kind for s in r.reasoning_trace.steps)
+    has_derive = ReasoningStepKind.DERIVE_PATTERN in kinds
+    has_lookup = ReasoningStepKind.LOOKUP_PRIOR_STRUCTURE in kinds
+    has_compare = ReasoningStepKind.COMPARE_STRUCTURE in kinds
+    has_select = ReasoningStepKind.SELECT_REPLY_DISPOSITION in kinds
+    path_ok = has_derive and has_lookup and has_compare and has_select
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A9.03",
+            axis=BenchmarkAxis.REASONING_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if path_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"pattern trace path: derive={has_derive} "
+                f"lookup={has_lookup} compare={has_compare} "
+                f"select={has_select}"
+            ),
+            primary_metric=int(path_ok),
+            secondary_metric=len(kinds),
+        )
+    )
+
+    # A9.04 — REPL reply trace shows the parse/build/execute/feedback
+    # path (CHECK_REPL step records parse/exec values).
+    state = make_initial_agent_loop_state()
+    state, r = run_agent_interaction_step(state, "EMIT ALPHA")
+    repl_steps = [
+        s
+        for s in r.reasoning_trace.steps
+        if s.kind is ReasoningStepKind.CHECK_REPL
+    ]
+    repl_facts_ok = any(
+        ("parse=valid" in s.derived_facts)
+        and ("exec=valid-effective" in s.derived_facts)
+        for s in repl_steps
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A9.04",
+            axis=BenchmarkAxis.REASONING_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (repl_facts_ok)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"repl trace facts: parse_exec_ok={repl_facts_ok} "
+                f"steps={len(repl_steps)}"
+            ),
+            primary_metric=int(repl_facts_ok),
+            secondary_metric=len(repl_steps),
+        )
+    )
+
+    # A9.05 — limitation reply trace documents not_applicable blocker
+    # without invalid state. We construct a session with one
+    # STREAM_APPEND and check the trace's CHECK_COHERENCE step shows
+    # overall_status = "pass" (the achievable overall on a valid
+    # session). Then we set ``stream_chunk_serial=0`` to induce a
+    # WARN and run another step; the trace's CHECK_COHERENCE step
+    # records "warn".
+    state = make_initial_agent_loop_state()
+    state, _ = run_agent_interaction_step(state, "alpha line one")
+    state, r_pass = run_agent_interaction_step(state, "alpha line two")
+    pass_step = next(
+        (
+            s
+            for s in r_pass.reasoning_trace.steps
+            if s.kind is ReasoningStepKind.CHECK_COHERENCE
+        ),
+        None,
+    )
+    pass_records_overall = (
+        pass_step is not None and "overall=pass" in pass_step.derived_facts
+    )
+    # Induce a WARN via the lever used by A3.02.
+    state.session.stream_chunk_serial = 0
+    state, r_warn = run_agent_interaction_step(state, "alpha line three")
+    warn_step = next(
+        (
+            s
+            for s in r_warn.reasoning_trace.steps
+            if s.kind is ReasoningStepKind.CHECK_COHERENCE
+        ),
+        None,
+    )
+    warn_records_overall = (
+        warn_step is not None and "overall=warn" in warn_step.derived_facts
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A9.05",
+            axis=BenchmarkAxis.REASONING_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (pass_records_overall and warn_records_overall)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"coherence record: pass_recorded={pass_records_overall} "
+                f"warn_recorded={warn_records_overall}"
+            ),
+            primary_metric=int(pass_records_overall),
+            secondary_metric=int(warn_records_overall),
+        )
+    )
+
+    # A9.06 — two runs produce equal trace_digest_hex16.
+    state_a = make_initial_agent_loop_state()
+    state_b = make_initial_agent_loop_state()
+    state_a, ra = run_agent_interaction_step(state_a, "red blue red blue")
+    state_b, rb = run_agent_interaction_step(state_b, "red blue red blue")
+    report_a = build_reasoning_trace_report(ra.reasoning_trace)
+    report_b = build_reasoning_trace_report(rb.reasoning_trace)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A9.06",
+            axis=BenchmarkAxis.REASONING_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if report_a.trace_digest_hex16 == report_b.trace_digest_hex16
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"trace digest stable: digest={report_a.trace_digest_hex16} "
+                f"match={report_a.trace_digest_hex16 == report_b.trace_digest_hex16}"
+            ),
+            primary_metric=report_a.step_total,
+            secondary_metric=int(
+                report_a.trace_digest_hex16 == report_b.trace_digest_hex16
+            ),
+        )
+    )
+
+    # A9.07 — trace source scan has zero forbidden-term hits.
+    state = make_initial_agent_loop_state()
+    state, r = run_agent_interaction_step(state, "red blue red blue")
+    trace_strings: list[str] = []
+    for s in r.reasoning_trace.steps:
+        trace_strings.extend(
+            (s.input_facts, s.derived_facts, s.next_action)
+        )
+    hits = 0
+    for text in trace_strings:
+        if _text_has_forbidden_term(text) is not None:
+            hits += 1
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A9.07",
+            axis=BenchmarkAxis.REASONING_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if hits == 0
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"trace forbidden-term hits: {hits}",
+            primary_metric=hits,
+            secondary_metric=len(trace_strings),
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.REASONING_TRACE,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
 def run_full_battery() -> BenchmarkRun:
-    """Run every axis A1..A7 and assemble a BenchmarkRun.
+    """Run every axis A1..A9 and assemble a BenchmarkRun.
 
     Two invocations produce identical BenchmarkRun records (modulo
     object identity).
@@ -1575,7 +2077,9 @@ def run_full_battery() -> BenchmarkRun:
     a6 = run_axis_a6_session_continuity()
     earlier = (a1, a2, a3, a4, a5, a6)
     a7 = run_axis_a7_blind_transcript(earlier)
-    return _assemble_battery_run(earlier + (a7,))
+    a8 = run_axis_a8_learning_evidence()
+    a9 = run_axis_a9_reasoning_trace()
+    return _assemble_battery_run(earlier + (a7, a8, a9))
 
 
 def _assemble_battery_run(axes: tuple[AxisResult, ...]) -> BenchmarkRun:
@@ -1633,6 +2137,20 @@ def run_partial_battery_with_coherence() -> BenchmarkRun:
         run_axis_a1_pattern_recognition(),
         run_axis_a2_cross_input_structural(),
         run_axis_a3_coherence_variation(),
+    )
+    return _assemble_battery_run(axes)
+
+
+def run_partial_battery_phase3_22b() -> BenchmarkRun:
+    """Run axes A8 + A9 only; assemble a BenchmarkRun record.
+
+    Phase 3.22b entry point — exercises the learning evidence and
+    reasoning trace axes without the (already-covered) Phase 3.22
+    axes A1..A7.
+    """
+    axes = (
+        run_axis_a8_learning_evidence(),
+        run_axis_a9_reasoning_trace(),
     )
     return _assemble_battery_run(axes)
 
@@ -1747,8 +2265,11 @@ __all__ = (
     "run_axis_a5_communication",
     "run_axis_a6_session_continuity",
     "run_axis_a7_blind_transcript",
+    "run_axis_a8_learning_evidence",
+    "run_axis_a9_reasoning_trace",
     "run_full_battery",
     "run_partial_battery_pattern_axes",
+    "run_partial_battery_phase3_22b",
     "run_partial_battery_with_coherence",
 )
 

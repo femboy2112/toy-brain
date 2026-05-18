@@ -39,6 +39,8 @@ _EXPECTED_AXIS_VALUES = frozenset(
         "communication",
         "session_continuity",
         "blind_transcript",
+        "learning_evidence",
+        "reasoning_trace",
     }
 )
 

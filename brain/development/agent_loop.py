@@ -79,7 +79,6 @@ from brain.development.learning_evidence import (
     count_reuses_for_digest,
     empty_trace,
     has_acquired_digest,
-    last_near_miss_hint,
     make_abstract_pattern_acquired_record,
     make_abstract_pattern_reused_record,
     make_diminishing_returns_record,
@@ -1083,19 +1082,26 @@ def build_agent_reply(
 
 
 def _looks_like_repl_command(text: str, handle: AgentReplGrammarHandle) -> bool:
-    """Heuristic: text whose first token is a verb in the handle's grammar."""
+    """Heuristic: text whose first token is a verb in the handle's grammar.
+
+    The check is case-insensitive on the head token so a near-miss
+    typing (e.g. lowercase verb) still routes through the REPL bridge,
+    where it is parsed as a near-miss with an edit-distance hint. The
+    underlying tokenizer / parser remain case-sensitive — the
+    case-insensitive routing decision is deliberate and lets the
+    bridge surface the bounded correction hint.
+    """
     if not text:
         return False
     if len(text) > AGENT_REPL_MAX_INPUT_LEN:
         return False
-    # First whitespace-delimited token, case-folded, checked against
-    # verb tokens.
     head = text.strip().split()[:1]
     if not head:
         return False
     head_text = head[0]
+    head_lower = head_text.lower()
     for token in handle.grammar.tokens:
-        if token.kind.value == "verb" and token.text == head_text:
+        if token.kind.value == "verb" and token.text.lower() == head_lower:
             return True
     return False
 
@@ -1136,6 +1142,7 @@ def _derive_evidence_for_step(
     abstract_signature: Optional[AbstractPatternSignature],
     pre_drf_for_canonical: dict[str, str],
     current_input_pattern_id: str,
+    prior_near_miss_hint: str,
 ) -> tuple[LearningEvidenceTrace, list[ReasoningStepHint]]:
     """Pure helper: derive evidence records + reasoning hints.
 
@@ -1178,13 +1185,16 @@ def _derive_evidence_for_step(
             repl_line_result.parse_category_value == "valid"
             and repl_line_result.command_canonical
         ):
-            # Check whether the immediately-prior trace contained a
-            # near-miss for the same canonical form. If so, emit
-            # REPL_CORRECTION_APPLIED.
-            prior = last_near_miss_hint(new_trace)
-            # Also consider raw post_obs for a fallback path (no
-            # session-local hint memory yet).
-            if prior is None and repl_line_result.near_miss_hint_summary:
+            # If the most recent prior REPL parse was a near-miss,
+            # this valid command counts as a correction.
+            if prior_near_miss_hint:
+                rec = make_repl_correction_record(
+                    interaction_id=interaction_id,
+                    prior_hint_summary=prior_near_miss_hint,
+                    canonical_form=repl_line_result.command_canonical,
+                )
+                new_trace = append_record(new_trace, rec)
+            elif repl_line_result.near_miss_hint_summary:
                 # Defensive: the bridge can yield a near-miss hint
                 # alongside a valid parse in some shapes; treat that
                 # as a correction.
@@ -1193,14 +1203,6 @@ def _derive_evidence_for_step(
                     prior_hint_summary=(
                         repl_line_result.near_miss_hint_summary
                     ),
-                    canonical_form=repl_line_result.command_canonical,
-                )
-                new_trace = append_record(new_trace, rec)
-            elif prior is not None:
-                # Prior near-miss exists. Emit a correction record.
-                rec = make_repl_correction_record(
-                    interaction_id=interaction_id,
-                    prior_hint_summary=prior.summary,
                     canonical_form=repl_line_result.command_canonical,
                 )
                 new_trace = append_record(new_trace, rec)
@@ -1689,6 +1691,22 @@ def run_agent_interaction_step(
             ):
                 transfer = True
 
+    # Look up the most recent prior near-miss hint from the REPL
+    # history (so a near-miss followed by a valid command is recorded
+    # as a REPL_CORRECTION_APPLIED evidence record).
+    prior_near_miss_hint = ""
+    if state.repl_history.parse_results:
+        prior_parse = state.repl_history.parse_results[-1]
+        if prior_parse.category.value == "near-miss":
+            hint = prior_parse.correction_hint
+            if hint is not None:
+                prior_near_miss_hint = (
+                    f"hint kind={hint.edit_kind.value} "
+                    f"pos={hint.edit_position} "
+                    f"expect={hint.expected_token_id or ''} "
+                    f"dist={hint.edit_distance}"
+                )
+
     new_learning_trace, hints = _derive_evidence_for_step(
         interaction_id=input_id,
         operator_text=operator_text,
@@ -1701,6 +1719,7 @@ def run_agent_interaction_step(
         abstract_signature=abstract_signature,
         pre_drf_for_canonical=pre_drf_for_canonical,
         current_input_pattern_id=current_input_pattern_id,
+        prior_near_miss_hint=prior_near_miss_hint,
     )
 
     reasoning_trace = _build_reasoning_trace_for_step(

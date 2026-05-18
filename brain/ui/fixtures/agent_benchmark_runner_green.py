@@ -34,6 +34,8 @@ _EXPECTED_AXES = (
     BenchmarkAxis.COMMUNICATION,
     BenchmarkAxis.SESSION_CONTINUITY,
     BenchmarkAxis.BLIND_TRANSCRIPT,
+    BenchmarkAxis.LEARNING_EVIDENCE,
+    BenchmarkAxis.REASONING_TRACE,
 )
 
 
@@ -126,6 +128,14 @@ def check_agent_benchmark_runner_green() -> None:
     )
     assert (
         status_by_axis[BenchmarkAxis.BLIND_TRANSCRIPT]
+        is BenchmarkCaseStatus.PASS
+    )
+    assert (
+        status_by_axis[BenchmarkAxis.LEARNING_EVIDENCE]
+        is BenchmarkCaseStatus.PASS
+    )
+    assert (
+        status_by_axis[BenchmarkAxis.REASONING_TRACE]
         is BenchmarkCaseStatus.PASS
     )
 
