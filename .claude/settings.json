@@ -30,7 +30,8 @@
       "Bash(find ./traces:*)",
       "Bash(python3 tools/claude_helpers/codex_chatgpt_subagent.py:*)",
       "Bash(python3 tools/claude_helpers/codex_chatgpt_write_worker.py:*)",
-      "Bash(python3 tools/claude_helpers/codex_chatgpt_orchestrator.py:*)"
+      "Bash(python3 tools/claude_helpers/codex_chatgpt_orchestrator.py:*)",
+      "Bash(python3 tools/claude_helpers/codex_chatgpt_flow_orchestrator.py:*)"
     ]
   }
 }

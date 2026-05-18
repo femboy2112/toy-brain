@@ -1,0 +1,39 @@
+{
+  "task": "Example Stage C.1 flow: two active nodes, one dependent follow-up.",
+  "nodes": [
+    {
+      "id": "docs-a",
+      "prompt": "Update the first bounded docs file. WRITE_TARGET=docs/a.md",
+      "allowed_files": [
+        "docs/a.md"
+      ],
+      "read_files": [],
+      "allow_delete": [],
+      "depends_on": []
+    },
+    {
+      "id": "docs-b",
+      "prompt": "Update the independent bounded docs file. WRITE_TARGET=docs/b.md",
+      "allowed_files": [
+        "docs/b.md"
+      ],
+      "read_files": [],
+      "allow_delete": [],
+      "depends_on": []
+    },
+    {
+      "id": "docs-c-after-a",
+      "prompt": "Use docs-a output and update the follow-up file. WRITE_TARGET=docs/c.md",
+      "allowed_files": [
+        "docs/c.md"
+      ],
+      "read_files": [
+        "docs/a.md"
+      ],
+      "allow_delete": [],
+      "depends_on": [
+        "docs-a"
+      ]
+    }
+  ]
+}
