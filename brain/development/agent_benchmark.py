@@ -88,7 +88,7 @@ from brain.ui.session import OperatorSession
 # Bounded constants.
 # ---------------------------------------------------------------------------
 
-BATTERY_VERSION: str = "phase3.23.v1"
+BATTERY_VERSION: str = "phase3.24.v1"
 TRANSCRIPT_DIGEST_HEX_LEN: int = 16
 BENCHMARK_CASE_SUMMARY_MAX_LEN: int = 240
 BENCHMARK_CASE_NOTES_MAX_LEN: int = 320
@@ -112,6 +112,8 @@ class BenchmarkAxis(str, Enum):
     REASONING_TRACE = "reasoning_trace"
     # Phase 3.23 (I-DTRACE-11): the dispatch trace battery axis.
     DISPATCH_TRACE = "dispatch_trace"
+    # Phase 3.24 (I-WFDBK-11): the worldlet feedback battery axis.
+    WORLDLET_FEEDBACK = "worldlet_feedback"
 
 
 class BenchmarkCaseStatus(str, Enum):
@@ -2475,8 +2477,442 @@ def run_axis_a10_dispatch_trace() -> AxisResult:
     )
 
 
+def run_axis_a11_worldlet_feedback() -> AxisResult:
+    """Run the Phase 3.24 A11 worldlet_feedback battery axis.
+
+    Twelve cases A11.01..A11.12 exercising the bounded worldlet
+    feedback path end-to-end through the processing window, the
+    Pattern Ledger, the Dispatch Trace, the Reasoning Trace, and the
+    Learning Evidence ledger. Drives ``I-WFDBK-11``.
+    """
+    import inspect as _inspect
+    from brain.development import processing_window as _pw_module
+    from brain.development.processing_window import (
+        WORLDLET_SUMMARY_ABSENT_SENTINEL,
+        build_worldlet_summary_text,
+        validate_feedback_mode,
+    )
+    cases: list[BenchmarkCaseResult] = []
+
+    # A11.01 — WORLDLET feedback mode validates as a closed enum member;
+    # PATTERN_COHERENCE_WORLDLET also validates.
+    a11_01_ok = True
+    try:
+        validate_feedback_mode(FeedbackMode.WORLDLET)
+        validate_feedback_mode(FeedbackMode.PATTERN_COHERENCE_WORLDLET)
+    except Exception:
+        a11_01_ok = False
+    # Rejection: a non-FeedbackMode value must raise.
+    try:
+        validate_feedback_mode("worldlet")  # type: ignore[arg-type]
+        a11_01_ok = False
+    except ValueError:
+        pass
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.01",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_01_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"WORLDLET feedback mode closed-enum: ok={a11_01_ok}"
+            ),
+            primary_metric=int(a11_01_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A11.02 — build_worldlet_summary_text is deterministic and bounded.
+    args = dict(
+        state_id_value="wld:state:abcdef0123456789",
+        step_index=3,
+        object_count=2,
+        attempt_count=5,
+        response_count=5,
+        accepted_count=3,
+        pushback_count=2,
+        last_reason_value="accepted",
+    )
+    text_a = build_worldlet_summary_text(**args)
+    text_b = build_worldlet_summary_text(**args)
+    a11_02_ok = (
+        text_a == text_b
+        and text_a.startswith("worldlet_summary ")
+        and len(text_a) <= 240
+        and text_a.isprintable()
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.02",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_02_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"build_worldlet_summary_text deterministic+bounded: "
+                f"len={len(text_a)} match={text_a == text_b}"
+            ),
+            primary_metric=int(a11_02_ok),
+            secondary_metric=len(text_a),
+        )
+    )
+
+    # A11.03 — STREAM_APPEND with processing_window_size>0 and WORLDLET
+    # emits worldlet_summary chunks.
+    session = OperatorSession(
+        state=initial_state(),
+        processing_window_size=2,
+        feedback_mode=FeedbackMode.WORLDLET,
+    )
+    _append_stream(session, "alpha line one")
+    worldlet_chunks = [
+        c
+        for c in session.stream_history.chunks
+        if c.provenance.endswith(":worldlet_summary")
+    ]
+    a11_03_ok = (
+        len(worldlet_chunks) == 2
+        and all(c.text.startswith("worldlet_summary ") for c in worldlet_chunks)
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.03",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_03_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"STREAM_APPEND+WORLDLET emits worldlet_summary chunks: "
+                f"count={len(worldlet_chunks)} expected=2"
+            ),
+            primary_metric=int(a11_03_ok),
+            secondary_metric=len(worldlet_chunks),
+        )
+    )
+
+    # A11.04 — worldlet_summary chunks update Pattern Ledger entries
+    # (the summary text has a distinct signature from the seed chunk,
+    # so a SECOND-ORDER ledger entry must exist).
+    a11_04_ok = len(session.pattern_ledger.entries) >= 2
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.04",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_04_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"worldlet_summary chunk updates Pattern Ledger: "
+                f"entries={len(session.pattern_ledger.entries)}"
+            ),
+            primary_metric=int(a11_04_ok),
+            secondary_metric=len(session.pattern_ledger.entries),
+        )
+    )
+
+    # A11.05 — dispatch trace records feedback_mode=worldlet and the
+    # worldlet_summary_chunks fact in post-state.
+    trace = session.latest_dispatch_trace
+    feedback_mode_fact = ""
+    worldlet_chunks_fact = ""
+    if trace is not None:
+        for step in trace.trace.steps:
+            for k, v in step.before_facts:
+                if k == "feedback_mode":
+                    feedback_mode_fact = v
+            for k, v in step.after_facts:
+                if k == "worldlet_summary_chunks":
+                    worldlet_chunks_fact = v
+    a11_05_ok = (
+        feedback_mode_fact == "worldlet"
+        and worldlet_chunks_fact == "2"
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.05",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_05_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"dispatch trace records WORLDLET route: "
+                f"feedback_mode={feedback_mode_fact!r} "
+                f"worldlet_summary_chunks={worldlet_chunks_fact!r}"
+            ),
+            primary_metric=int(a11_05_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A11.06 — reasoning trace contains CHECK_WORLDLET_FEEDBACK step
+    # with bounded facts (after a full run_agent_interaction_step).
+    sess = OperatorSession(
+        state=initial_state(),
+        processing_window_size=2,
+        feedback_mode=FeedbackMode.WORLDLET,
+    )
+    state = make_initial_agent_loop_state(session=sess)
+    state, r11 = run_agent_interaction_step(state, "alpha line one")
+    cwf_step = None
+    if r11.reasoning_trace is not None:
+        for s in r11.reasoning_trace.steps:
+            if s.kind is ReasoningStepKind.CHECK_WORLDLET_FEEDBACK:
+                cwf_step = s
+                break
+    a11_06_ok = (
+        cwf_step is not None
+        and "feedback_mode=worldlet" in cwf_step.input_facts
+        and "present=True" in cwf_step.input_facts
+        and "worldlet_summary_chunks=2" in cwf_step.derived_facts
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.06",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_06_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"reasoning trace contains CHECK_WORLDLET_FEEDBACK: "
+                f"present={cwf_step is not None}"
+            ),
+            primary_metric=int(a11_06_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A11.07 — learning evidence records WORLDLET_FEEDBACK_RECORDED with
+    # the dispatch digest cite.
+    wfb_record = None
+    for r in r11.learning_evidence_trace.records:
+        if r.kind is LearningEvidenceKind.WORLDLET_FEEDBACK_RECORDED:
+            wfb_record = r
+            break
+    cited_digest = ""
+    if wfb_record is not None:
+        lookup = {k: v for k, v in wfb_record.post_facts}
+        cited_digest = lookup.get("dispatch_digest", "")
+    a11_07_ok = (
+        wfb_record is not None
+        and r11.latest_dispatch_trace is not None
+        and cited_digest == r11.latest_dispatch_trace.trace_digest_hex16
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.07",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_07_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"learning evidence records WORLDLET_FEEDBACK_RECORDED: "
+                f"digest={cited_digest!r}"
+            ),
+            primary_metric=int(a11_07_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A11.08 — agent reply cites bounded worldlet-feedback facts safely.
+    reply_text = r11.reply.full_text
+    a11_08_ok = (
+        "worldlet_feedback=present" in reply_text
+        and "route=internal_worldlet_summary" in reply_text
+        and _text_has_forbidden_term(reply_text) is None
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.08",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_08_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"agent reply cites worldlet-feedback safely: ok={a11_08_ok}"
+            ),
+            primary_metric=int(a11_08_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A11.09 — combined PATTERN_COHERENCE_WORLDLET mode works: all three
+    # feedback chunks fire after each rehearsal in the fixed order.
+    sess_combined = OperatorSession(
+        state=initial_state(),
+        processing_window_size=2,
+        feedback_mode=FeedbackMode.PATTERN_COHERENCE_WORLDLET,
+    )
+    _append_stream(sess_combined, "combined line one")
+    chunk_provenances = [c.provenance for c in sess_combined.stream_history.chunks]
+    expected_provenances = [
+        "operator",
+        "internal_processing_window:1:rehearsal",
+        "internal_processing_window:1:pledger_summary",
+        "internal_processing_window:1:cohmon_summary",
+        "internal_processing_window:1:worldlet_summary",
+        "internal_processing_window:2:rehearsal",
+        "internal_processing_window:2:pledger_summary",
+        "internal_processing_window:2:cohmon_summary",
+        "internal_processing_window:2:worldlet_summary",
+    ]
+    a11_09_ok = chunk_provenances == expected_provenances
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.09",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_09_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"PATTERN_COHERENCE_WORLDLET combined mode order: "
+                f"ok={a11_09_ok} chunks={len(chunk_provenances)}"
+            ),
+            primary_metric=int(a11_09_ok),
+            secondary_metric=len(chunk_provenances),
+        )
+    )
+
+    # A11.10 — worldlet feedback digest stable across two fresh runs.
+    sess_x = OperatorSession(
+        state=initial_state(),
+        processing_window_size=2,
+        feedback_mode=FeedbackMode.WORLDLET,
+    )
+    sess_y = OperatorSession(
+        state=initial_state(),
+        processing_window_size=2,
+        feedback_mode=FeedbackMode.WORLDLET,
+    )
+    _append_stream(sess_x, "gamma worldlet")
+    _append_stream(sess_y, "gamma worldlet")
+    digest_x = (
+        sess_x.latest_dispatch_trace.trace_digest_hex16
+        if sess_x.latest_dispatch_trace
+        else ""
+    )
+    digest_y = (
+        sess_y.latest_dispatch_trace.trace_digest_hex16
+        if sess_y.latest_dispatch_trace
+        else ""
+    )
+    a11_10_ok = digest_x != "" and digest_x == digest_y
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.10",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_10_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"worldlet feedback digest stable: "
+                f"digest={digest_x} match={a11_10_ok}"
+            ),
+            primary_metric=int(a11_10_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A11.11 — processing_window source contains no forbidden non-claim
+    # term (the source scan covers the Phase 3.24 additions too).
+    pw_src = _inspect.getsource(_pw_module)
+    hit_term = _text_has_forbidden_term(pw_src)
+    a11_11_ok = hit_term is None
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.11",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_11_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"processing_window source non-claim-clean: hit={hit_term!r}"
+            ),
+            primary_metric=int(a11_11_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A11.12 — adding A11 is additive: A1..A10 axis case totals match
+    # the documented pre-A11 expected counts (9, 5, 4, 5, 9, 3, 4, 7,
+    # 7, 12).
+    a1 = run_axis_a1_pattern_recognition()
+    a2 = run_axis_a2_cross_input_structural()
+    a3 = run_axis_a3_coherence_variation()
+    a4 = run_axis_a4_repl_coherence()
+    a5 = run_axis_a5_communication()
+    a6 = run_axis_a6_session_continuity()
+    earlier = (a1, a2, a3, a4, a5, a6)
+    a7 = run_axis_a7_blind_transcript(earlier)
+    a8 = run_axis_a8_learning_evidence()
+    a9 = run_axis_a9_reasoning_trace()
+    a10 = run_axis_a10_dispatch_trace()
+    pre_a11_case_counts = (
+        len(a1.cases),
+        len(a2.cases),
+        len(a3.cases),
+        len(a4.cases),
+        len(a5.cases),
+        len(a6.cases),
+        len(a7.cases),
+        len(a8.cases),
+        len(a9.cases),
+        len(a10.cases),
+    )
+    expected = (9, 5, 4, 5, 9, 3, 4, 7, 7, 12)
+    a11_12_ok = pre_a11_case_counts == expected
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A11.12",
+            axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a11_12_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"A1..A10 case counts retained: "
+                f"got={pre_a11_case_counts!r} expected={expected!r}"
+            ),
+            primary_metric=int(a11_12_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # Silence unused-import warning by referencing the sentinel.
+    _ = WORLDLET_SUMMARY_ABSENT_SENTINEL
+
+    return AxisResult(
+        axis=BenchmarkAxis.WORLDLET_FEEDBACK,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
 def run_full_battery() -> BenchmarkRun:
-    """Run every axis A1..A10 and assemble a BenchmarkRun.
+    """Run every axis A1..A11 and assemble a BenchmarkRun.
 
     Two invocations produce identical BenchmarkRun records (modulo
     object identity).
@@ -2492,7 +2928,8 @@ def run_full_battery() -> BenchmarkRun:
     a8 = run_axis_a8_learning_evidence()
     a9 = run_axis_a9_reasoning_trace()
     a10 = run_axis_a10_dispatch_trace()
-    return _assemble_battery_run(earlier + (a7, a8, a9, a10))
+    a11 = run_axis_a11_worldlet_feedback()
+    return _assemble_battery_run(earlier + (a7, a8, a9, a10, a11))
 
 
 def _assemble_battery_run(axes: tuple[AxisResult, ...]) -> BenchmarkRun:
@@ -2575,6 +3012,16 @@ def run_partial_battery_phase3_23() -> BenchmarkRun:
     without re-running the (already-covered) A1..A9 axes.
     """
     axes = (run_axis_a10_dispatch_trace(),)
+    return _assemble_battery_run(axes)
+
+
+def run_partial_battery_phase3_24() -> BenchmarkRun:
+    """Run the A11 worldlet_feedback axis only; assemble a BenchmarkRun.
+
+    Phase 3.24 entry point — exercises only the worldlet feedback
+    axis without re-running the (already-covered) A1..A10 axes.
+    """
+    axes = (run_axis_a11_worldlet_feedback(),)
     return _assemble_battery_run(axes)
 
 
@@ -2691,10 +3138,12 @@ __all__ = (
     "run_axis_a8_learning_evidence",
     "run_axis_a9_reasoning_trace",
     "run_axis_a10_dispatch_trace",
+    "run_axis_a11_worldlet_feedback",
     "run_full_battery",
     "run_partial_battery_pattern_axes",
     "run_partial_battery_phase3_22b",
     "run_partial_battery_phase3_23",
+    "run_partial_battery_phase3_24",
     "run_partial_battery_with_coherence",
 )
 

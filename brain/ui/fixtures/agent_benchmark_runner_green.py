@@ -38,6 +38,8 @@ _EXPECTED_AXES = (
     BenchmarkAxis.REASONING_TRACE,
     # Phase 3.23 (I-DTRACE-11) dispatch trace axis.
     BenchmarkAxis.DISPATCH_TRACE,
+    # Phase 3.24 (I-WFDBK-11) worldlet feedback axis.
+    BenchmarkAxis.WORLDLET_FEEDBACK,
 )
 
 
@@ -138,6 +140,14 @@ def check_agent_benchmark_runner_green() -> None:
     )
     assert (
         status_by_axis[BenchmarkAxis.REASONING_TRACE]
+        is BenchmarkCaseStatus.PASS
+    )
+    assert (
+        status_by_axis[BenchmarkAxis.DISPATCH_TRACE]
+        is BenchmarkCaseStatus.PASS
+    )
+    assert (
+        status_by_axis[BenchmarkAxis.WORLDLET_FEEDBACK]
         is BenchmarkCaseStatus.PASS
     )
 
