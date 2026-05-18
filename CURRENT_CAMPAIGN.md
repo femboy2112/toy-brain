@@ -1,4 +1,4 @@
-# CURRENT_CAMPAIGN.md — Phase 3.15 L1 Cache Hygiene Campaign
+# CURRENT_CAMPAIGN.md — Phase 3.16 Real Model Operational Tuning
 
 ## Campaign status
 
@@ -6,71 +6,66 @@
 DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / REVIEW-GATED
 ```
 
-Phase 3.15 follows the completed Phase 3.14 LLM Cache Discipline. Phase 3.14 shipped:
+Phase 3.16 follows the completed Phase 3.15 L1 Cache Hygiene campaign
+(PR #18). Phase 3.15 shipped:
 
 ```text
-L1 default-on for explicit model-backed modes (CachedClient at brain/llm/client.py)
-L2 canonical semantic evaluation cache  (brain/llm/ptcns_backed.py, eval_v1, capped at 1024)
-I-LLMCACHE-01..22  catalog v0.24  (REQUIRED +18 / STRUCTURAL +1 / DEFERRED +1 / NOT-EXERCISED +2)
+L1 CachedClient bounded at L1_CACHE_MAX_ENTRIES = 1024 (write-skip-
+  at-cap admission; no eviction; corrupt entries still fail loud)
+I-LLMCACHE-23..28 (new) + I-LLMCACHE-20 promotion to REQUIRED
+Catalog v0.25
+Counts:
+  REQUIRED:        281
+  STRUCTURAL:       88
+  NOT-EXERCISED:    14
+  DEFERRED:         15
+  OBSERVED:         16
 ```
 
 Subsequent merges on main:
 
 ```text
-PR #16  Phase 3.14 LLM Cache Discipline (catalog v0.24; +I-LLMCACHE-01..22)
-PR #17  Stage C Claude → Codex CLI → ChatGPT orchestration bridge
-        (.claude/agents/chatgpt-codex-orchestrator.md;
-         .claude/commands/orchestrate-with-codex.md;
-         tools/claude_helpers/codex_chatgpt_orchestrator.py;
-         CODEX_CHATGPT_ORCHESTRATION_BRIDGE_AUDIT.md)
+PR #19  Stage C.1 dynamic Codex flow orchestrator
+        (.claude/agents/chatgpt-codex-flow-orchestrator.md;
+         .claude/commands/orchestrate-flow-with-codex.md;
+         tools/claude_helpers/codex_chatgpt_flow_orchestrator.py)
+PR #20  Stage C.1 workflow helper tools
+        (tools/claude_helpers/campaign_state.py;
+         tools/claude_helpers/gate_runner.py;
+         tools/claude_helpers/flow_manifest.py)
 ```
 
-Phase 3.15 asks the next bounded question:
+Phase 3.16 asks the next bounded question:
 
 ```text
-Can ToyI's L1 transport cache (CachedClient prompt-hash disk cache
-under brain/.llm_cache) gain a cataloged, bounded, observable hygiene
-policy that prevents unbounded growth and is explicit about raw
-bad-response replay, while preserving offline-as-default, explicit
-opt-in for model-backed modes, no hidden LLM calls, no L2 (eval_v1)
-semantic change, and no tick semantic change before review?
+Does ToyI's runtime actually perform a model-backed operational walk
+end-to-end against a real model-backed client - accepting stream/text
+input, promoting candidate/input into the event path, executing a
+/step or equivalent tick path through the real LLM transport,
+receiving a parseable consistency eval, updating bounded inspectable
+state, and exposing cache + call-count behavior - or is a precise
+environment / runtime blocker provable?
+
+This is not a proof of consciousness. It is an operational tuning
+campaign.
 ```
 
-The driving evidence chain (verified from repo-local files in Step 1):
-
-```text
-brain/llm/client.py::CachedClient persists prompt-hash JSON files
-  under brain/.llm_cache (gitignored). No file-count cap, no byte
-  cap, no TTL, no eviction policy.
-brain/llm/client.py::CachedClient stores both the raw prompt and the
-  raw response in each JSON file.
-brain/llm/client.py::CachedClient raises a bounded RuntimeError on
-  corrupt cache entries and never silently calls the inner client.
-brain/ui/llm_runtime.py::build_llm_client_from_config wraps explicit
-  model-backed modes in CachedClient by default after Phase 3.14;
-  OFFLINE / MOCK still reject --llm-enable-cache.
-brain/llm/ptcns_backed.py exposes the L2 canonical semantic
-  evaluation cache (eval_v1, capped at SEMANTIC_CACHE_MAX_ENTRIES =
-  1024) and is OUT OF SCOPE for Phase 3.15.
-PHASE3_14_LLM_CACHE_DISCIPLINE_AUDIT.md records I-LLMCACHE-20 as
-  DEFERRED with the note that L1 bounding / eviction is a future
-  campaign concern. Phase 3.15 is that campaign.
-I-LLMCACHE-21 / I-LLMCACHE-22 remain NOT-EXERCISED and are inherited
-  as deliberately deferred unless Review Gate A authorizes promotion.
-```
-
-Phase 3.15 does **not** implement SelfModel, and does **not** modify Growth Ledger semantics, Pattern Ledger semantics, Coherence Monitor semantics, L2 (eval_v1) semantics, persistence, autosave, observability, scenarios, traces, or any guarded kernel path before the Phase 3.15 review gate.
+Phase 3.16 does **not** implement SelfModel, and does **not** modify
+brain/tick.py, Growth Ledger semantics, Pattern Ledger semantics,
+Coherence Monitor semantics, L2 (eval_v1) semantics, persistence /
+autosave, observability, scenarios, traces, the SQLite schema, or any
+guarded kernel path before the Phase 3.16 review gate.
 
 Preferred campaign branch:
 
 ```text
-campaign/phase3-15-l1-cache-hygiene
+campaign/phase3-16-real-model-operational-tuning
 ```
 
 Preferred final PR title:
 
 ```text
-phase3.15: l1 cache hygiene
+phase3.16: real model operational tuning
 ```
 
 Rules:
@@ -82,6 +77,7 @@ push every successful step commit to the campaign branch
 finish by opening a PR into main
 never push campaign work directly to main
 never merge without explicit user approval
+never edit brain/tick.py in Phase 3.16
 ```
 
 ---
@@ -97,36 +93,33 @@ README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
+PHASE3_16_REAL_MODEL_OPERATIONAL_TUNING_ROADMAP.md
 PHASE3_15_L1_CACHE_HYGIENE_ROADMAP.md
-PHASE3_14_LLM_CACHE_DISCIPLINE_ROADMAP.md
-docs/campaigns/phase3_14/PHASE3_14_LLM_CACHE_DISCIPLINE_AUDIT.md
-docs/campaigns/phase3_14/PHASE3_14_LLM_CACHE_FINDINGS.md
-.claude/agents/brain-current-mission.md
-.claude/agents/chatgpt-codex-subagent.md
-.claude/agents/chatgpt-codex-writer.md
-.claude/agents/chatgpt-codex-orchestrator.md
-.claude/commands/go.md
-.claude/commands/ask-chatgpt.md
-.claude/commands/ask-chatgpt-write.md
-.claude/commands/orchestrate-with-codex.md
-tools/claude_helpers/codex_chatgpt_subagent.py
-tools/claude_helpers/codex_chatgpt_write_worker.py
-tools/claude_helpers/codex_chatgpt_orchestrator.py
-CODEX_CHATGPT_SUBAGENT_BRIDGE_AUDIT.md
-CODEX_CHATGPT_LIMITED_WRITE_BRIDGE_AUDIT.md
-CODEX_CHATGPT_ORCHESTRATION_BRIDGE_AUDIT.md
-brain/tick.py
+docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_AUDIT.md
+docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_FINDINGS.md
 brain/llm/client.py
 brain/llm/ptcns_backed.py
 brain/llm/prompts.py
 brain/llm/parse.py
 brain/ui/llm_runtime.py
-brain/ui/session.py
 brain/ui/__main__.py
+brain/ui/session.py
+brain/ui/commands.py
+brain/ui/command_line.py
+brain/ui/render.py
+brain/tick.py
+tools/claude_helpers/campaign_state.py
+tools/claude_helpers/gate_runner.py
+tools/claude_helpers/flow_manifest.py
+tools/claude_helpers/codex_chatgpt_flow_orchestrator.py
+.claude/agents/brain-current-mission.md
+.claude/agents/chatgpt-codex-flow-orchestrator.md
+.claude/commands/orchestrate-flow-with-codex.md
+.claude/commands/go.md
 tools/check_all.sh
 ```
 
-Then read whichever files the next campaign step names. Do not rely on chat memory.
+Then read whichever files the next campaign step names.
 
 ---
 
@@ -142,69 +135,80 @@ Counts:
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
-Latest completed campaign:  Phase 3.14 LLM Cache Discipline
-Latest merged PRs:          PR #16 (Phase 3.14 LLM Cache Discipline),
-                            PR #17 (Stage C orchestration bridge)
-Current campaign:           Phase 3.15 L1 Cache Hygiene
-Next eligible step:         Step 1 repo-state sync and Phase 3.15
+Latest completed campaign:  Phase 3.15 L1 Cache Hygiene (PR #18)
+Latest merged PRs:          PR #18 (Phase 3.15 L1 Cache Hygiene),
+                            PR #19 (Stage C.1 flow orchestrator),
+                            PR #20 (Stage C.1 workflow tools)
+Current campaign:           Phase 3.16 Real Model Operational Tuning
+Next eligible step:         Step 1 repo-state sync and Phase 3.16
                             mission install (this file's first step)
-Canonical design seed:      PHASE3_15_L1_CACHE_HYGIENE_ROADMAP.md
+Canonical design seed:      PHASE3_16_REAL_MODEL_OPERATIONAL_TUNING_ROADMAP.md
 ```
 
-Inherited follow-ups deliberately deferred from Phase 3.14 and earlier:
+Inherited follow-ups deliberately deferred:
 
 ```text
-- SelfModel implementation (Phase 3.12 Step 15 roadmap) is OUT OF SCOPE
-  for Phase 3.15. It is not in flight in any campaign.
+- SelfModel implementation remains OUT OF SCOPE.
 - /pattern-ledger UI is DEFERRED (I-PLEDGER-17).
 - /coherence-summary UI is DEFERRED (I-COHMON-13).
 - /growth-ledger UI is DEFERRED (I-GROW-21).
 - end-to-end Pattern Ledger / Coherence Monitor / Growth Ledger dry-run
-  helpers are NOT-EXERCISED (I-PLEDGER-18 / I-COHMON-14 / I-GROW-22).
-- SQLite backup wording note (carried from Phase 3.10c).
-- Real external model-backed cache smoke (I-LLMCACHE-21) is
-  NOT-EXERCISED and is not in flight unless Review Gate A explicitly
-  authorizes a promotion.
-- End-to-end Phase 3.14 behavior probe (I-LLMCACHE-22) is
-  NOT-EXERCISED and is not in flight unless Review Gate A explicitly
-  authorizes a promotion.
-- optional real ORS smoke for anthropic-api / claude-cli / codex-cli
-  remains deferred. The Stage A /ask-chatgpt, Stage B
-  /ask-chatgpt-write, and Stage C /orchestrate-with-codex bridges are
-  sanctioned advisory / limited-write / orchestrated channels and are
-  not runtime LLM seams.
+  helpers remain NOT-EXERCISED.
+- Real external model-backed cache smoke (I-LLMCACHE-21) remains
+  NOT-EXERCISED unless a future review gate authorizes a promotion.
+  Phase 3.16 may produce observation evidence toward I-LLMCACHE-21
+  without committing to a catalog status change.
+- End-to-end Phase 3.14 behavior probe (I-LLMCACHE-22) remains
+  NOT-EXERCISED.
 ```
 
 ---
 
 ## Operational target
 
-Phase 3.15 uses this operational definition:
+Phase 3.16 uses this operational definition:
 
 ```text
-L1 cache hygiene:
-  the cataloged, bounded, observable behavior of the existing L1
-  transport cache (CachedClient) that prevents unbounded growth of
-  brain/.llm_cache and makes raw bad-response replay explicit, while
-  preserving:
-    - offline as the default runtime
-    - model-backed modes as explicit opt-in
-    - no hidden LLM calls
-    - no silent repair calls
-    - deterministic, documented eviction or write-skip policy (if any)
-    - cache hits that do not call the inner client
-    - cache misses that may call the inner client only in explicit
-      model-backed mode
-    - corrupt cache entries that still fail loud (no silent fall-back)
-    - explicit, documented raw bad-response replay policy
-    - L2 (eval_v1) semantics unchanged
+real model-backed operational walk:
+  one or more complete tick routes where
+    - a real model-backed client (codex-cli OR claude-cli OR
+      anthropic-api) is constructed via the repo runtime factory
+      (build_llm_client_from_config) and used through the public
+      session dispatch or a direct tick harness
+    - operator input enters via the public stream/percept path
+      (QUEUE_PERCEPT and/or STREAM_APPEND + STREAM_PROMOTE +
+      STEP_TICK in OperatorSession.dispatch) or via a direct
+      LLMBackedPtCns route constructed from public surfaces
+    - the model output parses into ConsistencyEval (PRESERVE /
+      DAMAGE / NEUTRAL) without permanent retry failure
+    - tick completes through brain.tick.tick (read-only invocation;
+      brain/tick.py is not edited)
+    - inspectable state (profile / MSI / PtCns / registry / tick
+      counter / ledger events as available) reflects the result
+    - L1 (CachedClient) hit/miss/skip counters are recorded
+    - L2 (LLMBackedPtCns) hit/miss/store/skip counters are recorded
+    - repeated equivalent work does not spam the model
+    - no raw prompts, raw responses, secrets, or cache files are
+      committed
+    - final report classifies the result as
+        REAL MODEL TEST PASS    /
+        REAL MODEL TEST PARTIAL /
+        REAL MODEL TEST BLOCKED BY ENV /
+        REAL MODEL TEST FAIL
+```
 
-Cache layers under consideration:
-  L0  per-instance/per-tick short-circuit (LLMBackedPtCns._cache) - OUT OF SCOPE
-  L1  prompt-hash transport cache (CachedClient on disk under
-      brain/.llm_cache) - IN SCOPE for Phase 3.15
-  L2  canonical semantic evaluation cache (eval_v1 inside
-      brain/llm/ptcns_backed.py) - OUT OF SCOPE
+---
+
+## Real model call budget
+
+```text
+Max 30 real external model-backed calls total across the campaign.
+Count every model-backed attempt, including retries, timeouts, parse
+  failures, and nonzero exits.
+Stop before exceeding 30.
+If call count cannot be proven from logs, assume the higher number.
+Use cache-aware repeated probes after the first miss.
+No unbounded loops; no "keep trying forever."
 ```
 
 ---
@@ -212,44 +216,39 @@ Cache layers under consideration:
 ## Non-goals
 
 ```text
-no SelfModel implementation in Phase 3.15
+no SelfModel implementation in Phase 3.16
 no Growth Ledger semantic change
 no Pattern Ledger semantic change
 no Coherence Monitor semantic change
 no L2 (eval_v1) semantic change
+no L1 cache semantic change without a new review gate
 no proof or claim of consciousness
 no claim of sentience
 no claim of subjective experience
 no claim of semantic understanding
 no truth adjudication or PRESERVE / DAMAGE judgment from raw text
 no claim of agency / intent / will / desire
-no claim of self-modification of code, fixtures, the catalog, or the
-  runtime
+no claim of self-modification
 no aggregate consciousness / sentience / awareness / I-ness / growth
   score
 no model-backed behavior as default
 no hidden LLM calls
 no silent network/model calls in offline/mock modes
-no silent repair calls (no auto-rewrite of cache contents based on
-  inferred fixes)
+no silent repair calls
 no hidden autosave behavior
 no direct raw-text-to-BrainState mutation
 no direct raw-text-to-COGITO_ID mapping
-no DB schema change in v1 unless explicitly planned and accepted at the
-  review gate
+no DB schema change in v1 unless explicitly planned and accepted
 no SCHEMA_VERSION bump
-no /save-session / /load-session / autosave extension in v1 unless
-  explicitly planned and accepted at the review gate
-no tick semantic change before the Phase 3.15 review gate
+no /save-session / /load-session / autosave extension in v1
+no tick semantic change (brain/tick.py is not edited in Phase 3.16)
 no raw prompts or model outputs committed to the repo
 no raw cache contents printed in docs
 no secrets committed to the repo
 no cache files committed to the repo (brain/.llm_cache stays ignored)
-no real external LLM smoke beyond the sanctioned bridges and any
-  explicitly approved Phase 3.15 measurement step
 no UI expansion unless explicitly reviewed
 no raw codex invocation
-no Stage C broad repo edits
+no Stage C.1 broad repo edits
 no unbounded Codex collaboration loop
 ```
 
@@ -258,20 +257,29 @@ no unbounded Codex collaboration loop
 ## Macro sequence
 
 ```text
-Step 1   Repo-state sync and Phase 3.15 mission install
-Step 2   L1 cache hygiene synthesis
-Step 3   L1 cache behavior probe / replay reproduction report
-Step 4   L1 cache hygiene corrigenda
-Step 5   L1 cache catalog patch plan
-Step 6   Review Gate A — L1 cache hygiene implementation
-Step 7   Apply accepted L1 cache hygiene implementation, if approved
-Step 8   L1 cache hygiene behavior report
-Step 9   L1 cache findings / triage
-Step 10  Final Phase 3.15 audit
-Step 11  Final PR preparation
+Step 1   Repo-state sync and Phase 3.16 mission install
+Step 2   Real model tuning synthesis
+Step 3   Model availability and deterministic baseline report
+Step 4   Real model smoke and tuning run
+Step 5   Findings / blocker triage
+Step 6   Optional reviewed patch plan if runtime changes are needed
+Step 7   Apply accepted patch only if Step 6 authorizes it
+Step 8   Post-patch or final behavior report
+Step 9   Final audit
+Step 10  PR preparation
 ```
 
-Every step that lands files must pass the standard preflight gates before commit and must push the campaign branch on success:
+If Step 4 produces a clean useful result and no patch is required,
+Steps 6-7 are skipped and the campaign proceeds to Step 8.
+
+Every step that lands files must pass the standard preflight gates
+before commit and must push the campaign branch on success:
+
+```bash
+python3 -m tools.claude_helpers.gate_runner --json
+```
+
+(or, if `gate_runner` itself fails, fall back to:)
 
 ```bash
 python3 -m tools.catalog counts
@@ -283,9 +291,12 @@ bash tools/check_all.sh
 
 ---
 
-## ChatGPT/Codex consultation policy (Stage A + Stage B + Stage C bridges)
+## ChatGPT/Codex consultation policy
 
-The repository ships three explicit, sanctioned Claude → Codex CLI → ChatGPT bridges. Use them as advisory (Stage A), limited-write (Stage B), or orchestrated multi-shard (Stage C), at high-leverage points. The full bridge policy lives in `CURRENT_MISSION.md`. This file restates only what each step must do.
+The repository ships three explicit, sanctioned Claude → Codex CLI →
+ChatGPT bridges. Use them at high-leverage points only. The full
+bridge policy lives in `CURRENT_MISSION.md`. This file restates only
+what each step must do.
 
 ```text
 Stage A wrapper:  python3 tools/claude_helpers/codex_chatgpt_subagent.py
@@ -294,147 +305,80 @@ Stage A slash:    /ask-chatgpt
 Stage B wrapper:  python3 tools/claude_helpers/codex_chatgpt_write_worker.py
 Stage B modes:    write
 Stage B slash:    /ask-chatgpt-write
-Stage C wrapper:  python3 tools/claude_helpers/codex_chatgpt_orchestrator.py
-Stage C shape:    one wave, ≤2 shards, max_parallel=2, max_real_calls=2
-Stage C slash:    /orchestrate-with-codex
+Stage C.1 wrapper: python3 tools/claude_helpers/codex_chatgpt_flow_orchestrator.py
+Stage C.1 shape:  dynamic DAG; max 2 active nodes; isolated nodes may
+                   run in parallel; chained nodes require depends_on;
+                   no automatic retry; hard cap 8 nodes;
+                   campaign cap 5 nodes unless operator approves more
+Stage C.1 slash:  /orchestrate-flow-with-codex
 ```
 
-Stage A is **required** at:
+Stage A is allowed at: synthesis / catalog patch plan / behavior report
+/ final audit adversarial review.
+
+Stage B is allowed at: bounded single-file doc drafts whose exact path
+is on the allowlist.
+
+Stage C.1 is allowed for:
 
 ```text
-Step 2   synthesis adversarial review
-Step 5   catalog patch plan adversarial review
-Step 8   behavior report adversarial review
-Step 10  final audit adversarial review (unless explicitly redundant)
+Step 1   roadmap draft (optional; parent Claude may write directly)
+Step 2   synthesis doc draft (single-node or multi-node disjoint shards)
+Step 3   not used for the live deterministic baseline; allowed only
+         for mechanical document drafting after measurements exist
+Step 4   never used for running the real model loop itself
+Step 5   findings doc draft only after measurements exist
+Step 6   patch plan draft only
+Step 7   limited implementation shards only if Step 6 authorizes it,
+         never touching brain/tick.py
+Step 8   post-patch behavior report doc draft only after measurements
+Step 9   final audit doc draft only after measurements
+Step 10  PR body draft only
 ```
 
-Stage B is **allowed**, with bounded scope, at:
-
-```text
-Step 2   synthesis doc draft only (exact single-file allowed path)
-Step 4   corrigenda doc draft only (exact single-file allowed path)
-Step 5   catalog patch plan draft only (exact single-file allowed path)
-never    raw broad repo edits
-never    staging / commit / push
-never    Stage B for CURRENT_MISSION.md / CURRENT_CAMPAIGN.md /
-         INVARIANT_CATALOG.md / README.md / brain/tick.py edits
-```
-
-Stage C is **required or strongly preferred** at:
-
-```text
-Step 1   roadmap draft (single-shard wave; achieved during Step 1)
-Step 2   synthesis doc draft (single-shard or two-shard wave with
-         disjoint allowed_files)
-Step 3   behavior probe/report draft only after measurements
-Step 5   catalog patch plan draft (single-shard or two-shard wave)
-Step 7   implementation shards only after Review Gate A, with exact
-         allowed-file lists, one wave at a time
-```
-
-Stage C is **forbidden** at:
+Stage C.1 is **forbidden** at:
 
 ```text
 never    raw codex / codex exec invocation
-never    broad repo edits
-never    overlapping write sets across same-wave shards
-never    declared read/write collisions in the same wave
-never    same-wave shards with interdependence
-never    brain/tick.py without explicit Review Gate A authorization
-never    staging / commit / push
-never    final catalog integration; Claude owns the catalog and counter
-         reconciliation
-never    CURRENT_MISSION.md / CURRENT_CAMPAIGN.md / INVARIANT_CATALOG.md
-         / README.md edits unless explicitly bound as the only file in
-         a shard
+never    running the real model loop itself
+never    touching secrets
+never    committing cache files
+never    broad runtime changes
+never    brain/tick.py edits
+never    final catalog reconciliation (parent Claude owns the catalog
+         and counter reconciliation directly)
+never    overlapping write sets among active nodes
+never    declared read/write collisions among active nodes
+never    staging / commit / push (parent Claude does that after
+         inspecting the diff)
 ```
 
-When a step uses a bridge:
+Before every Stage C.1 wave:
 
-```text
-- use the wrapper or slash command, never raw codex
-- use --model gpt-5.5 unless the operator approves another model
-  in-session
-- write the question to /tmp/toyi_<stepid>_<role>_question.md (Stage A)
-  or /tmp/toyi_<stepid>_writer_prompt.md (Stage B)
-- write Stage C manifests to /tmp/phase3_15_stagec_<stepid>_manifest.json
-- write Stage A / Stage B / Stage C wrapper output to
-  /tmp/toyi_<stepid>_<role>_answer.md or
-  /tmp/phase3_15_stagec_<stepid>_output.txt
-- the wrapper's hash-only audit JSONL lands under
-  .claude/codex_bridge_logs/ (gitignored); do not commit those logs
-- treat repo-local files, gates, and invariants as authoritative if
-  they conflict with ChatGPT advice
-- Stage B requires exact --allowed-file paths only; parent Claude
-  inspects diff, validates, stages, commits, and pushes
-- Stage B never uses --apply for paths outside the explicit allowed
-  list
-- Stage C requires a JSON manifest with exactly one wave, ≤2 shards,
-  disjoint allowed_files sets, no declared read/write collision, no
-  shard interdependence; parent Claude inspects diff, validates,
-  stages, commits, and pushes
-- before the first Stage C wave of a step, run the wrapper with
-  --probe-only and confirm probe success
+```bash
+python3 -m tools.claude_helpers.flow_manifest validate \
+  /tmp/<manifest>.json --strict
+python3 -m tools.claude_helpers.flow_manifest summary \
+  /tmp/<manifest>.json
 ```
 
-Every step report must include this disclosure block:
-
-```text
-Stage A ChatGPT/Codex consultation:
-- used:           yes / no
-- mode:           plan / review / summarize / debug / n/a
-- model:          gpt-5.5 / n/a
-- effort:         low / medium / high / n/a
-- wrapper command: <full command or n/a>
-- question file:   <path or n/a>
-- answer file:     <path or n/a>
-- wrapper status:  <exit code + error class or n/a>
-- accepted advice: <bullets or none>
-- rejected advice: <bullets or none>
-- reason:          <one sentence>
-
-Stage B limited-write collaboration:
-- used:           yes / no
-- mode:           write / n/a
-- model:          gpt-5.5 / n/a
-- effort:         low / medium / high / n/a
-- wrapper command: <full command or n/a>
-- allowed files:   <paths or n/a>
-- prompt file:     <path or n/a>
-- answer file:     <path or n/a>
-- wrapper status:  <exit code + error class or n/a>
-- files changed:   <paths or none>
-- accepted edits:  <bullets or none>
-- rejected edits:  <bullets or none>
-- reason:          <one sentence>
-
-Stage C orchestration:
-- used:           yes / no
-- probe status:   <pass / fail / n/a>
-- manifest path:  <path or n/a>
-- wrapper command: <full command or n/a>
-- model:          gpt-5.5 / n/a
-- effort:         low / medium / high / n/a
-- shards:         <shard ids or n/a>
-- wrapper status: <exit code + error class or n/a>
-- files changed:  <paths or none>
-- accepted edits: <bullets or none>
-- rejected edits: <bullets or none>
-- reason:         <one sentence>
-```
+Every step report must include the Stage A / Stage B / Stage C.1
+disclosure block defined in `CURRENT_MISSION.md`.
 
 ---
 
-# Step 1 — Repo-state sync and Phase 3.15 mission install
+# Step 1 — Repo-state sync and Phase 3.16 mission install
 
-Purpose: replace the Phase 3.14 mission/campaign routing prose with Phase 3.15 L1 Cache Hygiene as current, with the Phase 3.15 roadmap landed at repo root, using Stage C to draft the roadmap.
+Purpose: replace the Phase 3.15 mission/campaign routing prose with
+Phase 3.16 Real Model Operational Tuning as current, and land the
+Phase 3.16 roadmap at repo root.
 
 Allowed files:
 
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-PHASE3_15_L1_CACHE_HYGIENE_ROADMAP.md
+PHASE3_16_REAL_MODEL_OPERATIONAL_TUNING_ROADMAP.md
 ```
 
 Forbidden in Step 1:
@@ -444,7 +388,7 @@ brain/**
 tools/**
 .claude/**
 INVARIANT_CATALOG.md
-README.md  (unless a preflight reference is broken; stop and report first)
+README.md
 docs/campaigns/**
 lean_reference/**
 scenarios/**
@@ -456,369 +400,371 @@ no code
 Required work:
 
 ```text
-sync fresh main and create branch campaign/phase3-15-l1-cache-hygiene
-run all preflight gates green
-run the Stage C wrapper probe (--probe-only) before the first wave
-use Stage C with one wave and exactly one shard to draft
-  PHASE3_15_L1_CACHE_HYGIENE_ROADMAP.md from the required sections
-write Phase 3.15 CURRENT_MISSION.md directly (parent Claude)
-write Phase 3.15 CURRENT_CAMPAIGN.md directly (parent Claude)
-inspect git status / git diff to confirm only the three allowed files
-  changed
+sync fresh main and create branch
+  campaign/phase3-16-real-model-operational-tuning
+run gate_runner --json green
+write Phase 3.16 CURRENT_MISSION.md (parent Claude)
+write Phase 3.16 CURRENT_CAMPAIGN.md (parent Claude)
+write PHASE3_16_REAL_MODEL_OPERATIONAL_TUNING_ROADMAP.md
+  (parent Claude direct write; Stage C.1 optional)
+inspect git status / git diff to confirm only the three allowed
+  files changed
 ```
 
 Validation:
 
 ```bash
-python3 -m tools.catalog counts
-python3 -m tools.citations verify
-python3 -m tools.import_audit
-python3 -m brain.invariants run
-bash tools/check_all.sh
+python3 -m tools.claude_helpers.gate_runner --json
+python3 -m tools.claude_helpers.campaign_state summary
 git status --short
-git diff -- CURRENT_MISSION.md CURRENT_CAMPAIGN.md PHASE3_15_L1_CACHE_HYGIENE_ROADMAP.md
+git diff -- CURRENT_MISSION.md CURRENT_CAMPAIGN.md \
+  PHASE3_16_REAL_MODEL_OPERATIONAL_TUNING_ROADMAP.md
 ```
 
 Commit message:
 
 ```text
-phase3.15 step1: l1 cache hygiene mission sync
+phase3.16 step1: real model tuning mission sync
 ```
 
 Push.
 
 ---
 
-# Step 2 — L1 cache hygiene synthesis
+# Step 2 — Real model tuning synthesis
 
 Create:
 
 ```text
-docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_SYNTHESIS.md
+docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_SYNTHESIS.md
 ```
 
 Required content:
 
 ```text
-why Phase 3.15 follows Phase 3.14 (L1 default-on for explicit
-  model-backed modes, L2 (eval_v1) capped at 1024, L1 still
-  unbounded and able to replay raw bad responses)
-evidence chain (file-by-file) over brain/llm/client.py,
-  brain/llm/ptcns_backed.py, brain/ui/llm_runtime.py, and the Phase
-  3.14 audit / findings
-classification of L1 hygiene levers (Options A..F from the roadmap):
-  - max entry count cap
-  - max byte cap
-  - TTL eviction
-  - explicit no-auto-evict with warning/report only
-  - parse-failure-aware bypass/eviction for bad raw responses
-  - manual cache inspect/clear helper commands
-fix-strategy comparison and proposed v1 subset (which Options
-  survive; explicit non-selection statement for the rest)
-acceptance criteria for the eventual implementation:
-  - offline default unchanged
-  - L2 (eval_v1) semantics unchanged
-  - no real LLM calls in tests unless explicitly injected or mocked
-  - cache hit semantics preserved for valid entries within the
-    bounded surface
-  - growth is bounded by the chosen policy (entry count / bytes /
-    TTL or combination)
-  - eviction / write-skip behavior is deterministic and observable
-  - bad-response replay is documented and either preserved or
-    explicitly changed
-  - cache files remain gitignored
-phased plan to Review Gate A
-Stage A, Stage B, and Stage C disclosure blocks
-next artifact: behavior probe (Step 3)
+what "actual testing" means for ToyI in operational terms
+available model-backed modes and their preference order
+why --print-once is NOT a model test (returns before LLM client
+  construction in brain/ui/__main__.py)
+why an in-process harness or interactive TUI route is needed
+real model-call budget (30) and accounting policy
+route candidates:
+  A. in-process OperatorSession dispatch route through public
+     QUEUE_PERCEPT / STEP_TICK and/or STREAM_APPEND / STREAM_PROMOTE
+     /STEP_TICK using build_default_session +
+     build_llm_client_from_config
+  B. interactive TUI route if a usable TTY is available
+  C. direct tick harness using LLMBackedPtCns over a public
+     LLMClient, exercising eval() / eval_map without touching
+     brain/tick.py
+success criteria
+stop conditions (budget reached / 10 consecutive parse failures /
+  real model unavailable / runtime code change seems needed)
+raw prompt / response / secret secrecy constraints
+cache discipline constraints (L1 bounded at 1024; L2 bounded at
+  1024; no commit of cache files)
+disclosure blocks
+next artifact: model availability + deterministic baseline (Step 3)
 ```
 
-Stage A is required for adversarial review of the synthesis.
-Stage B or Stage C is allowed for drafting the synthesis file when an exact single-file allowed path is used. Parent Claude inspects diff and accepts/rejects.
+Stage A review is allowed but optional given the bounded scope.
 
 Commit message:
 
 ```text
-phase3.15 step2: l1 cache hygiene synthesis
+phase3.16 step2: real model tuning synthesis
 ```
 
 Push.
 
 ---
 
-# Step 3 — L1 cache behavior probe / replay reproduction report
+# Step 3 — Model availability + deterministic baseline
 
 Create:
 
 ```text
-docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_PROBE.md
+docs/campaigns/phase3_16/PHASE3_16_MODEL_AVAILABILITY_BASELINE.md
 ```
 
-Required content:
+Probe (secrets redacted in the report):
 
 ```text
-deterministic, repo-local reproduction of L1 behavior using the
-  MockClient and the existing /step path; no real external model
-  call
-measurement table covering at minimum:
-  - L1 enabled hit / miss (control)
-  - bounded growth measurement against a synthetic prompt stream
-  - bad-response replay reproduction (a cached parse-failing
-    response is replayed on hit)
-  - corrupt-entry behavior unchanged (fail loud)
-  - L2 (eval_v1) untouched
-  - offline/mock untouched
-  - trace event presence (llm.cache_hit / llm.cache_miss /
-    llm.semantic_cache_*)
-explicit identification of which measurements expose the design
-  question that synthesis flagged
-Stage A, Stage B, and Stage C disclosure blocks
-next artifact: corrigenda (Step 4)
+command -v codex; codex --version; codex login status
+command -v claude; claude --version
+env keys (presence only, never values):
+  BRAIN_LLM_MODE
+  BRAIN_ANTHROPIC_API_KEY
+  ANTHROPIC_API_KEY
 ```
 
-This step does **not** modify any kernel source; it is a measurement-first probe over the existing public surfaces. If measurement requires a small temporary fixture, it must live under `/tmp` or be otherwise non-committed unless Step 4/5 explicitly allows it.
+Use repo surfaces:
+
+```text
+parse_llm_runtime_args
+build_llm_client_from_config
+```
+
+Run deterministic baseline using mock / offline only:
+
+```text
+build_default_session
+OperatorSession.dispatch with QUEUE_PERCEPT + STEP_TICK (or the
+  STREAM_APPEND + STREAM_PROMOTE + STEP_TICK path) under
+  OfflineStandInClient or MockClient
+verify inspectable state change (tick counter, ptcns eval map)
+verify no real model calls happened
+```
+
+If in-process command parsing is required, inspect
+`brain/ui/command_line.py` and `brain/ui/session.py`. Do not invent
+commands.
+
+Stage C.1 may draft the document only after measurements exist.
 
 Commit message:
 
 ```text
-phase3.15 step3: l1 cache hygiene probe
+phase3.16 step3: model availability + deterministic baseline
 ```
 
 Push.
 
 ---
 
-# Step 4 — L1 cache hygiene corrigenda
+# Step 4 — Real model smoke and tuning run
 
 Create:
 
 ```text
-docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_CORRIGENDA.md
+docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_RUN.md
 ```
 
-Required content:
+Pick first available real model-backed mode in this preference order:
 
 ```text
-resolve every open design decision still open at synthesis/probe time
-LOCK statements (mirror Phase 3.14 Growth Ledger / LLM Cache LOCK
-precedent):
-  - LOCK A: L1 hygiene policy subset (entry-cap / byte-cap / TTL /
-    observability-only / parse-failure handling / helpers)
-  - LOCK B: deterministic eviction or write-skip selection rule
-    (e.g., LRU by mtime, FIFO by ctime, write-skip-at-cap,
-    explicit-clear-only)
-  - LOCK C: bad-response replay policy (preserve / invalidate on
-    flagged parse failure / never auto-rewrite)
-  - LOCK D: cache directory layout (single dir, segmented, or
-    per-backend) and corruption isolation
-  - LOCK E: observability surface (new trace event names, payload
-    fields limited to key_prefix / reason / counts; never raw
-    prompt or response)
-  - LOCK F: CLI / runtime opt-in flags (--llm-cache-... shape;
-    OFFLINE / MOCK still reject; explicit-conflict raises
-    LlmRuntimeError)
-Stage A, Stage B, and Stage C disclosure blocks
-next artifact: catalog patch plan (Step 5)
+1. codex-cli
+2. claude-cli
+3. anthropic-api
 ```
+
+Use the model-backed client through the repo runtime factory
+(`build_llm_client_from_config`), not ad-hoc subprocesses, unless
+testing CLI availability.
+
+Run minimal route:
+
+```text
+short input 1
+short input 2 if budget permits
+promote / queue candidate through public route (QUEUE_PERCEPT or
+  STREAM_APPEND + STREAM_PROMOTE)
+run STEP_TICK or direct LLMBackedPtCns.eval path
+inspect state
+```
+
+Measure and report:
+
+```text
+call count (real model attempts)
+parse success / failure
+retry count
+L1 cache hits / misses / skips
+L2 hits / misses / stores / skips
+tick result
+state changes (profile / MSI / PtCns / registry / tick_counter)
+ledger events if observable
+cache file count under brain/.llm_cache (counts only, not contents)
+```
+
+Allowed tuning levers on a failed first attempt:
+
+```text
+shorter input text
+clearer input text
+different available model-backed mode
+timeout increase
+cache on / off diagnostic ONCE only (final route uses normal
+  cache-on behavior)
+direct tick harness vs session dispatch if one path is blocked
+```
+
+Forbidden without review gate:
+
+```text
+changing prompt template (brain/llm/prompts.py)
+changing parser (brain/llm/parse.py)
+changing tick (brain/tick.py)
+changing cache semantics
+changing invariants
+```
+
+Stop conditions:
+
+```text
+budget reaches 30 (or projected to exceed 30)
+10 consecutive parse failures
+real model unavailable
+runtime code change seems needed
+```
+
+If any stop condition fires, commit the partial report and proceed to
+Step 5 triage.
 
 Commit message:
 
 ```text
-phase3.15 step4: l1 cache hygiene corrigenda
+phase3.16 step4: real model smoke and tuning run
 ```
 
 Push.
 
 ---
 
-# Step 5 — L1 cache catalog patch plan
+# Step 5 — Findings / blocker triage
 
 Create:
 
 ```text
-docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_CATALOG_PATCH_PLAN.md
+docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_FINDINGS.md
 ```
 
-Required content:
+Classify result as one of:
 
 ```text
-proposed row family extension: I-LLMCACHE-23..N (or another
-  numbering that synthesis prefers and Step 5 justifies)
-exact row-by-row status assignment
-  (REQUIRED / STRUCTURAL / DEFERRED / NOT-EXERCISED / OBSERVED)
-exact catalog version bump (v0.24 -> v0.25)
-exact count delta (REQUIRED += n, STRUCTURAL += n, DEFERRED += n,
-  NOT-EXERCISED += n, OBSERVED += n)
-disposition of inherited rows:
-  - I-LLMCACHE-20 status (e.g., promote to REQUIRED with policy
-    citation, or split into bounded sub-rows)
-  - I-LLMCACHE-21 disposition (remain NOT-EXERCISED unless Review
-    Gate A explicitly promotes)
-  - I-LLMCACHE-22 disposition (remain NOT-EXERCISED unless Review
-    Gate A explicitly promotes)
-fixture list (one fixture per row family discipline; constructor /
-  cap-enforced / eviction-deterministic / bad-response-policy /
-  observability-trace / no-tick-change audit / no-L2-touch audit /
-  non-claim audit)
-explicit non-rows (every cognitive-layer claim that Phase 3.15 does NOT
-  authorize, inherited from the Phase 3.12 Step 15 roadmap's
-  non-goals and the Phase 3.14 non-goals)
-Stage A, Stage B, and Stage C disclosure blocks
-next artifact: Review Gate A
+works
+partial
+blocked by env
+parse blocker
+runtime bug
+model-behavior weak
+patch required
+deferred enhancement
 ```
 
-Stop at the next review gate.
+Decision:
+
+```text
+- If works / partial and no runtime patch required:
+    proceed to Step 8/final report.
+- If blocked by env:
+    proceed to final audit with BLOCKED BY ENV.
+- If patch required:
+    create Step 6 patch plan and stop for review gate.
+```
 
 Commit message:
 
 ```text
-phase3.15 step5: l1 cache hygiene catalog patch plan
+phase3.16 step5: real model tuning findings
 ```
 
 Push.
 
 ---
 
-# Step 6 — Review Gate A — L1 cache hygiene implementation
+# Step 6 — Optional reviewed patch plan
 
-Stop unless the operator explicitly chooses one:
+Only if Step 5 classifies the result as patch required.
+
+Create:
 
 ```text
-[ ] ACCEPT PLAN AS WRITTEN
-[ ] ACCEPT WITH AMENDMENTS (operator lists the amendments)
-[ ] REJECT / REVISE (no implementation; return to Step 5)
+docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_PATCH_PLAN.md
 ```
 
-No source-code changes are allowed before this gate clears.
+Must specify:
+
+```text
+exact files
+exact behavior change
+exact risks
+whether catalog rows needed
+whether review gate allows implementation
+```
+
+Do not implement until explicit review gate clears the plan.
+
+Commit message:
+
+```text
+phase3.16 step6: real model tuning patch plan
+```
+
+Push.
 
 ---
 
-# Step 7 — Apply accepted L1 cache hygiene implementation, if approved
+# Step 7 — Apply accepted patch
 
-Allowed files depend on the accepted plan. Likely set:
+Only if Step 6 was accepted.
 
-```text
-brain/llm/client.py                                           (L1 hygiene policy)
-brain/ui/llm_runtime.py                                       (cache wiring extension if any)
-brain/ui/fixtures/<llm cache hygiene fixtures listed in Step 5>  (new)
-brain/invariants.py                                           (FIXTURE_MODULES extension)
-tools/catalog.py                                              (EXPECTED_COUNTS banner update)
-INVARIANT_CATALOG.md                                          (new v0.25 banner + I-LLMCACHE-* extension)
-README.md                                                     (catalog version + counts string)
-CURRENT_MISSION.md                                            (catalog version + counts string)
-CURRENT_CAMPAIGN.md                                           (catalog version + counts string)
-```
-
-No implementation is authorized by this campaign text alone. The exact file set comes from the Step 5 catalog patch plan amended by the Step 6 gate.
-
-`brain/tick.py` MAY NOT be touched in Phase 3.15. Tick semantic change is out of scope.
-
-`brain/llm/ptcns_backed.py` MAY NOT be touched in a way that changes L2 (eval_v1) semantics; only minor read-only adjustments may appear if the catalog patch plan explicitly allows them.
-
-Stage C implementation shards are permitted with exact `allowed_files` lists, disjoint write sets, no read/write collisions, one wave at a time, and never more than 3 real Codex calls without fresh operator approval. Parent Claude validates, stages, commits, and pushes. Stage C is NOT used for final catalog integration; Claude owns catalog and counter reconciliation directly.
+Allowed files depend on the accepted plan. `brain/tick.py` MAY NOT be
+touched in Phase 3.16. L2 (eval_v1) semantics MAY NOT be changed. L1
+cache semantics MAY NOT be changed without a new review gate.
 
 Run every preflight gate green. Commit and push.
 
+Commit message:
+
+```text
+phase3.16 step7: real model tuning patch
+```
+
 ---
 
-# Step 8 — L1 cache hygiene behavior report
+# Step 8 — Post-patch / final behavior report
 
 Create:
 
 ```text
-docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_BEHAVIOR_REPORT.md
+docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_BEHAVIOR_REPORT.md
 ```
 
-Required content:
-
-```text
-re-run of the Step 3 probe table over the post-implementation runtime
-event-by-event verification that:
-  - L1 hits do not call the inner client
-  - L1 misses call the inner client only in explicit model-backed
-    mode
-  - growth is bounded by the chosen policy (entry count / bytes /
-    TTL or combination)
-  - eviction or write-skip is deterministic and matches the locked
-    rule
-  - bad-response replay matches the locked policy
-  - corrupt entries still fail loud
-  - offline/mock modes still produce zero L1 cache writes (or only
-    the explicitly allowed behavior)
-  - L2 (eval_v1) semantics are unchanged
-  - trace events are observable through CognitionTracer with
-    payloads limited to key_prefix / reason / counts
-anti-growth test (synthetic prompt stream; transport file count and
-  byte usage stay within the locked bound)
-no-mutation verification (BrainState / MSI / PtCns / Growth Ledger /
-  Pattern Ledger / Coherence Monitor / tick semantics
-  identity-stable across the new L1 hygiene policy)
-Stage A, Stage B, and Stage C disclosure blocks
-next artifact: findings / triage (Step 9)
-```
+Summarize the final model-backed behavior result with concrete
+evidence (call counts, cache counts, state changes).
 
 Commit message:
 
 ```text
-phase3.15 step8: l1 cache hygiene behavior report
+phase3.16 step8: real model tuning behavior report
 ```
 
 Push.
 
 ---
 
-# Step 9 — L1 cache findings / triage
+# Step 9 — Final audit
 
 Create:
 
 ```text
-docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_FINDINGS.md
+docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_AUDIT.md
 ```
 
-Required content:
-
-```text
-bugs / regressions observed in Step 8 (if any)
-operator UX surprises (if any)
-proposed deferred follow-ups
-explicit list of items that DO NOT block this campaign
-Stage A, Stage B, and Stage C disclosure blocks
-next artifact: final audit (Step 10)
-```
-
-Commit message:
-
-```text
-phase3.15 step9: l1 cache hygiene findings
-```
-
-Push.
-
----
-
-# Step 10 — Final Phase 3.15 audit
-
-Create:
-
-```text
-docs/campaigns/phase3_15/PHASE3_15_L1_CACHE_HYGIENE_AUDIT.md
-```
-
-Validation:
+Validation (canonical preflight):
 
 ```bash
-python3 -m tools.catalog counts
-python3 -m tools.citations verify
-python3 -m tools.import_audit
-python3 -m brain.invariants run
-bash tools/check_all.sh
+python3 -m tools.claude_helpers.gate_runner --json
+```
+
+Verdict must be exactly one of:
+
+```text
+REAL MODEL TEST PASS
+REAL MODEL TEST PARTIAL
+REAL MODEL TEST BLOCKED BY ENV
+REAL MODEL TEST FAIL
 ```
 
 Required content:
 
 ```text
-PASS verdict (or FAIL with reason)
+verdict
 files changed across the campaign
 gate results
+cumulative real model call count
+mode tested
 explicit "no SelfModel implementation" confirmation
 explicit "no consciousness / sentience / subjective / semantic /
   truth / agency / self-modification claim" confirmation
@@ -826,32 +772,33 @@ explicit "no aggregate awareness / I-ness / growth score" confirmation
 explicit "no hidden LLM call / hidden persistence / DB schema change
   in v1" confirmation
 explicit "no L2 (eval_v1) semantic change" confirmation
-explicit "no tick semantic change" confirmation
-explicit "L1 cache growth is bounded by the locked policy"
+explicit "no tick semantic change (brain/tick.py untouched)"
   confirmation
-explicit "Stage A, Stage B, and Stage C bridge usage, if any, is
-  recorded" with per-step disclosure links
-next-campaign note (SelfModel remains deferred; promote only after a
-  follow-up campaign that explicitly accepts the SelfModel plan)
-Stage A, Stage B, and Stage C disclosure blocks
+explicit "no raw prompts / responses / cache files / secrets
+  committed" confirmation
+explicit "OFFLINE remains default; model-backed remains explicit
+  opt-in" confirmation
+Stage A / Stage B / Stage C.1 bridge usage disclosure across the
+  campaign
+next-campaign note
 ```
 
 Commit message:
 
 ```text
-phase3.15 step10: final l1 cache hygiene audit
+phase3.16 step9: real model tuning final audit
 ```
 
 Push.
 
 ---
 
-# Step 11 — Final PR preparation
+# Step 10 — PR preparation
 
 Open a PR to main with title:
 
 ```text
-phase3.15: l1 cache hygiene
+phase3.16: real model operational tuning
 ```
 
 PR body must include:
@@ -859,18 +806,18 @@ PR body must include:
 ```text
 completed steps
 validation results
+real model mode tested
+total real model calls used
+result verdict
+whether ToyI produced a complete model-backed tick route
+cache behavior summary (L1 + L2)
+whether a patch was needed
 behavior findings summary
 review gates reached
-implementation, if any
-remaining deferred work (SelfModel; /pattern-ledger UI;
-  /coherence-summary UI; /growth-ledger UI; end-to-end dry runs;
-  optional real ORS smoke; I-LLMCACHE-21; I-LLMCACHE-22)
+remaining deferred work
 confirmation main was not pushed directly during campaign execution
 confirmation PR is not merged
-Stage A /ask-chatgpt consultation summary across the campaign
-Stage B /ask-chatgpt-write collaboration summary across the campaign
-Stage C /orchestrate-with-codex orchestration summary across the
-  campaign
+Stage A / Stage B / Stage C.1 bridge usage summary
 ```
 
 Do not merge.
