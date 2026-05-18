@@ -42,6 +42,11 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Optional
 
+from brain.development.growth_ledger import (
+    GrowthEventSource,
+    GrowthEventType,
+    GrowthLedger,
+)
 from brain.development.pattern_ledger import PatternLedger
 from brain.development.text_stream import (
     STREAM_PROMOTION_MAX,
@@ -205,6 +210,7 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "autosave_config",
     "last_autosave_status",
     "pattern_ledger",
+    "growth_ledger",
 })
 
 
@@ -260,6 +266,7 @@ class OperatorSession:
     autosave_config: Optional["AutosaveConfig"] = None
     last_autosave_status: Optional["AutosaveStatusReport"] = None
     pattern_ledger: PatternLedger = field(default_factory=PatternLedger)
+    growth_ledger: GrowthLedger = field(default_factory=GrowthLedger)
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -371,6 +378,11 @@ class OperatorSession:
             raise TypeError(
                 "OperatorSession.pattern_ledger must be a PatternLedger "
                 f"(got {type(self.pattern_ledger).__name__})"
+            )
+        if not isinstance(self.growth_ledger, GrowthLedger):
+            raise TypeError(
+                "OperatorSession.growth_ledger must be a GrowthLedger "
+                f"(got {type(self.growth_ledger).__name__})"
             )
         self._assert_no_unsafe_resources()
 
@@ -670,6 +682,39 @@ class OperatorSession:
             f"tick {self.tick_counter} ok "
             f"({record.triggered_mode.name if record.triggered_mode else 'noop'})"
         )
+        # I-GROW-17: emit Growth Ledger events for the accepted tick
+        # and any pre/post profile.domain / msi.contents additions.
+        # The deltas come from prior_state captured at the start of
+        # _dispatch_step and the new BrainState returned by tick(); no
+        # status / error string is inspected. Removals do not emit
+        # events in v1.
+        self.growth_ledger = self.growth_ledger.observe(
+            event_type=GrowthEventType.TICK_SUCCEEDED,
+            tick=self.tick_counter,
+            source=GrowthEventSource.STEP_DISPATCH,
+            references=(f"tick-{record.tick_index}",),
+            provenance="step_dispatch:_dispatch_step",
+        )
+        for content_id in sorted(
+            new_state.profile.domain - prior_state.profile.domain
+        ):
+            self.growth_ledger = self.growth_ledger.observe(
+                event_type=GrowthEventType.PROFILE_DOMAIN_ADDED,
+                tick=self.tick_counter,
+                source=GrowthEventSource.STEP_DISPATCH,
+                references=(content_id,),
+                provenance="step_dispatch:profile_delta",
+            )
+        for content_id in sorted(
+            new_state.msi.contents - prior_state.msi.contents
+        ):
+            self.growth_ledger = self.growth_ledger.observe(
+                event_type=GrowthEventType.MSI_MEMBER_ADDED,
+                tick=self.tick_counter,
+                source=GrowthEventSource.STEP_DISPATCH,
+                references=(content_id,),
+                provenance="step_dispatch:msi_delta",
+            )
         return True
 
     # ------------------------------------------------------------------
@@ -744,11 +789,45 @@ class OperatorSession:
         # I-PLEDGER-13: a successful /stream append is the sole v1
         # Pattern Ledger trigger. observe(...) is pure copy-on-write
         # and never reaches BrainState / MSI / PtCns / tick / LLM.
+        prior_pattern_ledger = self.pattern_ledger
         self.pattern_ledger = self.pattern_ledger.observe(
             chunk,
             candidate,
             current_tick=self.tick_counter,
         )
+        # I-GROW-15: emit Growth Ledger events for the accepted stream
+        # append and (when applicable) the Pattern Ledger entry delta.
+        # The created/updated distinction is derived from a pure tuple
+        # comparison between prior_pattern_ledger.entries and
+        # self.pattern_ledger.entries; no status-string parsing.
+        self.growth_ledger = self.growth_ledger.observe(
+            event_type=GrowthEventType.STREAM_CHUNK_ACCEPTED,
+            tick=self.tick_counter,
+            source=GrowthEventSource.STREAM_APPEND,
+            references=(chunk.chunk_id,),
+            provenance="stream_append:_dispatch_stream_append",
+        )
+        prior_recurrence_by_id: dict[str, int] = {
+            entry.pattern_id: entry.recurrence_count
+            for entry in prior_pattern_ledger.entries
+        }
+        for entry in self.pattern_ledger.entries:
+            if entry.pattern_id not in prior_recurrence_by_id:
+                self.growth_ledger = self.growth_ledger.observe(
+                    event_type=GrowthEventType.PATTERN_ENTRY_CREATED,
+                    tick=self.tick_counter,
+                    source=GrowthEventSource.PATTERN_LEDGER_OBSERVE,
+                    references=(entry.pattern_id,),
+                    provenance="pattern_ledger:observe",
+                )
+            elif entry.recurrence_count > prior_recurrence_by_id[entry.pattern_id]:
+                self.growth_ledger = self.growth_ledger.observe(
+                    event_type=GrowthEventType.PATTERN_ENTRY_UPDATED,
+                    tick=self.tick_counter,
+                    source=GrowthEventSource.PATTERN_LEDGER_OBSERVE,
+                    references=(entry.pattern_id,),
+                    provenance="pattern_ledger:observe",
+                )
         self.set_active_view("stream_summary")
         self.set_status(
             f"stream chunk {chunk.chunk_id!r} appended "
@@ -852,6 +931,17 @@ class OperatorSession:
         self.set_status(
             f"promoted stream candidate {candidate.candidate_id!r} "
             f"(queue size = {len(self.event_queue)})"
+        )
+        # I-GROW-16: emit Growth Ledger event for the queued promotion.
+        # Triggered by the dispatcher's typed True return signal under
+        # the Phase 3.10c outcome-detection contract; no status / error
+        # string is inspected.
+        self.growth_ledger = self.growth_ledger.observe(
+            event_type=GrowthEventType.STREAM_PROMOTION_QUEUED,
+            tick=self.tick_counter,
+            source=GrowthEventSource.STREAM_PROMOTE,
+            references=(candidate.candidate_id,),
+            provenance="stream_promote:_dispatch_stream_promote",
         )
         return True
 

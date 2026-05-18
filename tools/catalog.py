@@ -24,18 +24,21 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.22 expected counts — bumped by the Phase 3.12c Coherence Monitor
-# catalog patch (I-COHMON-01..14 Option A: +11 REQUIRED rows, +1
-# STRUCTURAL row, +1 NOT-EXERCISED row, +1 DEFERRED row; OBSERVED
-# unchanged). The Phase 3.12c Coherence Monitor is a read-only
-# diagnostic substrate; no UI, no observed dry run, no OperatorSession
-# slot, no DB open, no persistence schema, no autosave extension in
-# v1.
+# v0.23 expected counts — bumped by the Phase 3.13 Growth Ledger
+# catalog patch (I-GROW-01..22: +19 REQUIRED rows, +1 STRUCTURAL row,
+# +1 NOT-EXERCISED row, +1 DEFERRED row; OBSERVED unchanged). The
+# Phase 3.13 Growth Ledger is a bounded session-local developmental
+# record of accepted, constructor-validated growth events; no UI, no
+# observed dry run, no DB open, no persistence schema bump, no
+# autosave extension in v1. The single new OperatorSession.growth_ledger
+# field is authorized by the Phase 3.13 audit-tier addition
+# _PHASE_3_13_SESSION_ATTRS in both persistence resource-audit
+# fixtures.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 240,
-    "STRUCTURAL": 85,
-    "NOT-EXERCISED": 11,
-    "DEFERRED": 14,
+    "REQUIRED": 259,
+    "STRUCTURAL": 86,
+    "NOT-EXERCISED": 12,
+    "DEFERRED": 15,
     "OBSERVED": 16,
 }
 
