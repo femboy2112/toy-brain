@@ -1,4 +1,4 @@
-# CURRENT_MISSION.md — Phase 3.17 Codex Runtime Fix + Processing Window Research
+# CURRENT_MISSION.md — Phase 3.19 Internal Feedback Loop Prototype
 
 ## One-line instruction
 
@@ -12,84 +12,97 @@ stop.
 
 ## Current mission
 
-Execute the **Phase 3.17 Codex Runtime Fix + Processing Window Research
-Campaign** in:
+Execute the **Phase 3.19 Internal Feedback Loop Prototype Campaign** in:
 
 ```text
 CURRENT_CAMPAIGN.md
 ```
 
-Phase 3.17 follows the completed Phase 3.16 Real Model Operational
-Tuning (PR #21), which demonstrated a complete real-model-backed
-operational walk under claude-cli and recorded codex-cli as
-construction-blocked by codex 0.130.0's trusted-directory check.
-Phase 3.17 takes two bounded operational questions in series:
+Phase 3.19 follows the completed Phase 3.18 Bounded Internal Processing
+Window campaign (PR #23). Phase 3.18 demonstrated:
 
-1. **Codex-cli compatibility.** Does the single-line addition of
-   `--skip-git-repo-check` to `CodexCLIClient.command` unblock the
-   codex-cli mode end-to-end against a real codex binary, without
-   touching `brain/tick.py`, the L1 / L2 cache semantics, the parser,
-   the prompt, or the catalog row count?
-2. **Bounded post-input processing window.** What is the smallest,
-   safest, inspectable architecture for an operational
-   *internalization window* of N internal ticks following each
-   external input — starting with **N = 50** as the experimental
-   default — so we can begin measuring whether bounded reflective
-   processing produces inspectable structural recurrence and growth
-   ledger evidence beyond what raw external input alone produces?
+- deterministic post-input rehearsal via
+  `brain/development/processing_window.py`
+- Pattern Ledger saturation in a single dispatch at `N = 255`
+- monotone, deterministic, independent pattern recognition (D1–D4 PASS)
+- zero real model calls on the rehearsal path
+- catalog v0.26 with `I-PWND-01` / `I-PWND-02`
 
-Phase 3.17 is a **research-and-engineering** campaign toward an
-operationally learning/growing "I" approximation. It is **not** a
-claim of consciousness, sentience, subjective experience, true
-selfhood, true agency, semantic understanding, truth access,
-desires / will / intent, or self-modification in the strong sense.
+Phase 3.19 takes the next bounded operational question:
+
+> Can ToyI's runtime route a **bounded internal feedback event**,
+> derived from Pattern Ledger state observed inside the processing
+> window, back into the same Pattern Ledger / Growth Ledger
+> substrate — without touching `brain/tick.py`, the LLM, the parser,
+> the cache, or any consciousness-adjacent boundary?
+
+Phase 3.19 takes ToyI from:
+
+```text
+external input -> deterministic rehearsal -> recurrence count
+```
+
+toward:
+
+```text
+external input -> rehearsal -> pattern-ledger summary
+              -> bounded internal feedback event
+              -> normal STREAM_APPEND path
+              -> inspectable second-order pattern + growth
+```
+
+This is an operational approximation of some functional properties
+associated with a learning/growing "I." It is **NOT** a claim of
+consciousness, sentience, subjective experience, true agency, true
+selfhood, semantic understanding, truth access, desire/will/intent, or
+self-modification in the strong sense.
 
 Allowed claim shape:
 
 ```text
 "ToyI approximates some functional properties associated with a
-learning/growing I: persistent state, bounded memory, pattern
-recurrence, model-backed evaluations, growth events, cache
-discipline, and inspectable post-input processing."
+learning/growing I: bounded internal feedback events, second-order
+pattern recurrence, deterministic state integration, inspectable
+growth-event records, and bounded coherence summaries."
 ```
 
 Forbidden claim shape:
 
 ```text
 "ToyI is conscious / sentient / understands / has a self / has
-agency."
+agency / has desires / introspects."
 ```
 
 Campaign target:
 
 ```text
-Phase 3.17 Step 1   Mission sync and research roadmap
-Phase 3.17 Step 2   Codex-cli compatibility patch plan
-Phase 3.17 Step 3   Apply codex-cli compatibility fix
-Phase 3.17 Step 4   Codex-cli real model smoke
-Phase 3.17 Step 5   Processing window research synthesis
-Phase 3.17 Step 6   Processing window behavior probe plan
-Phase 3.17 Step 7   Optional reviewed implementation plan
-Phase 3.17 Step 8   Start mock processing-window test
-Phase 3.17 Step 9   Findings / triage
-Phase 3.17 Step 10  Final audit
-Phase 3.17 Step 11  PR preparation
+Phase 3.19 Step 1   Mission sync + roadmap
+Phase 3.19 Step 2   Internal feedback synthesis
+Phase 3.19 Step 3   Internal feedback probe matrix
+Phase 3.19 Step 4   Corrigenda / design locks
+Phase 3.19 Step 5   Catalog patch plan
+Phase 3.19 Step 6   Review Gate A
+Phase 3.19 Step 7   Apply implementation (if gated through)
+Phase 3.19 Step 8   Behavior report
+Phase 3.19 Step 9   Findings / triage
+Phase 3.19 Step 10  Final audit
+Phase 3.19 Step 11  PR preparation
 ```
 
 Intended result:
 
 ```text
-A small, reviewed runtime patch that unblocks codex-cli for the
-Phase 3.16 operational route, evidence that the patch produces a
-complete model-backed tick (or a precise blocker if it doesn't),
-plus a rigorous research artifact set describing a bounded
-post-input processing window architecture, an experimental probe
-plan, and a first controlled test using only existing surfaces.
-The mission ships no SelfModel, no consciousness claim, no
-aggregate I-ness score, no tick-kernel change, no L1 / L2 cache
-semantic change, no prompt / parser change, no growth / pattern /
-coherence semantic change, no schema bump, and no implicit network
-behavior.
+A small, reviewed runtime extension to
+brain/development/processing_window.py and brain/ui/session.py that
+emits bounded internal feedback events whose text is a deterministic
+summary of the live Pattern Ledger entry created by the just-fired
+rehearsal. Each accepted feedback event is itself a STREAM_APPEND
+chunk that drives Pattern Ledger.observe and Growth Ledger.observe
+through the existing call sites; no kernel change, no LLM call, no
+schema change, no autosave change, no aggregate scalar. Pattern
+recurrence now feeds back into later internal processing via the
+new closed-enum InternalEventSource member PLEDGER_SUMMARY, which
+was reserved in Phase 3.18 for exactly this expansion.
 ```
 
 ---
@@ -99,7 +112,7 @@ behavior.
 Preferred branch:
 
 ```text
-campaign/phase3-17-codex-processing-window
+campaign/phase3-19-internal-feedback-loop
 ```
 
 Rules:
@@ -110,6 +123,7 @@ commit every successful step that changes files
 push every successful step commit to the campaign branch
 open a PR into main at campaign completion
 never merge the PR without explicit user approval
+never edit brain/tick.py in Phase 3.19
 ```
 
 ---
@@ -119,15 +133,18 @@ never merge the PR without explicit user approval
 Expected current baseline (must match before any step runs):
 
 ```text
-Catalog: v0.25
+Catalog: v0.26
 Counts:
-  REQUIRED:        281
-  STRUCTURAL:       88
+  REQUIRED:        282
+  STRUCTURAL:       89
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
-Latest completed campaign:    Phase 3.16 Real Model Operational
-                              Tuning (PR #21)
+Latest completed campaign:    Phase 3.18 Bounded Internal Processing
+                              Window (PR #23, merged into the
+                              phase3.17 branch upstream; phase3.18
+                              content is brought along by the
+                              phase3.19 campaign branch)
 Available advisory bridge:    Stage A /ask-chatgpt (PR #13)
 Available limited-write bridge: Stage B /ask-chatgpt-write (PR #15)
 Available orchestration bridge: Stage C.1 /orchestrate-flow-with-codex
@@ -136,11 +153,11 @@ Available workflow helpers:   tools/claude_helpers/campaign_state.py,
                               tools/claude_helpers/gate_runner.py,
                               tools/claude_helpers/flow_manifest.py
                               (PR #20)
-Current mission:              Phase 3.17 Codex Runtime Fix +
-                              Processing Window Research
-Phase 3.17 Step 1 status:     in flight on campaign branch
-Next eligible step:           Step 2 codex-cli compatibility patch
-                              plan (after Step 1 commits/pushes)
+Current mission:              Phase 3.19 Internal Feedback Loop
+                              Prototype
+Phase 3.19 Step 1 status:     in flight on campaign branch
+Next eligible step:           Step 2 internal feedback synthesis
+                              (after Step 1 commits/pushes)
 ```
 
 Stop if catalog counts disagree.
@@ -158,24 +175,20 @@ README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
-PHASE3_17_CODEX_PROCESSING_WINDOW_ROADMAP.md
-docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_AUDIT.md
-docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_FINDINGS.md
-docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_RUN.md
-brain/llm/client.py
-brain/llm/ptcns_backed.py
-brain/llm/prompts.py
-brain/llm/parse.py
-brain/ui/llm_runtime.py
-brain/ui/__main__.py
-brain/ui/session.py
-brain/ui/commands.py
-brain/ui/command_line.py
-brain/ui/render.py
-brain/tick.py
-brain/development/growth_ledger.py
+PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
+docs/campaigns/phase3_18/PHASE3_18_HUMAN_DEVELOPMENT_SYNTHESIS.md
+docs/campaigns/phase3_18/PHASE3_18_PATTERN_RECOGNITION_DEMO.md
+docs/campaigns/phase3_18/PHASE3_18_AUDIT.md
+brain/development/processing_window.py
 brain/development/pattern_ledger.py
 brain/development/coherence_monitor.py
+brain/development/growth_ledger.py
+brain/development/text_stream.py
+brain/ui/session.py
+brain/ui/snapshot.py
+brain/tick.py
+brain/llm/client.py
+brain/llm/ptcns_backed.py
 tools/claude_helpers/campaign_state.py
 tools/claude_helpers/gate_runner.py
 tools/claude_helpers/flow_manifest.py
@@ -191,9 +204,9 @@ Then read whichever files the next campaign step names.
 
 ---
 
-## Phase 3.17 architectural guardrails
+## Phase 3.19 architectural guardrails
 
-Preserve these constraints throughout Phase 3.17:
+Preserve these constraints throughout Phase 3.19:
 
 ```text
 no consciousness claim
@@ -206,23 +219,25 @@ no self-modification claim
 no aggregate consciousness / sentience / awareness / I-ness / growth
   score
 no SelfModel implementation
-no Growth Ledger semantic change
-no Pattern Ledger semantic change
+no Growth Ledger semantic change (no new GrowthEventType, no new
+  GrowthEventSource)
+no Pattern Ledger semantic change (no new SourceKind, no new
+  saturation state, no signature shape change)
 no Coherence Monitor semantic change
 no model-backed default behavior; offline remains the default
 no hidden LLM calls
 no silent network/model calls in offline/mock modes
 no silent repair calls
-no DB schema change in v1
+no DB schema change
 no SCHEMA_VERSION bump
 no persistence / autosave runtime change
 no tick semantic change (brain/tick.py untouched)
+no L1 cache semantic change
 no L2 (eval_v1) semantic change
-no L1 cache semantic change EXCEPT the codex-cli command tuple
-  compatibility fix (single line; locked to adding
-  '--skip-git-repo-check' to CodexCLIClient.command default and
-  the codex-cli factory)
-no /save-session / /load-session / autosave extension in v1
+no parser change
+no prompt change
+no UI verb addition unless explicitly review-gated
+no /save-session / /load-session / autosave extension
 no raw prompts committed to the repo
 no raw model outputs committed to the repo
 no raw cache contents printed in docs
@@ -232,67 +247,53 @@ no UI expansion unless explicitly reviewed
 no raw codex invocation outside the sanctioned bridges
 no Stage C.1 broad repo edits
 no unbounded Codex collaboration loop
-no runtime "processing window" implementation in v1 unless a Step 7
-  review gate explicitly authorizes it
-50 internal ticks is the *initial experimental default* for the
-  processing window; it is not a constant burned into the runtime
-  in v1
+no unbounded loops
+no unbounded state growth
+50 internal ticks remains the initial high-window default for
+  meaningful internalization tests; the runtime bound stays at
+  PROCESSING_WINDOW_SIZE_MAX = 255
 ```
 
 Real model-call budget for the entire campaign:
 
 ```text
 Max 20 real external model-backed calls total.
-Count every attempt (success, retry, parse failure, timeout, nonzero
-  exit) toward the budget.
+Phase 3.19 expects to consume ZERO real model calls on the
+  STREAM_APPEND-only feedback path.
 Stop before exceeding 20.
-If call count cannot be proven, assume the higher number.
-Use cache-aware repeated probes after the first miss.
-No unbounded loops; no "keep trying forever."
 ```
 
-Allowed real model-backed modes (in preference order for Step 4 only):
+Allowed real model-backed modes (only if a probe needs one):
 
 ```text
-1. codex-cli (the mode under test in this campaign)
-2. claude-cli (fall back if Step 4 cannot complete on codex-cli)
-3. anthropic-api (fall back if neither CLI is usable)
+1. codex-cli
+2. claude-cli
+3. anthropic-api
 ```
 
 ---
 
 ## ChatGPT/Codex consultation (Stage A, Stage B, and Stage C.1)
 
-This repository ships sanctioned Claude → Codex CLI → ChatGPT bridges:
+Same as Phase 3.18:
 
 - Stage A (PR #13) read-only, advisory.
 - Stage B (PR #15) limited-write, allowlist-based, sequential.
 - Stage C.1 (PR #19) dynamic-flow, allowlist-based, max two active
   Codex nodes, isolated nodes may run in parallel, chained nodes
   require `depends_on`, no automatic retry, hard cap 8 nodes.
-  **For Phase 3.17, max total Stage C.1 real Codex nodes = 5 unless
-  operator approves more.**
-
-Use only the sanctioned paths:
-
-```text
-Stage A:  /ask-chatgpt --mode <mode> --model gpt-5.5 --effort <effort> <prompt>
-Stage B:  /ask-chatgpt-write --model gpt-5.5 --effort high \
-            --allowed-file <path> [--allowed-file <path> ...] --apply <prompt>
-Stage C.1: /orchestrate-flow-with-codex <task>
-           python3 tools/claude_helpers/codex_chatgpt_flow_orchestrator.py \
-             --manifest <path> --model gpt-5.5 --effort high
-```
+  **For Phase 3.19, max total Stage C.1 real Codex nodes = 5
+  unless operator approves more.**
 
 Stage C.1 may be used in this campaign for:
 
-- drafting Phase 3.17 roadmap / synthesis docs;
-- drafting bounded docs/fixtures shards;
-- mechanical doc shards after measurements exist.
+- drafting Phase 3.19 synthesis / probe / corrigenda docs;
+- drafting bounded fixture / module shards after Step 6 review gate;
+- drafting bounded doc shards.
 
 Stage C.1 is forbidden for:
 
-- running the real codex-cli model loop (Step 4);
+- real model route execution;
 - touching secrets;
 - committing cache files;
 - broad runtime changes;
@@ -300,7 +301,7 @@ Stage C.1 is forbidden for:
 - final catalog reconciliation;
 - staging / commit / push.
 
-Before every Stage C.1 flow, validate the manifest:
+Before every Stage C.1 flow:
 
 ```bash
 python3 -m tools.claude_helpers.flow_manifest validate <manifest> --strict
@@ -309,14 +310,11 @@ python3 -m tools.claude_helpers.flow_manifest summary <manifest>
 
 Stop on `CODEX_NETWORK_TRANSIENT`; do not retry automatically.
 
-Disclose bridge usage in every step report using the disclosure block
-defined in `CURRENT_CAMPAIGN.md`.
-
 ---
 
 ## Workflow tools (PR #20)
 
-Prefer the helper wrappers over hand-rolled pipelines:
+Prefer the helper wrappers:
 
 ```text
 python3 -m tools.claude_helpers.campaign_state summary
@@ -337,18 +335,12 @@ python3 -m brain.invariants run
 bash tools/check_all.sh
 ```
 
-If `gate_runner` itself has any issue, fall back to running the
-canonical commands directly.
-
 ---
 
 ## Command rule
 
-Use `python3 -m ...` for Python module commands. Convert historical
-`python -m ...` examples to `python3 -m ...` unless the user has
-explicitly confirmed a `python` alias.
-
-Do not run real LLM scenario commands unless the user explicitly asks.
+Use `python3 -m ...` for Python module commands. Do not run real LLM
+scenario commands unless the user explicitly asks.
 
 ---
 
@@ -374,36 +366,9 @@ Real model call accounting:
 - calls used in this step: <count>
 - cumulative calls used: <count> / 20
 
-Stage A ChatGPT/Codex consultation:
-- used: yes / no
-- mode / model / effort: <values or n/a>
-- wrapper command: <command or n/a>
-- question file / answer file: <paths or n/a>
-- wrapper status: <exit code + error class or n/a>
-- accepted advice: <bullets or none>
-- rejected advice: <bullets or none>
-- reason: <one sentence>
-
-Stage B limited-write collaboration:
-- used: yes / no
-- mode / model / effort: <values or n/a>
-- wrapper command: <command or n/a>
-- allowed files / prompt file / answer file: <paths or n/a>
-- wrapper status: <exit code + error class or n/a>
-- files changed: <paths or none>
-- accepted/rejected edits: <bullets or none>
-- reason: <one sentence>
-
-Stage C.1 flow orchestration:
-- used: yes / no
-- manifest path: <path or n/a>
-- manifest validation: <pass / fail / n/a>
-- wrapper command: <command or n/a>
-- wrapper status: <exit code + error class or n/a>
-- nodes: <node ids or n/a>
-- changed files: <paths or none>
-- accepted/rejected edits: <bullets or none>
-- reason: <one sentence>
+Stage A ChatGPT/Codex consultation: <disclosure>
+Stage B limited-write collaboration: <disclosure>
+Stage C.1 flow orchestration: <disclosure>
 
 Next:
 - <next campaign step or stop condition>
