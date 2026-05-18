@@ -1,10 +1,11 @@
-# CURRENT_MISSION.md — Phase 3.23 Dispatch Tracer Wiring
+# CURRENT_MISSION.md — Phase 3.23 Dispatch Tracer Wiring (COMPLETE)
 
-> Phase 3.23 stacks on the completed Phase 3.22 + Phase 3.22b work on
-> `campaign/phase3-22-agent-communication-loop` (PR #27 open). A new
-> branch `campaign/phase3-23-dispatch-tracer` is created from PR #27's
-> head and Phase 3.23 is executed on top of it. PR #27 and the rest of
-> the stack remain open.
+> Phase 3.23 Dispatch Tracer Wiring is COMPLETE on the
+> `campaign/phase3-23-dispatch-tracer` branch. PR #28 should be
+> opened with base `campaign/phase3-22-agent-communication-loop` and
+> head `campaign/phase3-23-dispatch-tracer`. PR #27 and the rest of
+> the upstream stack remain open. The original Phase 3.23 mission
+> text follows so the runner contract stays reproducible.
 
 ## One-line instruction
 

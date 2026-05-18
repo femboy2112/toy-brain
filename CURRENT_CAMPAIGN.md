@@ -1,6 +1,21 @@
-# CURRENT_CAMPAIGN.md — Phase 3.23 Dispatch Tracer Wiring
+# CURRENT_CAMPAIGN.md — Phase 3.23 Dispatch Tracer Wiring (COMPLETE)
+
+> Phase 3.23 is COMPLETE on the
+> `campaign/phase3-23-dispatch-tracer` branch. Catalog v0.32. The
+> original Phase 3.23 campaign text follows so the runner contract
+> stays reproducible.
 
 ## Campaign status
+
+```text
+COMPLETE / BRANCH-PUSHED / PR-PENDING (#28)
+```
+
+Final benchmark: 65 cases, 64 PASS + 1 WARN (A3.04 carry-over) +
+0 FAIL, transcript digest `8cc4a4ca1845c6a4`. Canonical gates 5/5
+PASS. `python3 -m brain.invariants run` reports 428 rows checked, 0
+red, 0 gate failures. Dispatch trace proof digests are documented in
+`docs/campaigns/phase3_23/PHASE3_23_TRACE_PROOF_REPORT.md`.
 
 ```text
 DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / REVIEW-GATED
