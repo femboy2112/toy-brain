@@ -43,6 +43,16 @@ EXIT_APPLY_FAILED = 34
 EXIT_WORKTREE_SETUP_FAILED = 35
 EXIT_WORKTREE_CLEANUP_FAILED = 36
 EXIT_RATE_LIMIT_STATE_ERROR = 37
+EXIT_SYMLINK_PATH_REJECTED = 38
+
+
+class SymlinkPathRejected(Exception):
+    """Raised when an allowed-file path or copy-back source/destination is a symlink.
+
+    Used by validate_allowed_path() and copy_allowed_changes() so main() can map
+    the rejection to EXIT_SYMLINK_PATH_REJECTED=38 instead of the more generic
+    EXIT_ALLOWED_PATH_INVALID=32 or EXIT_APPLY_FAILED=34.
+    """
 
 MODE_VALUES = {"write"}
 EFFORT_VALUES = {"low", "medium", "high"}
@@ -206,6 +216,13 @@ def validate_allowed_path(path_text: str, *, repo: str) -> str:
     if normalized in {".", ""}:
         raise ValueError(f"invalid path: {path_text}")
     live_path = Path(repo) / normalized
+    # Reject symlinks (including broken symlinks) before any other content check.
+    # Path.is_symlink() uses lstat and does not follow, so it fires for dangling
+    # links too; Path.exists()/is_dir() follow symlinks and would mask this.
+    if live_path.is_symlink():
+        raise SymlinkPathRejected(
+            f"symlinks are not allowed as allowed-file targets: {path_text}"
+        )
     if live_path.exists() and live_path.is_dir():
         raise ValueError(f"directories are not allowed as exact file paths: {path_text}")
     return normalized
@@ -396,6 +413,17 @@ def copy_allowed_changes(*, repo: str, worktree: str, changed: set[str], allowed
             continue
         src = Path(worktree) / path
         dst = Path(repo) / path
+        # Defense-in-depth symlink check: fail closed if Codex created a symlink
+        # in the temp worktree or if a symlink appeared at the live destination
+        # between validate_allowed_path() and apply.
+        if src.is_symlink():
+            raise SymlinkPathRejected(
+                f"refusing to copy: temp worktree source is a symlink: {path}"
+            )
+        if dst.is_symlink():
+            raise SymlinkPathRejected(
+                f"refusing to write: live repo destination is a symlink: {path}"
+            )
         if src.exists():
             if src.is_dir():
                 raise RuntimeError(f"allowed path became directory; refusing to copy: {path}")
@@ -440,6 +468,8 @@ def main(argv: list[str]) -> int:
     try:
         allowed_files = [validate_allowed_path(p, repo=live_repo) for p in args.allowed_file]
         allow_delete = {validate_allowed_path(p, repo=live_repo) for p in args.allow_delete}
+    except SymlinkPathRejected as exc:
+        return fail(exit_code=EXIT_SYMLINK_PATH_REJECTED, error_class="SYMLINK_PATH_REJECTED", message=str(exc), metadata={**base_meta, "repo": live_repo})
     except ValueError as exc:
         return fail(exit_code=EXIT_ALLOWED_PATH_INVALID, error_class="ALLOWED_PATH_INVALID", message=str(exc), metadata={**base_meta, "repo": live_repo})
 
@@ -508,6 +538,12 @@ def main(argv: list[str]) -> int:
     out_of_scope: set[str] = set()
     waited_seconds = 0
     applied = False
+    # run_exit_code / run_metadata are populated by every return path inside
+    # the try/except below so the finally block can audit cleanup failures and
+    # promote a successful run to EXIT_WORKTREE_CLEANUP_FAILED when the temp
+    # worktree cannot be removed.
+    run_exit_code: int = EXIT_WRAPPER_INTERNAL
+    run_metadata: Mapping[str, Any] = meta_common
 
     try:
         lock.acquire()
@@ -525,7 +561,9 @@ def main(argv: list[str]) -> int:
             duration_ms = int((time.monotonic() - start) * 1000)
             audit = {**meta_common, "prompt_sha256": sha256_text(combined_prompt), "prompt_chars": len(combined_prompt), "prompt_template_path": str(template_path), "prompt_template_sha256": sha256_text(template), "exit_code": EXIT_CODEX_TIMEOUT, "error_class": "CODEX_TIMEOUT", "duration_ms": duration_ms, "waited_seconds": waited_seconds, "stdout_bytes": 0, "stderr_bytes": 0, "changed_paths": [], "out_of_scope_paths": [], "applied": False}
             write_audit(str(Path(live_repo) / args.audit_dir), audit)
-            return fail(exit_code=EXIT_CODEX_TIMEOUT, error_class="CODEX_TIMEOUT", message=f"codex exec timed out after {timeout}s", metadata={**meta_common, "waited_seconds": waited_seconds}, stderr_excerpt=str(exc))
+            run_exit_code = fail(exit_code=EXIT_CODEX_TIMEOUT, error_class="CODEX_TIMEOUT", message=f"codex exec timed out after {timeout}s", metadata={**meta_common, "waited_seconds": waited_seconds}, stderr_excerpt=str(exc))
+            run_metadata = {**meta_common, "waited_seconds": waited_seconds}
+            return run_exit_code
 
         temp_status = git_status_porcelain(worktree)
         changed_paths = parse_status_paths(temp_status)
@@ -551,6 +589,10 @@ def main(argv: list[str]) -> int:
             try:
                 copy_allowed_changes(repo=live_repo, worktree=worktree, changed=changed_paths, allowed=allowed_set, allow_delete=allow_delete)
                 applied = True
+            except SymlinkPathRejected as exc:
+                exit_code = EXIT_SYMLINK_PATH_REJECTED
+                error_class = "SYMLINK_PATH_REJECTED"
+                stderr = (stderr + "\n" + str(exc)).strip()
             except RuntimeError as exc:
                 exit_code = EXIT_APPLY_FAILED
                 error_class = "APPLY_FAILED"
@@ -578,11 +620,17 @@ def main(argv: list[str]) -> int:
 
         metadata = {**meta_common, "duration_ms": duration_ms, "waited_seconds": waited_seconds, "codex_returncode": codex_returncode, "changed_paths": sorted(changed_paths), "out_of_scope_paths": sorted(out_of_scope), "applied": applied}
         if exit_code != EXIT_SUCCESS:
-            return fail(exit_code=exit_code, error_class=error_class or "ERROR", message=error_class or "limited-write Codex run failed", metadata=metadata, stderr_excerpt=bounded(stderr, 5000), stdout_excerpt=bounded(stdout, 2000))
+            run_exit_code = fail(exit_code=exit_code, error_class=error_class or "ERROR", message=error_class or "limited-write Codex run failed", metadata=metadata, stderr_excerpt=bounded(stderr, 5000), stdout_excerpt=bounded(stdout, 2000))
+            run_metadata = metadata
+            return run_exit_code
         emit_report(status="success", exit_code=0, error_class=None, metadata=metadata, codex_stdout=stdout)
+        run_exit_code = 0
+        run_metadata = metadata
         return 0
     except RuntimeError as exc:
-        return fail(exit_code=EXIT_WORKTREE_SETUP_FAILED if not worktree else EXIT_WRAPPER_INTERNAL, error_class="WORKTREE_OR_LOCK_ERROR", message=str(exc), metadata=meta_common)
+        run_exit_code = fail(exit_code=EXIT_WORKTREE_SETUP_FAILED if not worktree else EXIT_WRAPPER_INTERNAL, error_class="WORKTREE_OR_LOCK_ERROR", message=str(exc), metadata=meta_common)
+        run_metadata = dict(meta_common)
+        return run_exit_code
     finally:
         cleanup_error = None
         if worktree:
@@ -591,8 +639,29 @@ def main(argv: list[str]) -> int:
             except RuntimeError as exc:
                 cleanup_error = exc
         lock.release()
-        if cleanup_error:
+        if cleanup_error is not None:
+            # Always surface the cleanup failure on stderr and as a separate
+            # audit JSONL record (one append-mode write, hash-only — no prompt
+            # content is included). On an otherwise successful run we override
+            # the return value with EXIT_WORKTREE_CLEANUP_FAILED so the call is
+            # reported as non-green.
             print(f"WARNING: {cleanup_error}", file=sys.stderr)
+            cleanup_audit = {
+                **meta_common,
+                "exit_code": EXIT_WORKTREE_CLEANUP_FAILED,
+                "error_class": "WORKTREE_CLEANUP_FAILED",
+                "cleanup_error": bounded(str(cleanup_error), 2000),
+                "duration_ms": int((time.monotonic() - start) * 1000),
+                "waited_seconds": waited_seconds,
+                "underlying_run_exit_code": run_exit_code,
+                "worktree": worktree,
+            }
+            try:
+                write_audit(str(Path(live_repo) / args.audit_dir), cleanup_audit)
+            except OSError as audit_err:
+                print(f"WARNING: cleanup audit write failed: {audit_err}", file=sys.stderr)
+            if run_exit_code == EXIT_SUCCESS:
+                return EXIT_WORKTREE_CLEANUP_FAILED  # noqa: B012 — intentional override
 
 
 if __name__ == "__main__":

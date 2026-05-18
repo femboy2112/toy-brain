@@ -2,9 +2,11 @@
 
 ## Verdict
 
-PASS — Stage B implementation, deterministic selftest, and repo gates all green on
-`campaign/claude-chatgpt-codex-limited-write` (branched from `33c2f54`).
-Real Codex write smoke deliberately NOT RUN — that requires explicit operator approval.
+PASS — Stage B implementation plus the symlink/cleanup hardening patch are merged
+on `campaign/claude-chatgpt-codex-limited-write` (branched from `33c2f54`).
+Deterministic selftest covers 8 scenarios (5 original + 3 added in hardening) and
+all repo gates remain green. Real Codex write smoke deliberately NOT RUN — that
+requires explicit operator approval.
 
 ## Implemented scope
 
@@ -19,6 +21,19 @@ Stage B limited-write ChatGPT/Codex bridge:
 - no `danger-full-access`
 - no staging, commit, push, restore, or merge by Codex wrapper
 - sequential lock + min interval between real Codex calls
+
+Stage B hardening patch (PR #15, follow-up commit):
+
+- new exit code `EXIT_SYMLINK_PATH_REJECTED = 38` plus a `SymlinkPathRejected`
+  exception class
+- `validate_allowed_path` rejects allowed-file paths that exist as symlinks in
+  the live repo (including dangling symlinks; `is_symlink()` uses `lstat`)
+- `copy_allowed_changes` defense-in-depth: refuses to copy if the temp worktree
+  source is a symlink or if the live repo destination is a symlink at apply time
+- `main()` cleanup block restructured to capture the underlying run exit code,
+  append a hash-only `WORKTREE_CLEANUP_FAILED` audit JSONL record on cleanup
+  failure, and promote an otherwise-successful run to
+  `EXIT_WORKTREE_CLEANUP_FAILED = 36`
 
 ## Files changed
 
@@ -67,6 +82,9 @@ requires exact --allowed-file list:                     PASS  (main() rejects em
 rejects dirty live repo before apply:                   PASS  (selftest case_dirty returns 31 EXIT_LIVE_WORKTREE_DIRTY)
 rejects out-of-scope temp changes:                      PASS  (selftest case_oos returns 33 EXIT_OUT_OF_SCOPE_DIFF; live repo bytes unchanged)
 copies back only allowed files:                         PASS  (copy_allowed_changes iterates only changed ∩ allowed; selftest happy-path verifies)
+rejects symlink as allowed-file destination:            PASS  (selftest case_dst_sym returns 38 EXIT_SYMLINK_PATH_REJECTED before Codex runs; outside symlink target untouched)
+rejects symlink as temp worktree source:                PASS  (selftest case_src_sym returns 38 EXIT_SYMLINK_PATH_REJECTED on apply; live repo bytes unchanged; symlink target outside repo untouched)
+reports cleanup failure as non-green:                   PASS  (selftest case_clean returns 36 EXIT_WORKTREE_CLEANUP_FAILED; cleanup_error + WORKTREE_CLEANUP_FAILED recorded in audit JSONL)
 never stages/commits/pushes:                            PASS  (no git add/commit/push/merge/restore call in wrapper source)
 single lock prevents concurrent calls:                  PASS  (CallLock uses O_CREAT|O_EXCL on .claude/codex_bridge_state/inflight.lock)
 min interval respected between real calls:              PASS  (enforce_min_interval sleeps until elapsed >= min_interval; --selftest-no-pacing reserved for fake tests only)
@@ -87,10 +105,22 @@ Result:
 py_compile:                                            PASS
 --help:                                                PASS  (argparse usage rendered)
 codex_chatgpt_write_worker_selftest:                   PASS
-  (covers: happy-path allowed-file copy-back, out-of-scope rejection
-   with live repo unchanged, dirty live worktree rejection,
-   invalid-model rejection before subprocess, missing workspace-write
-   capability rejection; audit JSONL hash-only check)
+  (covers 8 cases:
+     1. happy-path allowed-file copy-back
+     2. out-of-scope rejection with live repo unchanged
+     3. dirty live worktree rejection
+     4. invalid-model rejection before subprocess
+     5. missing workspace-write capability rejection
+     6. source-symlink rejection (fake Codex creates symlink in temp
+        worktree; wrapper exits 38; live repo bytes and outside symlink
+        target unchanged)
+     7. destination-symlink rejection (live repo allowed.txt tracked
+        as a symlink; wrapper exits 38 before Codex runs; outside
+        target unchanged)
+     8. cleanup-failure reporting (fake-git shim fails `git worktree
+        remove`; wrapper exits 36 and writes a WORKTREE_CLEANUP_FAILED
+        audit record with cleanup_error metadata)
+   audit JSONL hash-only check is asserted in case 1)
 ```
 
 ## Repo validation
