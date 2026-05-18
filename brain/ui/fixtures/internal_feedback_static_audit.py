@@ -66,6 +66,8 @@ from brain.tlica.profile import COGITO_ID
 _EXPECTED_FEEDBACK_MODE_VALUES: frozenset[str] = frozenset({
     "off",
     "pattern_ledger",
+    "coherence",
+    "pattern_and_coherence",
 })
 
 
@@ -216,12 +218,14 @@ def check_internal_feedback_static_audit() -> None:
         )
 
     # 5. The widened _V1_EMITTED_SOURCES set is observable through
-    # build_rehearsal_provenance: REHEARSAL and PLEDGER_SUMMARY now
-    # both produce non-claim-clean bounded provenances;
-    # COHMON_SUMMARY continues to raise.
+    # build_rehearsal_provenance: REHEARSAL, PLEDGER_SUMMARY, and
+    # (Phase 3.20) COHMON_SUMMARY now all produce non-claim-clean
+    # bounded provenances. No InternalEventSource member is
+    # reserved at v0.28.
     for source in (
         InternalEventSource.REHEARSAL,
         InternalEventSource.PLEDGER_SUMMARY,
+        InternalEventSource.COHMON_SUMMARY,
     ):
         for k in (1, 2, 3, 42, 255):
             provenance = build_rehearsal_provenance(tick_index=k, source=source)
@@ -239,20 +243,9 @@ def check_internal_feedback_static_audit() -> None:
                 f"{provenance!r} contains forbidden non-claim term "
                 f"{term!r}"
             )
-    raised = False
-    try:
-        build_rehearsal_provenance(
-            tick_index=1, source=InternalEventSource.COHMON_SUMMARY
-        )
-    except ValueError:
-        raised = True
-    assert raised, (
-        "I-IFBK-02 violated: build_rehearsal_provenance accepted "
-        "reserved source COHMON_SUMMARY"
-    )
 
     # 6. MODULE_PRODUCED_STRINGS extends to include the new Phase
-    # 3.19 constants without violating the non-claim audit.
+    # 3.19 / 3.20 constants without violating the non-claim audit.
     expected_subset: frozenset[str] = frozenset({
         PLEDGER_SUMMARY_TEXT_PREFIX,
         FeedbackMode.OFF.value,

@@ -55,6 +55,7 @@ from brain.development.pattern_ledger import (
 from brain.development.processing_window import (
     FeedbackMode,
     InternalEventSource,
+    build_cohmon_summary_text,
     build_pledger_summary_text,
     build_rehearsal_provenance,
     plan_rehearsals,
@@ -986,8 +987,16 @@ class OperatorSession:
         except (TypeError, ValueError) as exc:
             self.set_error(f"processing window plan rejected: {exc}")
             return 0
+        pledger_feedback_enabled = self.feedback_mode in (
+            FeedbackMode.PATTERN_LEDGER,
+            FeedbackMode.PATTERN_AND_COHERENCE,
+        )
+        cohmon_feedback_enabled = self.feedback_mode in (
+            FeedbackMode.COHERENCE,
+            FeedbackMode.PATTERN_AND_COHERENCE,
+        )
         seed_pattern_id: Optional[str] = None
-        if self.feedback_mode is FeedbackMode.PATTERN_LEDGER:
+        if pledger_feedback_enabled:
             seed_pattern_id = derive_pattern_id(
                 derive_pattern_signature(seed_chunk)
             )
@@ -1005,14 +1014,24 @@ class OperatorSession:
                 # cleanly without retrying.
                 break
             fired += 1
-            if self.feedback_mode is FeedbackMode.PATTERN_LEDGER:
+            if pledger_feedback_enabled:
                 if not self._run_feedback_step(
                     tick_index=step.tick_index,
                     seed_pattern_id=seed_pattern_id,
                 ):
-                    # A bounded substrate refused the feedback chunk;
-                    # error_message is set by _append_stream_chunk or
-                    # the helper below. Abort the window cleanly.
+                    # A bounded substrate refused the pledger
+                    # feedback chunk; error_message is set by
+                    # _append_stream_chunk or the helper. Abort
+                    # the window cleanly.
+                    break
+            if cohmon_feedback_enabled:
+                if not self._run_cohmon_feedback_step(
+                    tick_index=step.tick_index,
+                ):
+                    # A bounded substrate refused the cohmon
+                    # feedback chunk; error_message is set by
+                    # _append_stream_chunk or the helper. Abort
+                    # the window cleanly.
                     break
         return fired
 
@@ -1055,6 +1074,83 @@ class OperatorSession:
             )
         except (TypeError, ValueError) as exc:
             self.set_error(f"processing window feedback rejected: {exc}")
+            return False
+        chunk = self._append_stream_chunk(
+            text=summary_text,
+            chunk_provenance=summary_provenance,
+            growth_provenance="stream_append:_run_processing_window",
+        )
+        return chunk is not None
+
+    def _run_cohmon_feedback_step(
+        self,
+        *,
+        tick_index: int,
+    ) -> bool:
+        """Fire one Phase 3.20 Coherence Monitor feedback chunk.
+
+        Builds a fresh :class:`CoherenceReport` via
+        :func:`brain.development.coherence_monitor.build_full_coherence_report`
+        (deferred import to avoid a module-load cycle:
+        ``coherence_monitor`` already imports
+        :class:`OperatorSession`; this module would otherwise
+        import ``coherence_monitor`` at the top, completing the
+        cycle). Extracts bounded primitives from the report, calls
+        :func:`build_cohmon_summary_text` to produce the
+        deterministic summary text, composes the
+        ``cohmon_summary`` provenance via
+        :func:`build_rehearsal_provenance`, and dispatches the
+        chunk through :meth:`_append_stream_chunk`. Returns
+        ``True`` on success and ``False`` on any bounded substrate
+        refusal (with :attr:`error_message` already set).
+
+        Drives ``I-CFBK-01``. Consumes zero real model calls
+        because the entire path is offline / structural.
+        """
+        # Deferred function-body import (LOCK I): avoids the
+        # circular module load described in the docstring.
+        from brain.development.coherence_monitor import (
+            build_full_coherence_report,
+        )
+
+        try:
+            report = build_full_coherence_report(
+                self,
+                snapshot_id=f"coh-snap-{tick_index}",
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(
+                f"processing window cohmon feedback rejected: {exc}"
+            )
+            return False
+
+        counts: dict[str, int] = {
+            "pass": 0,
+            "warn": 0,
+            "fail": 0,
+            "not_applicable": 0,
+        }
+        for label, count in report.counts_by_status:
+            if label in counts:
+                counts[label] = count
+
+        try:
+            summary_text = build_cohmon_summary_text(
+                overall_status_value=report.overall_status.value,
+                pass_count=counts["pass"],
+                warn_count=counts["warn"],
+                fail_count=counts["fail"],
+                na_count=counts["not_applicable"],
+                check_count=len(report.snapshot.checks),
+            )
+            summary_provenance = build_rehearsal_provenance(
+                tick_index=tick_index,
+                source=InternalEventSource.COHMON_SUMMARY,
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(
+                f"processing window cohmon feedback rejected: {exc}"
+            )
             return False
         chunk = self._append_stream_chunk(
             text=summary_text,

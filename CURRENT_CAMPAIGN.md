@@ -1,4 +1,4 @@
-# CURRENT_CAMPAIGN.md — Phase 3.19 Internal Feedback Loop Prototype
+# CURRENT_CAMPAIGN.md — Phase 3.20 Coherence Feedback Bridge
 
 ## Campaign status
 
@@ -6,67 +6,82 @@
 DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / REVIEW-GATED
 ```
 
-Phase 3.19 follows the completed Phase 3.18 Bounded Internal Processing
-Window campaign (PR #23). Phase 3.18 shipped:
+Phase 3.20 follows the completed Phase 3.19 Internal Feedback Loop
+Prototype campaign (PR #24, open against `main` at campaign start;
+the Phase 3.20 branch is stacked on its HEAD). Phase 3.19 shipped:
 
 ```text
-- brain/development/processing_window.py with plan_rehearsals,
-  InternalEventSource closed enum (REHEARSAL + reserved
-  PLEDGER_SUMMARY / COHMON_SUMMARY), RehearsalStep, bounded constants
-  PROCESSING_WINDOW_SIZE_MAX = 255, PROCESSING_WINDOW_CALL_BUDGET_MAX
-  = 65535, PROCESSING_WINDOW_PROVENANCE_PREFIX
-  = "internal_processing_window".
-- OperatorSession gained processing_window_size and
-  processing_window_call_budget integer fields, plus the
-  _run_processing_window(seed_chunk) method invoked from
-  dispatch() after a successful external STREAM_APPEND.
-- INVARIANT_CATALOG.md v0.25 -> v0.26 with rows I-PWND-01
-  (integration) and I-PWND-02 (static AST audit).
-- Pattern recognition demonstration PASS on D1 saturation
-  (N=255), D2 monotonicity, D3 determinism, D4 independence.
+- brain/development/processing_window.py with FeedbackMode
+  (str, Enum) {OFF, PATTERN_LEDGER}; the widened
+  _V1_EMITTED_SOURCES set {REHEARSAL, PLEDGER_SUMMARY};
+  build_pledger_summary_text deterministic helper; the
+  PLEDGER_SUMMARY_TEXT_PREFIX = "pledger_summary" bounded
+  constant; extended MODULE_PRODUCED_STRINGS; validate_feedback_mode.
+- OperatorSession gained the optional feedback_mode:
+  FeedbackMode = FeedbackMode.OFF field, plus the
+  _run_feedback_step(*, tick_index, seed_pattern_id) helper.
+  _run_processing_window interleaves a pledger_summary chunk after
+  each rehearsal when feedback_mode is PATTERN_LEDGER, producing
+  exactly 1 + 2 * N stream chunks and a second-order Pattern Ledger
+  entry whose recurrence climbs independently.
+- INVARIANT_CATALOG.md v0.26 -> v0.27 with rows I-IFBK-01
+  (integration) and I-IFBK-02 (static audit); I-PWND-02 body
+  widened to include PLEDGER_SUMMARY in the v1-emit set.
 - Zero real model calls; brain/tick.py unchanged; no LLM/cache/
   parser/schema change; OFFLINE default preserved.
+- COHMON_SUMMARY remained reserved per LOCK F; continued to raise
+  from build_rehearsal_provenance.
 ```
 
-Phase 3.19 asks one bounded operational question:
+Phase 3.20 asks one bounded operational question:
 
 ```text
-Can ToyI's runtime route a bounded internal feedback event,
-derived from Pattern Ledger state observed during the processing
-window, back into the same Pattern Ledger / Growth Ledger
-substrate -- without touching brain/tick.py, the LLM, the parser,
-the cache, or any consciousness-adjacent boundary?
+Can ToyI's runtime route a bounded Coherence Monitor summary
+feedback event, derived from the live read-only Coherence Monitor
+report observed after the rehearsal, back into the same Pattern
+Ledger / Growth Ledger substrate -- without touching brain/tick.py,
+the LLM, the parser, the cache, the schema, or any
+consciousness-adjacent boundary, and without breaking the closed
+import discipline that keeps brain/development/processing_window.py
+decoupled from brain/development/coherence_monitor.py?
 ```
 
-This is a **research** campaign toward an operationally
-learning/growing "I" approximation. It is **not** a proof of
-consciousness.
+This is a **research** campaign toward a bounded conflict-monitoring-
+like loop. It is **not** a proof of consciousness, sentience,
+subjective experience, true agency, semantic understanding, or
+self-modification.
 
-Phase 3.19 does **not** implement SelfModel; does **not** modify
+Phase 3.20 does **not** implement SelfModel; does **not** modify
 Growth Ledger / Pattern Ledger / Coherence Monitor semantics; does
 **not** modify L1 / L2 / parser / prompt / tick / persistence /
 autosave / DB schema. The runtime touches are limited to:
 
-- `brain/development/processing_window.py` (extend with feedback
-  planner; emit the previously reserved `PLEDGER_SUMMARY`
-  `InternalEventSource` member);
-- `brain/ui/session.py` (add bounded session field
-  `feedback_mode`; extend `_run_processing_window` to optionally
-  fire a feedback chunk between or after rehearsals);
-- `INVARIANT_CATALOG.md` v0.26 -> v0.27 with bounded new row
-  family `I-IFBK-01..NN` (exact count fixed in Step 5);
+- `brain/development/processing_window.py` (extend with a new
+  closed `FeedbackMode` member, a pure deterministic
+  `build_cohmon_summary_text` helper that accepts only primitives,
+  and the widened `_V1_EMITTED_SOURCES` set that includes
+  `InternalEventSource.COHMON_SUMMARY`);
+- `brain/ui/session.py` (extend `_run_processing_window` to
+  optionally fire a coherence-summary chunk after each rehearsal
+  when the mode is `COHERENCE` or `PATTERN_AND_COHERENCE`; add a
+  bounded `_run_cohmon_feedback_step` helper that calls
+  `build_full_coherence_report` via a local deferred import to
+  avoid the circular `coherence_monitor <-> session` dependency at
+  module load time);
+- `INVARIANT_CATALOG.md` v0.27 -> v0.28 with bounded new row family
+  `I-CFBK-01..NN` (exact count fixed in Step 5);
 - new fixtures under `brain/ui/fixtures/`.
 
 Preferred campaign branch:
 
 ```text
-campaign/phase3-19-internal-feedback-loop
+campaign/phase3-20-coherence-feedback-bridge
 ```
 
 Preferred final PR title:
 
 ```text
-phase3.19: internal feedback loop prototype
+phase3.20: coherence feedback bridge
 ```
 
 Rules:
@@ -75,10 +90,11 @@ Rules:
 work on the campaign branch
 commit successful step results
 push every successful step commit to the campaign branch
-finish by opening a PR into main
+finish by opening a PR into the correct base (Phase 3.19 branch
+  while PR #24 is open; main once PR #24 merges)
 never push campaign work directly to main
 never merge without explicit user approval
-never edit brain/tick.py in Phase 3.19
+never edit brain/tick.py in Phase 3.20
 ```
 
 ---
@@ -94,10 +110,14 @@ README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
-PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
+PHASE3_20_COHERENCE_FEEDBACK_BRIDGE_ROADMAP.md
 docs/campaigns/phase3_18/PHASE3_18_HUMAN_DEVELOPMENT_SYNTHESIS.md
 docs/campaigns/phase3_18/PHASE3_18_PATTERN_RECOGNITION_DEMO.md
 docs/campaigns/phase3_18/PHASE3_18_AUDIT.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_SYNTHESIS.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_BEHAVIOR_REPORT.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_FINDINGS.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_AUDIT.md
 brain/development/processing_window.py
 brain/development/pattern_ledger.py
 brain/development/coherence_monitor.py
@@ -125,24 +145,22 @@ Then read whichever files the next campaign step names.
 
 ## Baseline
 
-Expected current state:
+Expected current state at campaign start (pre-Step-7):
 
 ```text
-Catalog: v0.27
+Catalog: v0.28
 Counts:
-  REQUIRED:        283
-  STRUCTURAL:       90
+  REQUIRED:        284
+  STRUCTURAL:       91
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
-Latest completed campaign:    Phase 3.18 Bounded Internal Processing
-                              Window (PR #23)
-Current campaign:             Phase 3.19 Internal Feedback Loop
-                              Prototype
-Next eligible step:           Step 8 internal feedback behavior
-                              report (Steps 1-7 + Review Gate A
-                              complete)
-Canonical design seed:        PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
+Latest completed campaign:    Phase 3.19 Internal Feedback Loop
+                              Prototype (PR #24 open against main)
+Current campaign:             Phase 3.20 Coherence Feedback Bridge
+                              (Step 7 implementation landed)
+Next eligible step:           Step 8 behavior report
+Canonical design seed:        PHASE3_20_COHERENCE_FEEDBACK_BRIDGE_ROADMAP.md
 ```
 
 Inherited follow-ups deliberately deferred:
@@ -153,43 +171,46 @@ Inherited follow-ups deliberately deferred:
   DEFERRED at catalog level.
 - I-LLMCACHE-21 / I-LLMCACHE-22 remain NOT-EXERCISED.
 - Tracer wiring through OperatorSession.dispatch remains DEFERRED.
-- Coherence Monitor feedback (architecture C) may ship as a v1
-  read-only branch or remain DEFERRED depending on Step 4 LOCK F.
-- Combined pattern + coherence feedback (architecture D) is
-  DEFERRED unless Step 5 explicitly bundles it.
-- REPL / worldlet feedback (architectures D / E) remain
-  DEFERRED.
+- REPL / worldlet feedback (architectures D / E from Phase 3.19's
+  taxonomy) remain DEFERRED.
 - Real-model reflection over feedback events remains DEFERRED.
+- Combined pattern + coherence feedback mode
+  (PATTERN_AND_COHERENCE) ships only if Step 5 explicitly bundles
+  it as a bounded composition of the two existing helpers and the
+  Step 6 review gate accepts; otherwise DEFERRED to Phase 3.21.
+- Any change to Coherence Monitor's check set, status enum, or
+  source labels remains OUT OF SCOPE for v1 (LOCK E).
 ```
 
 ---
 
 ## Operational target
 
-Phase 3.19 uses this operational definition:
+Phase 3.20 uses this operational definition:
 
 ```text
-Bounded internal feedback WORKS iff:
-  - OperatorSession.feedback_mode = FEEDBACK_MODE_PATTERN_LEDGER
+Bounded coherence feedback WORKS iff:
+  - OperatorSession.feedback_mode = FeedbackMode.COHERENCE
+    (and, if Step 5 bundles it, FeedbackMode.PATTERN_AND_COHERENCE)
     drives _run_processing_window to emit, in addition to the
-    Phase 3.18 rehearsal chunks, a bounded number of feedback
-    chunks whose text is a deterministic Pattern Ledger summary
-    string derived from the live entry's pattern_id /
-    recurrence_count / saturation_state.
-  - Each feedback chunk has provenance prefix
-    "internal_processing_window:<k>:pledger_summary".
-  - Each feedback chunk drives Pattern Ledger.observe and Growth
-    Ledger.observe through the existing _append_stream_chunk
-    call site (no new emission code, no new GrowthEventType).
-  - The feedback chunks produce SECOND-ORDER Pattern Ledger
-    entries whose structural signature differs from the seed
-    chunk's structural signature (they are derived from a
-    different deterministic text shape).
-  - Pattern Ledger reaches a final state with: 1 first-order
-    entry (the seed pattern) AND 1 second-order entry (the
-    feedback pattern); both have deterministic pattern_ids.
-  - Recurrence counts match deterministic formulas (no off-by-
-    one, no float drift).
+    Phase 3.18 rehearsal chunks (and, under
+    PATTERN_AND_COHERENCE, the Phase 3.19 pledger_summary chunks),
+    a bounded number of coherence-summary feedback chunks whose
+    text is a deterministic
+    "cohmon_summary overall=<status> pass=<np> warn=<nw>
+     fail=<nf> na=<nna> checks=<nc>"
+    string derived from the live Coherence Monitor report observed
+    after the rehearsal.
+  - Each coherence-summary chunk has provenance prefix
+    "internal_processing_window:<k>:cohmon_summary".
+  - Each coherence-summary chunk drives Pattern Ledger.observe and
+    Growth Ledger.observe through the existing
+    _append_stream_chunk call site (no new emission code, no new
+    GrowthEventType, no new GrowthEventSource).
+  - The coherence-summary chunks produce additional second-order
+    Pattern Ledger entries whose structural signature differs from
+    the seed entry's signature and from the Phase 3.19
+    pledger_summary entry's signature.
   - Same input + same configuration produces the same Pattern
     Ledger / Growth Ledger state across runs / processes / OSes.
   - Zero real model calls; brain/tick.py untouched; cache
@@ -197,16 +218,22 @@ Bounded internal feedback WORKS iff:
     preserved.
   - The non-claim audit (canonical
     _FORBIDDEN_NON_CLAIM_TERMS tuple) passes against the new
-    feedback-summary text generator and every bounded printable
+    coherence-summary text generator and every bounded printable
     string the module produces.
+  - The closed import discipline of
+    brain/development/processing_window.py is preserved: the
+    module does NOT import brain.development.coherence_monitor or
+    brain.ui.session. The new helper accepts only bounded
+    primitives (status value string, integer counts).
+  - The widened _V1_EMITTED_SOURCES set is
+    {REHEARSAL, PLEDGER_SUMMARY, COHMON_SUMMARY}; the
+    build_rehearsal_provenance helper no longer raises for
+    COHMON_SUMMARY but still composes a bounded printable
+    non-claim-clean provenance string.
 
-Coherence Monitor feedback (architecture C) SHIPS only if Step 4
-LOCK F authorizes a bounded read-only summary that does NOT touch
-truth claims, scalar I-ness, or aggregate scoring; otherwise
-DEFERRED.
-
-Combined feedback (architecture D) is DEFERRED unless Step 5
-explicitly bundles it.
+Combined feedback (PATTERN_AND_COHERENCE) SHIPS only if Step 5
+explicitly bundles it as a bounded composition of the two existing
+helpers; otherwise DEFERRED to Phase 3.21.
 ```
 
 ---
@@ -215,7 +242,7 @@ explicitly bundles it.
 
 ```text
 Max 20 real external model-backed calls total across the campaign.
-Phase 3.19 expects to consume ZERO real model calls because the
+Phase 3.20 expects to consume ZERO real model calls because the
   feedback path uses STREAM_APPEND which does not invoke
   brain.tick.tick or the LLM.
 Stop before exceeding 20.
@@ -232,7 +259,9 @@ no Growth Ledger semantic change (no new GrowthEventType, no new
   GrowthEventSource)
 no Pattern Ledger semantic change (no new SourceKind, no new
   saturation state, no signature shape change)
-no Coherence Monitor semantic change
+no Coherence Monitor semantic change (no new check, no new
+  status, no new source label, no mutation of any kernel
+  container; the monitor stays read-only)
 no L1 cache semantic change
 no L2 (eval_v1) semantic change
 no parser change
@@ -267,7 +296,12 @@ no raw codex invocation outside the sanctioned bridges
 no Stage C.1 broad repo edits
 no unbounded Codex collaboration loop
 no unbounded state growth
-no runtime change that elevates the "internal feedback" surface
+no brain.development.coherence_monitor import inside
+  brain/development/processing_window.py (I-PWND-02 import
+  discipline)
+no PASS/WARN/FAIL/NOT_APPLICABLE treated as truth claims; they
+  remain structural statuses only
+no runtime change that elevates the "coherence feedback" surface
   above bounded printable record identifiers + ints + Fractions
 ```
 
@@ -277,8 +311,8 @@ no runtime change that elevates the "internal feedback" surface
 
 ```text
 Step 1   Mission sync + roadmap
-Step 2   Internal feedback synthesis
-Step 3   Internal feedback probe matrix
+Step 2   Coherence feedback synthesis
+Step 3   Coherence feedback probe matrix
 Step 4   Corrigenda / design locks
 Step 5   Catalog patch plan
 Step 6   Review Gate A
@@ -379,15 +413,15 @@ disclosure block defined in `CURRENT_MISSION.md`.
 
 # Step 1 — Mission sync + roadmap
 
-Purpose: install Phase 3.19 as the current mission and land the
-Phase 3.19 roadmap at repo root.
+Purpose: install Phase 3.20 as the current mission and land the
+Phase 3.20 roadmap at repo root.
 
 Allowed files:
 
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
+PHASE3_20_COHERENCE_FEEDBACK_BRIDGE_ROADMAP.md
 ```
 
 Forbidden in Step 1:
@@ -404,84 +438,90 @@ scenarios/**
 traces/**
 ```
 
-Required work: write Phase 3.19 mission / campaign / roadmap;
+Required work: write Phase 3.20 mission / campaign / roadmap;
 verify gate_runner --json green.
 
 Commit message:
 
 ```text
-phase3.19 step1: internal feedback mission sync
+phase3.20 step1: coherence feedback mission sync
 ```
 
 Push.
 
 ---
 
-# Step 2 — Internal feedback synthesis
+# Step 2 — Coherence feedback synthesis
 
 Create:
 
 ```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_SYNTHESIS.md
+docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_SYNTHESIS.md
 ```
 
-Required analysis (per Phase 3.19 mission):
+Required analysis (per Phase 3.20 mission):
 
 ```text
-1. Current Phase 3.18 mechanism (rehearsal-only).
-2. Gap (recurrence does not feed back; Coherence Monitor is
-   read-only; Growth Ledger records; no REPL/worldlet
-   participation).
-3. Proposed feedback loop and event shape.
-4. Candidate architectures A-F (see roadmap).
-5. Human-development analogy (carefully bounded).
+1. Current Phase 3.19 mechanism (rehearsal + pledger_summary
+   feedback).
+2. Gap (Coherence Monitor output is read-only; COHMON_SUMMARY
+   remains reserved; coherence results do not yet re-enter
+   internal processing).
+3. Proposed coherence feedback loop and event shape.
+4. Candidate architectures A-E (session-level builder vs narrow
+   helper vs direct import vs deferred vs combined).
+5. Preferred architecture (session-level builder + bounded
+   primitive helper on processing_window.py).
 6. Testable hypotheses H1-H7.
-7. Recommended v1 (pattern-ledger feedback only; coherence
-   feedback either bundled bounded-read-only or DEFERRED;
-   no model-generated reflection; no SelfModel).
+7. Recommended v1 (FeedbackMode.COHERENCE; pure
+   build_cohmon_summary_text accepting only primitives;
+   COHMON_SUMMARY unlocked; combined PATTERN_AND_COHERENCE bundled
+   only if simple and bounded).
 ```
 
 Commit message:
 
 ```text
-phase3.19 step2: internal feedback synthesis
+phase3.20 step2: coherence feedback synthesis
 ```
 
 Push.
 
 ---
 
-# Step 3 — Internal feedback probe matrix
+# Step 3 — Coherence feedback probe matrix
 
 Create:
 
 ```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_PROBE_MATRIX.md
+docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_PROBE_MATRIX.md
 ```
 
 Matrix:
 
 ```text
 - window sizes: 0, 5, 10, 50
-- modes: rehearsal-only, pattern feedback, coherence feedback (if
-  in scope), combined feedback (if in scope)
+- modes: OFF, PATTERN_LEDGER, COHERENCE,
+  PATTERN_AND_COHERENCE (planned if not yet implemented)
 - inputs: repeated motif, contradiction pair, self-reference
   phrase, neutral factual text, emotionally valenced text
 - measurements: stream chunk count, rehearsal step count, pattern
-  entries, recurrence_count, confidence, saturation_state, Growth
-  Ledger events, Coherence Monitor status, model call count if
-  any, L1 / L2 cache counters if any, state mutation footprint,
-  invariant status
+  feedback chunk count, coherence feedback chunk count, pattern
+  entries, recurrence_count, confidence, saturation_state,
+  CoherenceReport overall_status, CoherenceCheck statuses, Growth
+  Ledger events, model call count if any, L1 / L2 cache counters
+  if any, state mutation footprint, invariant status, non-claim
+  scan result
 ```
 
-If implementation does not yet support feedback, mark cells as
-planned/probe-blocked and state exactly what runtime surface is
-missing.
+If implementation does not yet support coherence feedback, mark
+cells as planned/probe-blocked and state exactly what runtime
+surface is missing.
 
 Commit message:
 
 ```text
-phase3.19 step3: internal feedback probe matrix
+phase3.20 step3: coherence feedback probe matrix
 ```
 
 Push.
@@ -493,15 +533,15 @@ Push.
 Create:
 
 ```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_CORRIGENDA.md
+docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_CORRIGENDA.md
 ```
 
-Lock LOCK A through LOCK J as described in the mission.
+Lock LOCK A through LOCK K as described in the mission.
 
 Commit message:
 
 ```text
-phase3.19 step4: internal feedback corrigenda
+phase3.20 step4: coherence feedback corrigenda
 ```
 
 Push.
@@ -513,7 +553,7 @@ Push.
 Create:
 
 ```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_CATALOG_PATCH_PLAN.md
+docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_CATALOG_PATCH_PLAN.md
 ```
 
 Must include: exact implementation architecture, exact files,
@@ -524,7 +564,7 @@ review-gate decision request.
 Commit message:
 
 ```text
-phase3.19 step5: internal feedback catalog patch plan
+phase3.20 step5: coherence feedback catalog patch plan
 ```
 
 Push.
@@ -534,8 +574,8 @@ Push.
 # Step 6 — Review Gate A
 
 Apply the autonomy authorization from `CURRENT_MISSION.md`. If
-all ten conditions pass, record `Review Gate A — ACCEPT PLAN AS
-WRITTEN` and proceed. If any fails, stop.
+all eleven conditions pass, record `Review Gate A — ACCEPT PLAN
+AS WRITTEN` and proceed. If any fails, stop.
 
 This step does NOT change files. Commit only if the gate-status
 record is part of an updated doc artifact created in step 5 or
@@ -545,27 +585,30 @@ record is part of an updated doc artifact created in step 5 or
 
 # Step 7 — Apply implementation
 
-Implement bounded internal feedback per the accepted plan. Required
-properties:
+Implement bounded coherence feedback per the accepted plan.
+Required properties:
 
 ```text
-- bounded deterministic feedback
+- bounded deterministic coherence feedback
 - no tick.py change
 - no real model calls by default
 - no unbounded growth
-- provenance on every internal feedback artifact
+- provenance on every coherence-feedback artifact
 - no raw prompt/model response
+- no scalar score
+- PASS/WARN/FAIL/NOT_APPLICABLE are structural statuses only
 - closed enums where appropriate
-- constructor validation, no silent clamp except where existing
-  pattern uses saturation
+- constructor validation
 - tests for N = 0, 5, 10, 50
 - tests for no non-claim language
+- tests that COHMON_SUMMARY no longer raises (since v1 emits it)
+- tests that coherence feedback creates a distinct pattern entry
 ```
 
 Commit message:
 
 ```text
-phase3.19 step7: implement internal feedback loop
+phase3.20 step7: implement coherence feedback bridge
 ```
 
 Push.
@@ -577,19 +620,21 @@ Push.
 Create:
 
 ```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_BEHAVIOR_REPORT.md
+docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_BEHAVIOR_REPORT.md
 ```
 
 Run and report:
 
 ```text
-- rehearsal-only baseline
-- pattern feedback
-- coherence feedback if implemented
-- combined feedback if implemented
+- OFF baseline
+- PATTERN_LEDGER baseline
+- COHERENCE feedback
+- combined PATTERN_AND_COHERENCE if implemented
 - N = 0 / 5 / 10 / 50
 - deterministic repeatability
 - distinct input independence
+- coherence status output
+- recurrence effects
 - saturation / cap behavior
 - cache / call count if any
 - invariant gates
@@ -599,7 +644,7 @@ Run and report:
 Commit message:
 
 ```text
-phase3.19 step8: internal feedback behavior report
+phase3.20 step8: coherence feedback behavior report
 ```
 
 Push.
@@ -611,7 +656,7 @@ Push.
 Create:
 
 ```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_FINDINGS.md
+docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_FINDINGS.md
 ```
 
 Classify:
@@ -628,7 +673,7 @@ Classify:
 Commit message:
 
 ```text
-phase3.19 step9: internal feedback findings
+phase3.20 step9: coherence feedback findings
 ```
 
 Push.
@@ -640,7 +685,7 @@ Push.
 Create:
 
 ```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_AUDIT.md
+docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_AUDIT.md
 ```
 
 Verdict options:
@@ -648,8 +693,8 @@ Verdict options:
 ```text
 PASS                          : feedback path implemented and
                                 demonstrated end-to-end
-PASS WITH DEFERRED FOLLOW-UPS : feedback path shipped; coherence
-                                feedback or combined feedback
+PASS WITH DEFERRED FOLLOW-UPS : feedback path shipped; combined
+                                mode or REPL/worldlet feedback
                                 deferred
 PARTIAL                       : feedback path partial
 BLOCKED                       : feedback path blocked at design
@@ -676,7 +721,7 @@ bridge usage disclosure; next-campaign note.
 Commit message:
 
 ```text
-phase3.19 step10: final internal feedback audit
+phase3.20 step10: final coherence feedback audit
 ```
 
 Push.
@@ -685,16 +730,19 @@ Push.
 
 # Step 11 — PR preparation
 
-Open a PR to main with title:
+Open a PR with title:
 
 ```text
-phase3.19: internal feedback loop prototype
+phase3.20: coherence feedback bridge
 ```
 
-PR body must include: PR URL, base/head, catalog version/counts,
-what feedback was implemented, whether pattern recurrence now feeds
-back into later processing, whether coherence feedback is included
-or deferred, whether 50-tick processing window remains recommended,
+Base resolution: target `campaign/phase3-19-internal-feedback-loop`
+while PR #24 remains open; retarget to `main` once PR #24 has
+merged. PR body must include: PR URL, base/head, catalog
+version/counts, what coherence feedback was implemented, whether
+pattern recurrence and coherence status now both feed back into
+later processing, whether combined mode is implemented or
+deferred, whether 50-tick processing window remains recommended,
 validation, real model calls used, non-claims, next campaign
 recommendation.
 

@@ -1,24 +1,35 @@
 """Phase 3.18 Bounded Internal Processing Window substrate
-(extended by Phase 3.19 Internal Feedback Loop).
+(extended by Phase 3.19 Internal Feedback Loop and Phase 3.20
+Coherence Feedback Bridge).
 
 A session-level rehearsal + feedback helper. After a successful
 external STREAM_APPEND dispatch, the session fires up to N
 internal STREAM_APPEND events whose text is the EXACT text of the
 most recent operator chunk (the Phase 3.18 rehearsal path).
-When :class:`FeedbackMode` is :data:`FeedbackMode.PATTERN_LEDGER`,
-each rehearsal is followed by a deterministic Pattern Ledger
-summary chunk whose text is built by
-:func:`build_pledger_summary_text` and re-enters the same
-STREAM_APPEND path. The summary chunk's structural signature
-differs from the seed chunk's, so Pattern Ledger.observe records
-a second-order pattern entry distinct from the seed entry.
+When :class:`FeedbackMode` is :data:`FeedbackMode.PATTERN_LEDGER`
+(or :data:`FeedbackMode.PATTERN_AND_COHERENCE`), each rehearsal
+is followed by a deterministic Pattern Ledger summary chunk whose
+text is built by :func:`build_pledger_summary_text` and re-enters
+the same STREAM_APPEND path. When :class:`FeedbackMode` is
+:data:`FeedbackMode.COHERENCE` (or
+:data:`FeedbackMode.PATTERN_AND_COHERENCE`), each rehearsal is
+followed by a deterministic Coherence Monitor summary chunk whose
+text is built by :func:`build_cohmon_summary_text` from bounded
+primitives the session extracts from a live
+:func:`brain.development.coherence_monitor.build_full_coherence_report`
+call. Each summary chunk's structural signature differs from the
+seed chunk's signature (and from the other summary family's
+signature), so Pattern Ledger.observe records additional
+second-order pattern entries distinct from the seed entry.
 
 The module is deliberately closed:
 
 * No I/O, no network, no shell, no LLM, no ``brain.tick`` import,
-  no ``brain.ui.session`` import (one-way dependency), no curses,
-  no threading / asyncio / atexit / signal / importlib / time /
-  random.
+  no ``brain.ui.session`` import (one-way dependency), no
+  ``brain.development.coherence_monitor`` import (the
+  coherence-feedback path takes bounded primitives the caller
+  already extracted), no curses, no threading / asyncio / atexit
+  / signal / importlib / time / random.
 * No callable / handle / client field appears on any record this
   module produces.
 * Every bounded printable string this module produces is audited
@@ -26,8 +37,9 @@ The module is deliberately closed:
   by the static-audit fixtures; the module's own assertion is a
   matching list at the bottom of the file.
 
-Drives Phase 3.18 catalog rows ``I-PWND-01`` and ``I-PWND-02``
-and Phase 3.19 catalog rows ``I-IFBK-01`` and ``I-IFBK-02``.
+Drives Phase 3.18 catalog rows ``I-PWND-01`` and ``I-PWND-02``,
+Phase 3.19 catalog rows ``I-IFBK-01`` and ``I-IFBK-02``, and
+Phase 3.20 catalog rows ``I-CFBK-01`` and ``I-CFBK-02``.
 """
 from __future__ import annotations
 
@@ -97,38 +109,54 @@ class InternalEventSource(str, Enum):
 
     REHEARSAL = "rehearsal"
     PLEDGER_SUMMARY = "pledger_summary"  # Phase 3.19 v1-emitted
-    COHMON_SUMMARY = "cohmon_summary"  # reserved (Phase 3.19 LOCK F)
+    COHMON_SUMMARY = "cohmon_summary"  # Phase 3.20 v1-emitted
 
 
 _V1_EMITTED_SOURCES: frozenset[InternalEventSource] = frozenset({
     InternalEventSource.REHEARSAL,
     InternalEventSource.PLEDGER_SUMMARY,
+    InternalEventSource.COHMON_SUMMARY,
 })
 
 
 class FeedbackMode(str, Enum):
-    """Finite closed enumeration of internal feedback modes (I-IFBK-02).
+    """Finite closed enumeration of internal feedback modes
+    (I-IFBK-02 / I-CFBK-02).
 
-    Phase 3.19 v1 ships exactly two members:
+    Phase 3.20 v1 ships exactly four members:
 
     * ``OFF`` — no feedback chunk is generated; the processing
       window's rehearsal path is bit-identical to Phase 3.18.
     * ``PATTERN_LEDGER`` — after each rehearsal, one deterministic
       Pattern Ledger summary chunk re-enters the STREAM_APPEND
       path under provenance
-      ``"internal_processing_window:<k>:pledger_summary"``.
-
-    Coherence-monitor feedback (architecture C) is DEFERRED per
-    LOCK F; no ``COHERENCE`` member is exposed.
+      ``"internal_processing_window:<k>:pledger_summary"``
+      (Phase 3.19).
+    * ``COHERENCE`` — after each rehearsal, one deterministic
+      Coherence Monitor summary chunk re-enters the STREAM_APPEND
+      path under provenance
+      ``"internal_processing_window:<k>:cohmon_summary"``
+      (Phase 3.20). The session is responsible for building a
+      fresh :class:`~brain.development.coherence_monitor.CoherenceReport`
+      and extracting the bounded primitives this module's
+      :func:`build_cohmon_summary_text` accepts.
+    * ``PATTERN_AND_COHERENCE`` — composition of
+      ``PATTERN_LEDGER`` and ``COHERENCE``: after each rehearsal,
+      both the pledger_summary chunk and the cohmon_summary chunk
+      fire (in that fixed order).
     """
 
     OFF = "off"
     PATTERN_LEDGER = "pattern_ledger"
+    COHERENCE = "coherence"
+    PATTERN_AND_COHERENCE = "pattern_and_coherence"
 
 
 _FEEDBACK_MODE_VALID: frozenset[FeedbackMode] = frozenset({
     FeedbackMode.OFF,
     FeedbackMode.PATTERN_LEDGER,
+    FeedbackMode.COHERENCE,
+    FeedbackMode.PATTERN_AND_COHERENCE,
 })
 
 
@@ -145,6 +173,24 @@ PLEDGER_SUMMARY_TEXT_PREFIX: str = "pledger_summary"
 #: " sat=" (5) + "quiesced" (8) = 123. Well under
 #: STREAM_TEXT_MAX_LEN = 1024.
 PLEDGER_SUMMARY_TEXT_MAX_LEN: int = 240
+
+
+#: Bounded printable prefix that every coherence-summary text begins
+#: with. Locked to a non-claim-clean structural marker.
+COHMON_SUMMARY_TEXT_PREFIX: str = "cohmon_summary"
+
+
+#: Bounded printable max length of the deterministic summary text
+#: produced by :func:`build_cohmon_summary_text`. Computed
+#: conservatively over the legal input domain at v0.27 Coherence
+#: Monitor bounds: the prefix (14) + " overall=" (9) + max-length
+#: overall_status_value "not_applicable" (14) + " pass=" (6) +
+#: 2-digit count (2) + " warn=" (6) + 2-digit count (2) +
+#: " fail=" (6) + 2-digit count (2) + " na=" (4) + 2-digit count
+#: (2) + " checks=" (8) + 2-digit count (2) = 77 chars. The
+#: locked cap doubles that for headroom. Well under
+#: STREAM_TEXT_MAX_LEN = 1024.
+COHMON_SUMMARY_TEXT_MAX_LEN: int = 160
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +340,30 @@ _PLEDGER_SUMMARY_VALID_SAT_STATES: frozenset[str] = frozenset({
 })
 
 
+#: Bounded printable closed set of valid ``overall_status`` value
+#: strings for :func:`build_cohmon_summary_text`. Mirrors the
+#: ``CoherenceCheckStatus`` enum values without importing the
+#: enum itself (the audit forbids
+#: ``brain.development.coherence_monitor`` imports here; the
+#: bounded helper accepts the string value the caller already
+#: extracted from ``CoherenceReport.overall_status.value``).
+_COHMON_SUMMARY_VALID_OVERALL_STATUS_VALUES: frozenset[str] = frozenset({
+    "pass",
+    "warn",
+    "fail",
+    "not_applicable",
+})
+
+
+#: Inclusive upper bound for each per-status count accepted by
+#: :func:`build_cohmon_summary_text`. Mirrors
+#: ``brain.development.coherence_monitor.COHERENCE_MAX_CHECKS = 64``
+#: without importing it. The helper rejects any count above this
+#: ceiling so a future Coherence Monitor cap change cannot
+#: silently widen the produced text.
+_COHMON_SUMMARY_MAX_COUNT: int = 64
+
+
 def build_pledger_summary_text(
     *,
     pattern_id: str,
@@ -391,6 +461,127 @@ def build_pledger_summary_text(
     if composed == COGITO_ID:
         raise ValueError(
             "processing window: composed summary must not equal COGITO_ID"
+        )
+    return composed
+
+
+def build_cohmon_summary_text(
+    *,
+    overall_status_value: str,
+    pass_count: int,
+    warn_count: int,
+    fail_count: int,
+    na_count: int,
+    check_count: int,
+) -> str:
+    """Build the deterministic Coherence Monitor summary text (I-CFBK-02).
+
+    Produces a bounded printable string of the locked shape::
+
+        "cohmon_summary overall=<status> pass=<np> warn=<nw> fail=<nf> na=<nna> checks=<nc>"
+
+    Pure function: no I/O, no time, no random, no PID, no hostname,
+    no ``id()``. Same inputs yield the same output across runs /
+    processes / OSes. Caller responsibilities:
+
+    * ``overall_status_value`` is the value of
+      ``CoherenceReport.overall_status`` (a member of
+      ``CoherenceCheckStatus``). Must be in the closed set
+      ``{"pass", "warn", "fail", "not_applicable"}``.
+    * Each per-status count is an int in
+      ``[0, _COHMON_SUMMARY_MAX_COUNT]`` (no bool).
+    * ``check_count`` equals
+      ``pass_count + warn_count + fail_count + na_count``. The
+      helper enforces this cross-check so a malformed report
+      cannot produce inconsistent text.
+
+    Output non-claim audit (LOCK J) is checked by the static-audit
+    fixture; the helper itself enforces only bounded-shape
+    invariants. PASS / WARN / FAIL / NOT_APPLICABLE are treated as
+    structural status labels only.
+    """
+    if not isinstance(overall_status_value, str):
+        raise ValueError(
+            "processing window: overall_status_value must be str "
+            f"(got {type(overall_status_value).__name__})"
+        )
+    if not overall_status_value:
+        raise ValueError(
+            "processing window: overall_status_value must be non-empty"
+        )
+    if not overall_status_value.isprintable():
+        raise ValueError(
+            "processing window: overall_status_value must be printable"
+        )
+    if overall_status_value == COGITO_ID:
+        raise ValueError(
+            "processing window: overall_status_value must not equal COGITO_ID"
+        )
+    if overall_status_value not in _COHMON_SUMMARY_VALID_OVERALL_STATUS_VALUES:
+        raise ValueError(
+            "processing window: overall_status_value "
+            f"{overall_status_value!r} not in "
+            f"{sorted(_COHMON_SUMMARY_VALID_OVERALL_STATUS_VALUES)!r}"
+        )
+
+    for field_name, count in (
+        ("pass_count", pass_count),
+        ("warn_count", warn_count),
+        ("fail_count", fail_count),
+        ("na_count", na_count),
+        ("check_count", check_count),
+    ):
+        if not isinstance(count, int) or isinstance(count, bool):
+            raise ValueError(
+                f"processing window: {field_name} must be int "
+                f"(got {type(count).__name__})"
+            )
+        if count < 0:
+            raise ValueError(
+                f"processing window: {field_name} must be >= 0 "
+                f"(got {count})"
+            )
+        if count > _COHMON_SUMMARY_MAX_COUNT:
+            raise ValueError(
+                f"processing window: {field_name} must be <= "
+                f"{_COHMON_SUMMARY_MAX_COUNT} (got {count})"
+            )
+
+    expected_check_count = pass_count + warn_count + fail_count + na_count
+    if check_count != expected_check_count:
+        raise ValueError(
+            "processing window: check_count "
+            f"{check_count} must equal pass+warn+fail+na "
+            f"({expected_check_count})"
+        )
+
+    composed = (
+        f"{COHMON_SUMMARY_TEXT_PREFIX} overall={overall_status_value}"
+        f" pass={pass_count} warn={warn_count}"
+        f" fail={fail_count} na={na_count}"
+        f" checks={check_count}"
+    )
+    if len(composed) > COHMON_SUMMARY_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed cohmon summary length "
+            f"{len(composed)} exceeds COHMON_SUMMARY_TEXT_MAX_LEN="
+            f"{COHMON_SUMMARY_TEXT_MAX_LEN}"
+        )
+    if len(composed) > STREAM_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed cohmon summary length "
+            f"{len(composed)} exceeds STREAM_TEXT_MAX_LEN="
+            f"{STREAM_TEXT_MAX_LEN}"
+        )
+    if not composed or not composed.isprintable():
+        raise ValueError(
+            "processing window: composed cohmon summary must be "
+            "bounded printable"
+        )
+    if composed == COGITO_ID:
+        raise ValueError(
+            "processing window: composed cohmon summary must not equal "
+            "COGITO_ID"
         )
     return composed
 
@@ -536,15 +727,20 @@ def plan_rehearsals(
 MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     PROCESSING_WINDOW_PROVENANCE_PREFIX,
     PLEDGER_SUMMARY_TEXT_PREFIX,
+    COHMON_SUMMARY_TEXT_PREFIX,
     InternalEventSource.REHEARSAL.value,
     InternalEventSource.PLEDGER_SUMMARY.value,
     InternalEventSource.COHMON_SUMMARY.value,
     FeedbackMode.OFF.value,
     FeedbackMode.PATTERN_LEDGER.value,
+    FeedbackMode.COHERENCE.value,
+    FeedbackMode.PATTERN_AND_COHERENCE.value,
 )
 
 
 __all__ = [
+    "COHMON_SUMMARY_TEXT_MAX_LEN",
+    "COHMON_SUMMARY_TEXT_PREFIX",
     "FeedbackMode",
     "InternalEventSource",
     "MODULE_PRODUCED_STRINGS",
@@ -554,6 +750,7 @@ __all__ = [
     "PROCESSING_WINDOW_PROVENANCE_PREFIX",
     "PROCESSING_WINDOW_SIZE_MAX",
     "RehearsalStep",
+    "build_cohmon_summary_text",
     "build_pledger_summary_text",
     "build_rehearsal_provenance",
     "plan_rehearsals",
