@@ -115,10 +115,17 @@ def make_fake_codex(tmp: Path) -> Path:
                 full = os.path.join(cwd, target)
                 with open(full, "a", encoding="utf-8") as fh:
                     fh.write(append_text + "\n")
+                mextra = re.search(r"EXTRA_TARGET=([^\s]+)", prompt)
+                if mextra:
+                    extra_full = os.path.join(cwd, mextra.group(1))
+                    with open(extra_full, "a", encoding="utf-8") as fh:
+                        fh.write("out-of-scope\n")
                 print(json.dumps({"type": "thread.started", "thread_id": "fake"}))
                 print(json.dumps({"type": "item.completed", "item": {"type": "command_execution", "command": "fake edit", "status": "completed"}}))
                 print(json.dumps({"type": "item.completed", "item": {"type": "file_change", "path": target, "status": "completed"}}))
                 print(json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "codex dynamic flow node report for " + target}}))
+                if "SEMANTIC_BLOAT" in prompt:
+                    print(json.dumps({"type": "thread.metadata", "blob": "y" * 8000}))
                 print(json.dumps({"type": "turn.completed", "usage": {"input_tokens": 1, "output_tokens": 1}}))
                 raise SystemExit(0)
             finally:
@@ -262,6 +269,137 @@ def case_network_transient_failure(tmp: Path, fake: Path) -> None:
         raise AssertionError("network transient error class missing")
 
 
+def case_true_semantic_oversize(tmp: Path, fake: Path) -> None:
+    repo = make_repo(tmp / "oversize")
+    man = write_manifest(tmp / "oversize.json", [
+        {"id": "bloat", "prompt": "WRITE_TARGET=a.txt\nSEMANTIC_BLOAT\nAPPEND_TEXT=ok", "allowed_files": ["a.txt"]},
+    ])
+    proc = run(
+        wrapper_cmd(repo, fake, man, tmp / "oversize", ["--max-semantic-output-chars", "200"]),
+        cwd=repo,
+    )
+    expect_code(proc, flow_orch.EXIT_CODEX_OUTPUT_TOO_LARGE, "true semantic oversize")
+    if "CODEX_OUTPUT_TOO_LARGE" not in proc.stdout:
+        raise AssertionError("true-semantic-oversize error class missing from report")
+    if (repo / "a.txt").read_text(encoding="utf-8") != "before a.txt\n":
+        raise AssertionError("live a.txt changed despite semantic-oversize failure")
+
+
+def case_out_of_scope_diff(tmp: Path, fake: Path) -> None:
+    repo = make_repo(tmp / "oos")
+    man = write_manifest(tmp / "oos.json", [
+        {"id": "oos-write", "prompt": "WRITE_TARGET=a.txt\nEXTRA_TARGET=b.txt\nAPPEND_TEXT=ok", "allowed_files": ["a.txt"]},
+    ])
+    proc = run(wrapper_cmd(repo, fake, man, tmp / "oos"), cwd=repo)
+    expect_code(proc, flow_orch.EXIT_OUT_OF_SCOPE_DIFF, "out-of-scope diff rejection")
+    if "OUT_OF_SCOPE_DIFF" not in proc.stdout:
+        raise AssertionError("out-of-scope error class missing from report")
+    if (repo / "a.txt").read_text(encoding="utf-8") != "before a.txt\n":
+        raise AssertionError("live a.txt changed despite out-of-scope rejection")
+    if (repo / "b.txt").read_text(encoding="utf-8") != "before b.txt\n":
+        raise AssertionError("live b.txt changed despite out-of-scope rejection")
+
+
+def case_all_or_nothing_apply(tmp: Path, fake: Path) -> None:
+    """Parallel nodes: one would succeed alone, the other fails out-of-scope.
+    The wrapper must reject the flow and leave the live repo entirely unchanged.
+    """
+    repo = make_repo(tmp / "aon")
+    man = write_manifest(tmp / "aon.json", [
+        {
+            "id": "ok-node",
+            "prompt": "WRITE_TARGET=a.txt\nSLEEP_MS=200\nAPPEND_TEXT=OK_NODE",
+            "allowed_files": ["a.txt"],
+        },
+        {
+            "id": "fail-node",
+            "prompt": "WRITE_TARGET=b.txt\nEXTRA_TARGET=c.txt\nSLEEP_MS=200\nAPPEND_TEXT=FAIL_NODE",
+            "allowed_files": ["b.txt"],
+        },
+    ])
+    proc = run(wrapper_cmd(repo, fake, man, tmp / "aon"), cwd=repo)
+    if proc.returncode == 0:
+        raise AssertionError(
+            f"all-or-nothing flow should have failed; stdout={proc.stdout!r}"
+        )
+    if "OUT_OF_SCOPE_DIFF" not in proc.stdout:
+        raise AssertionError("expected OUT_OF_SCOPE_DIFF in failure report")
+    for name in ("a.txt", "b.txt", "c.txt"):
+        live_text = (repo / name).read_text(encoding="utf-8")
+        if live_text != f"before {name}\n":
+            raise AssertionError(
+                f"all-or-nothing violated: live {name} changed to {live_text!r}"
+            )
+    porcelain = run(["git", "status", "--porcelain"], cwd=repo)
+    if porcelain.stdout.strip() != "":
+        raise AssertionError(
+            f"all-or-nothing violated: live repo not clean: {porcelain.stdout!r}"
+        )
+
+
+def case_audit_hash_only(tmp: Path, fake: Path) -> None:
+    """Audit JSONL must hash the manifest and per-node prompts. No raw prompt
+    text or task description text may be persisted in audit records."""
+    repo = make_repo(tmp / "audit")
+    secret_marker = "SECRET_NODE_PROMPT_marker_xyz123_DONOTPERSIST"
+    secret_task = "SECRET_TASK_marker_qrs789_DONOTPERSIST"
+    manifest_obj = {
+        "task": secret_task,
+        "nodes": [
+            {
+                "id": "audit-ok",
+                "prompt": f"WRITE_TARGET=a.txt\nAPPEND_TEXT={secret_marker}",
+                "allowed_files": ["a.txt"],
+            }
+        ],
+    }
+    manifest_path = tmp / "audit.json"
+    manifest_path.write_text(json.dumps(manifest_obj, indent=2), encoding="utf-8")
+    proc = run(wrapper_cmd(repo, fake, manifest_path, tmp / "audit"), cwd=repo)
+    expect_code(proc, 0, "audit hash-only run")
+
+    audit_dir = tmp / "audit" / "audit"
+    audit_files = sorted(audit_dir.glob("*.jsonl"))
+    if not audit_files:
+        raise AssertionError("no audit jsonl record was written")
+    total_records = 0
+    for ap in audit_files:
+        raw = ap.read_text(encoding="utf-8")
+        if secret_marker in raw:
+            raise AssertionError(f"raw node prompt content persisted in {ap}")
+        if secret_task in raw:
+            raise AssertionError(f"raw task content persisted in {ap}")
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            total_records += 1
+            if not rec.get("manifest_sha256"):
+                raise AssertionError("audit record missing manifest_sha256")
+            prompt_sha = rec.get("node_prompt_sha256")
+            if not isinstance(prompt_sha, dict) or "audit-ok" not in prompt_sha:
+                raise AssertionError("audit record missing node_prompt_sha256 for node")
+            for key, value in rec.items():
+                if isinstance(value, str):
+                    if secret_marker in value or secret_task in value:
+                        raise AssertionError(f"raw prompt/task content found in audit field {key!r}")
+            if "prompt" in rec or "task_text" in rec or "manifest_text" in rec:
+                raise AssertionError("audit record contains non-hash prompt/task/manifest text")
+    if total_records < 1:
+        raise AssertionError("audit jsonl had zero parseable records")
+
+    expected_manifest_sha = flow_orch.sha256_text(
+        json.dumps(manifest_obj, sort_keys=True)
+    )
+    expected_prompt_sha = flow_orch.sha256_text(manifest_obj["nodes"][0]["prompt"])
+    last_record = json.loads(
+        [ln for ln in audit_files[-1].read_text(encoding="utf-8").splitlines() if ln.strip()][-1]
+    )
+    if last_record["node_prompt_sha256"]["audit-ok"] != expected_prompt_sha:
+        raise AssertionError("audit node_prompt_sha256 does not match sha256 of node prompt")
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
@@ -269,6 +407,10 @@ def main() -> int:
         case_in_process_rejections(tmp)
         case_dynamic_sequential_noise_flow(tmp, fake)
         case_network_transient_failure(tmp, fake)
+        case_true_semantic_oversize(tmp, fake)
+        case_out_of_scope_diff(tmp, fake)
+        case_all_or_nothing_apply(tmp, fake)
+        case_audit_hash_only(tmp, fake)
     print("codex_chatgpt_flow_orchestrator_selftest: PASS")
     return 0
 
