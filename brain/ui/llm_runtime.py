@@ -210,6 +210,7 @@ def parse_llm_runtime_args(
     cli_codex_cli_executable: Optional[str] = None
     cli_timeout: Optional[float] = None
     cli_enable_cache: bool = False
+    cli_disable_cache: bool = False
     cli_mock_responses: list[str] = []
 
     i = 0
@@ -298,6 +299,10 @@ def parse_llm_runtime_args(
             cli_enable_cache = True
             i += 1
             continue
+        if token == "--llm-disable-cache":
+            cli_disable_cache = True
+            i += 1
+            continue
         if token.startswith("--llm-mock-response="):
             cli_mock_responses.append(token[len("--llm-mock-response="):])
             i += 1
@@ -315,6 +320,34 @@ def parse_llm_runtime_args(
     # 4. CLI mode overrides env mode.
     if cli_mode_raw is not None:
         resolved_mode = _resolve_mode(cli_mode_raw)
+
+    # 4b. Cache flag conflict + Phase 3.14 default-on-for-model-backed.
+    # ``--llm-enable-cache`` + ``--llm-disable-cache`` is operator
+    # ambiguity (LOCK B / I-LLMCACHE-03) and raises before reaching the
+    # factory. Otherwise, for explicit model-backed modes the parser
+    # flips the default to enable_cache=True (LOCK B / I-LLMCACHE-02);
+    # ``--llm-disable-cache`` forces enable_cache=False for those modes.
+    # OFFLINE / MOCK never set enable_cache here; the factory keeps
+    # rejecting --llm-enable-cache for them, and --llm-disable-cache is
+    # a no-op so scripts can pass the flag uniformly (LOCK J /
+    # I-LLMCACHE-04).
+    if cli_enable_cache and cli_disable_cache:
+        raise LlmRuntimeError(
+            "--llm-enable-cache and --llm-disable-cache are mutually "
+            "exclusive"
+        )
+    if resolved_mode in (
+        LlmRuntimeMode.ANTHROPIC_API,
+        LlmRuntimeMode.CLAUDE_CLI,
+        LlmRuntimeMode.CODEX_CLI,
+    ):
+        # Default-on for model-backed; --llm-disable-cache wins over the
+        # default; --llm-enable-cache is a compatible explicit
+        # affirmation that does not change the new default.
+        if cli_disable_cache:
+            cli_enable_cache = False
+        else:
+            cli_enable_cache = True
 
     # 5. Resolve api_key precedence: CLI > BRAIN_ANTHROPIC_API_KEY >
     #    ANTHROPIC_API_KEY. Only the supplied env is consulted.
@@ -600,17 +633,17 @@ def format_startup_mode_line(config: LlmRuntimeConfig) -> str:
         explanation = "deterministic mock; no network, no shell"
     elif mode is LlmRuntimeMode.ANTHROPIC_API:
         explanation = (
-            f"anthropic-api; cache={'on' if config.enable_cache else 'off'}"
+            f"anthropic-api; cache={'on' if config.enable_cache else 'off (--llm-disable-cache)'}"
         )
     elif mode is LlmRuntimeMode.CLAUDE_CLI:
         explanation = (
             f"claude-cli; executable={config.claude_cli_executable}; "
-            f"cache={'on' if config.enable_cache else 'off'}"
+            f"cache={'on' if config.enable_cache else 'off (--llm-disable-cache)'}"
         )
     elif mode is LlmRuntimeMode.CODEX_CLI:
         explanation = (
             f"codex-cli; executable={config.codex_cli_executable}; "
-            f"cache={'on' if config.enable_cache else 'off'}"
+            f"cache={'on' if config.enable_cache else 'off (--llm-disable-cache)'}"
         )
     else:  # defensive
         explanation = "unknown mode"

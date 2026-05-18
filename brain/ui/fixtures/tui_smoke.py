@@ -416,21 +416,22 @@ def _audit_ui_source(
                             detail=f"os.{node.attr}",
                         )
                     )
-        # exec(...) / eval(...) / compile(...) / __import__(...)
-        elif isinstance(node, ast.Call):
-            func = node.func
-            name: Optional[str] = None
-            if isinstance(func, ast.Name):
-                name = func.id
-            elif isinstance(func, ast.Attribute):
-                name = func.attr
-            if name in _FORBIDDEN_BUILTIN_CALLS:
+        # exec(...) / eval(...) / compile(...) / __import__(...). These
+        # are Python builtins always invoked by bare name (``eval(prompt)``,
+        # not ``obj.eval(prompt)``). Restrict the audit to ``ast.Name``
+        # calls so legitimate methods that happen to share a builtin's
+        # name (e.g. ``LLMBackedPtCns.eval(content_id)``) are not
+        # false-flagged. Phase 3.14 LLM cache fixtures call
+        # ``LLMBackedPtCns.eval`` to exercise the cache hit / miss
+        # discipline; the original audit predates that API.
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in _FORBIDDEN_BUILTIN_CALLS:
                 findings.append(
                     _AuditFinding(
                         file=str(path),
                         line=node.lineno,
                         kind="forbidden_call",
-                        detail=f"{name}(...)",
+                        detail=f"{node.func.id}(...)",
                     )
                 )
     return findings
@@ -495,13 +496,16 @@ def check_I_UI_07_ui_has_no_forbidden_imports_or_host_execution() -> None:
         # to host throw-away SQLite databases. The Phase 3.10c autosave
         # fixtures need the same exemption because they exercise
         # save_session (and thus a temporary SQLite DB) via the typed
-        # autosave helpers. The narrow per-fixture allowlist is
+        # autosave helpers. The Phase 3.14 LLM cache fixtures need the
+        # same exemption to isolate L1 / L2 cache writes from
+        # ``brain/.llm_cache``. The narrow per-fixture allowlist is
         # documented in `_audit_ui_source`.
         is_persistence_fixture = (
             is_fixture
             and (
                 path.name.startswith("persistence_")
                 or path.name.startswith("autosave_")
+                or path.name.startswith("llm_cache_")
             )
         )
         forbid_internal = not (is_fixture or is_persistence_module)

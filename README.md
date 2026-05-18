@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.23)
+# brain — TLICA-constrained Python kernel (catalog v0.24)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -64,7 +64,11 @@ python3 -m brain.ui --llm-mode anthropic-api \
 python3 -m brain.ui --llm-mode claude-cli           # local `claude -p` CLI
 python3 -m brain.ui --llm-mode codex-cli            # local `codex exec` CLI
 python3 -m brain.ui --llm-mode anthropic-api \
-    --llm-enable-cache                              # wrap with CachedClient
+    --llm-enable-cache                              # explicit affirmation of the new
+                                                    # Phase 3.14 default (L1 cache on)
+python3 -m brain.ui --llm-mode anthropic-api \
+    --llm-disable-cache                             # Phase 3.14 opt-out: bare
+                                                    # transport, no L1 / L2 cache
 ```
 
 The `codex-cli` mode (Phase 3.11) targets the local OpenAI codex
@@ -80,10 +84,18 @@ Rules (drive the `I-LLMTOG-*` row family):
   environment does not silently widen the runtime surface.
 - API key resolution order: `--llm-anthropic-api-key`, then
   `BRAIN_ANTHROPIC_API_KEY`, then `ANTHROPIC_API_KEY`.
-- `--llm-enable-cache` is only honored for `anthropic-api` /
-  `claude-cli` / `codex-cli`; it writes under `brain/.llm_cache/`. Cache writes
-  only happen when a model-backed mode is selected and the operator
-  explicitly opts in.
+- Cache discipline (Phase 3.14): once the operator explicitly selects
+  a model-backed mode (`anthropic-api` / `claude-cli` / `codex-cli`),
+  the L1 transport cache (`CachedClient` at `brain/.llm_cache/`) is on
+  by default and the L2 canonical semantic evaluation cache (at
+  `brain/.llm_cache/eval_v1/`) is active. `--llm-disable-cache` forces
+  both layers off for the current run; `--llm-enable-cache` is an
+  explicit affirmation of the new default; supplying both flags raises
+  `LlmRuntimeError`. Offline / mock modes never read or write the
+  cache regardless of either flag, and the factory still rejects
+  `--llm-enable-cache` for those modes. Cache flags cannot promote
+  offline / mock into a model-backed mode (mode selection remains
+  governed by `--llm-mode` / `BRAIN_LLM_MODE`).
 - `--print-once` and `--check-terminal` remain independent of the
   selected client.
 - The toggle reuses the existing `LLMClient` protocol and the
@@ -387,6 +399,7 @@ Behaviour rules (enforced by the `I-UI-*` catalog rows):
 
 ## Catalog history
 
+- **v0.24** — +I-LLMCACHE-01..22 (Phase 3.14 LLM Cache Discipline: makes the existing transport prompt-hash cache default-on once a model-backed mode is explicitly selected and adds a canonical semantic evaluation cache near `brain/llm/ptcns_backed.py`). Scope: +18 REQUIRED rows, +1 STRUCTURAL row, +1 DEFERRED row, +2 NOT-EXERCISED rows; OBSERVED unchanged. L0 (`LLMBackedPtCns._cache`) is unchanged. L1 is the existing `CachedClient` at `brain/llm/client.py`; new `--llm-disable-cache` opt-out flag forces it off for model-backed modes, `--llm-enable-cache` remains an explicit affirmation, and supplying both flags raises `LlmRuntimeError`. OFFLINE / MOCK still reject `--llm-enable-cache` and accept `--llm-disable-cache` as a no-op without unlocking cache access. L2 lives inside `LLMBackedPtCns`; the key is `sha256(repr(seven_tuple))` where the seven-tuple is `(SEMANTIC_CACHE_SCHEMA_VERSION="llm-semantic-cache-v1", PROMPT_TEMPLATE_VERSION="prompt-template-v1", PARSE_SCHEMA_VERSION="consistency-eval-v1", backend_family, model_identity, existing_msi_context, new_text)`; the evaluated `new_id` is excluded from the key but retained in the rendered prompt for diagnostics. L2 entries persist exactly `{"key_prefix", "parsed"}` under `brain/.llm_cache/eval_v1/` (covered by the existing gitignored `brain/.llm_cache/` root); raw prompts, raw responses, error text, and provider metadata are never persisted. L2 is bounded by `SEMANTIC_CACHE_MAX_ENTRIES = 1024`; at cap, hits read but misses do not write, emitting `llm.semantic_cache_skip` with `reason="capacity"`. Failure classes (parse failure, provider failure, timeout, refusal / empty, schema mismatch, corrupt entry) are kept distinct and never collapse into one cache state; retries exhausted without a parse-success emit `llm.semantic_cache_skip` with `reason="parse_failure"`. Corrupt L1 / L2 entries fail loud with bounded errors and never silently call the inner client. Cache observability adds the `llm.semantic_cache_hit` / `_miss` / `_store` / `_skip` events alongside the existing `llm.cache_hit` / `_miss`; trace payloads carry only `content_id`, the 8-character `key_prefix`, and `reason`. Dependency direction is one-way (`brain/llm/ptcns_backed.py` does not import `brain.ui.*` or `brain.tick`). L1 bounding remains DEFERRED (`I-LLMCACHE-20`) because Phase 3.14 introduces no new L1 cache surface — flipping `enable_cache=True` by default activates the existing v0.16 `CachedClient`. The real external model-backed cache smoke (`I-LLMCACHE-21`) and the end-to-end Phase 3.14 behavior probe (`I-LLMCACHE-22`) are NOT-EXERCISED in v1; Step 8's behavior report exercises L1 + L2 along the deterministic local-client route. The Phase 3.14 patch does NOT modify `brain/tick.py`, `brain/development/growth_ledger.py`, `brain/development/pattern_ledger.py`, `brain/development/coherence_monitor.py`, `brain/ui/session.py`, persistence / autosave runtime files, scenarios, traces, `lean_reference/`, or `.claude/`. The Phase 3.8b cache-gated audit (`brain/ui/fixtures/llm_runtime_cache_gated.py`) and the Phase 3.11 codex-cli factory audit (`brain/ui/fixtures/llm_runtime_codex_cli_factory.py`) remain green under the new default policy because they construct `LlmRuntimeConfig` directly with explicit `enable_cache` values rather than going through the parser. `(new_state, TickRecord)` parity at the kernel boundary is preserved bit-for-bit between cached and uncached evaluations for the same client responses.
 - **v0.2** — initial Lean-bound catalog (Phase 1 / v0 implementation).
 - **v0.3** — +I-LLM-01/02/03/04, +I-RT-08, +I-BHV-01 (Phase 2 v1 LLM-backed `PtCns`).
 - **v0.4** — +I-TRACE-01 (Phase 2 v1.1 cognition trace).
@@ -435,7 +448,7 @@ If any of these is unclear at code time, the catalog is canonical. Do not relax 
 
 ### Catalog version
 
-Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.23**. Confirmation numbers: **259 REQUIRED · 86 STRUCTURAL · 12 NOT-EXERCISED · 15 DEFERRED · 16 OBSERVED · 155 fixtures** (Phase 3.13 Growth Ledger catalog patch landed the I-GROW-01..20 rows via six new fixtures under `brain/development/fixtures/growth_ledger_*.py`; I-GROW-21 is DEFERRED and I-GROW-22 is NOT-EXERCISED in v1 and neither participates in I-CAT-01 coverage). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
+Use `INVARIANT_CATALOG.md` as shipped. Version banner inside should say **v0.24**. Confirmation numbers: **277 REQUIRED · 87 STRUCTURAL · 14 NOT-EXERCISED · 16 DEFERRED · 16 OBSERVED · 163 fixtures** (Phase 3.14 LLM Cache Discipline catalog patch landed the I-LLMCACHE-01..19 rows via eight new fixtures under `brain/ui/fixtures/llm_cache_*.py`; I-LLMCACHE-20 is DEFERRED, I-LLMCACHE-21 and I-LLMCACHE-22 are NOT-EXERCISED in v1, and none of those three participates in I-CAT-01 coverage). Run `python3 -m tools.catalog counts` to verify; the strict gate fails if banner / actual / expected ever drift. If you see anything that looks like 74 REQUIRED, 92 REQUIRED, float+EPS, or `Literal[...]` for `Act`, that is an older draft and is wrong.
 
 ### Numeric core
 
@@ -533,8 +546,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.23, the expected count is:
-**259 REQUIRED · 86 STRUCTURAL · 12 NOT-EXERCISED · 15 DEFERRED · 16 OBSERVED**.
+For catalog v0.24, the expected count is:
+**277 REQUIRED · 87 STRUCTURAL · 14 NOT-EXERCISED · 16 DEFERRED · 16 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage

@@ -1,4 +1,4 @@
-# CURRENT_MISSION.md — Phase 3.13 Growth Ledger Entry Point
+# CURRENT_MISSION.md — Phase 3.14 LLM Cache Discipline Entry Point
 
 ## One-line instruction
 
@@ -8,37 +8,43 @@ When a repo-capable agent receives `/go` in this repository, it must read this f
 
 ## Current mission
 
-Execute the **Phase 3.13 Growth Ledger Campaign** in:
+Execute the **Phase 3.14 LLM Cache Discipline Campaign** in:
 
 ```text
 CURRENT_CAMPAIGN.md
 ```
 
-Phase 3.13 follows the completed Phase 3.12 Coherent I-Loop Observatory and the docs-archive / ChatGPT advisory bridge cleanup that landed alongside it. Phase 3.13 implements **Growth Ledger first**. It does **not** implement Operational SelfModel. The Phase 3.12 Step 15 roadmap recommends Growth Ledger before SelfModel because SelfModel should later quote bounded growth facts rather than infer growth from current state alone.
+Phase 3.14 follows the completed Phase 3.13 Growth Ledger and the Stage B Claude → Codex CLI → ChatGPT limited-write bridge that landed on main as PR #15. Phase 3.14 audits and fixes **LLM cache discipline**: the model-backed LLM modes can spam external models across ticks unless cache behavior is explicit, semantic, bounded, and observable. The likely implementation surface is the LLM runtime / client / cache layer (`brain/llm/client.py`, `brain/llm/ptcns_backed.py`, `brain/llm/prompts.py`, `brain/ui/llm_runtime.py`) and possibly the prompt / cache-key canonicalization. The kernel transition surface (`brain/tick.py`) is **not** authorized as the first edit target; tick semantics are frozen behind the Phase 3.14 review gate.
 
 Campaign target:
 
 ```text
-Phase 3.13 Step 1     repo-state sync and Phase 3.13 mission install
-Phase 3.13 Step 2     Growth Ledger synthesis
-Phase 3.13 Step 3     Growth Ledger kickoff
-Phase 3.13 Step 4     Growth Ledger corrigenda
-Phase 3.13 Step 5     Growth Ledger catalog patch plan
-Phase 3.13 Step 6     Review Gate A — Growth Ledger implementation
-Phase 3.13 Step 7     apply accepted Growth Ledger implementation, if approved
-Phase 3.13 Step 8     Growth Ledger behavior report
-Phase 3.13 Step 9     Growth Ledger findings / triage
-Phase 3.13 Step 10    Final Phase 3.13 audit
-Phase 3.13 Step 11    Final PR preparation
+Phase 3.14 Step 1     Repo-state sync and Phase 3.14 mission install
+Phase 3.14 Step 2     LLM cache discipline synthesis
+Phase 3.14 Step 3     LLM cache behavior probe / spam reproduction report
+Phase 3.14 Step 4     LLM cache corrigenda
+Phase 3.14 Step 5     LLM cache catalog patch plan
+Phase 3.14 Step 6     Review Gate A — LLM cache implementation
+Phase 3.14 Step 7     Apply accepted LLM cache implementation, if approved
+Phase 3.14 Step 8     LLM cache behavior report
+Phase 3.14 Step 9     LLM cache findings / triage
+Phase 3.14 Step 10    Final Phase 3.14 audit
+Phase 3.14 Step 11    Final PR preparation
 ```
 
 Intended result:
 
 ```text
-The repo contains a bounded developmental record of accepted, constructor-validated growth events, behind a review gate, with no SelfModel implementation, no consciousness/sentience/subjective/semantic/truth/agency/self-modification claim, no aggregate growth score, and no hidden persistence or LLM call.
+The repo's model-backed LLM modes use a cataloged, bounded, observable
+cache discipline that prevents redundant external model calls across
+ticks. Offline remains default. Model-backed modes remain explicit
+opt-in. No tick semantic change ships before Review Gate A. No
+consciousness / sentience / subjective / semantic / truth / agency /
+self-modification claim is introduced. No SelfModel implementation
+appears. No Growth Ledger semantic change ships.
 ```
 
-This mission is measurement-first and design-gated. The Pattern Ledger (`brain/development/pattern_ledger.py`, `I-PLEDGER-01..18`) and Coherence Monitor (`brain/development/coherence_monitor.py`, `I-COHMON-01..14`) already provide bounded structural-recurrence evidence and bounded read-only consistency reporting. Growth Ledger adds the third bounded substrate: bounded historical accepted-event evidence. SelfModel remains explicitly out of scope.
+This mission is measurement-first and design-gated. The existing `CachedClient` already supplies a SHA-256 prompt-hash disk cache under `brain/.llm_cache`; the new work is to (a) measure exactly where repeated external calls occur today, (b) decide whether the fix is enable-by-default of `CachedClient`, a canonical semantic evaluation cache, prompt-identity changes, or a combination, and (c) catalog the resulting discipline so a future agent cannot silently widen the model-backed surface.
 
 ---
 
@@ -47,7 +53,7 @@ This mission is measurement-first and design-gated. The Pattern Ledger (`brain/d
 Preferred branch:
 
 ```text
-campaign/phase3-13-growth-ledger
+campaign/phase3-14-llm-cache-discipline
 ```
 
 Rules:
@@ -67,27 +73,29 @@ never merge the PR without explicit user approval
 Expected current baseline (must match before any step runs):
 
 ```text
-Catalog: v0.23
+Catalog: v0.24
 Counts:
-  REQUIRED:        259
-  STRUCTURAL:       86
-  NOT-EXERCISED:    12
-  DEFERRED:         15
+  REQUIRED:        277
+  STRUCTURAL:       87
+  NOT-EXERCISED:    14
+  DEFERRED:         16
   OBSERVED:         16
-Latest completed campaign:    Phase 3.12 Coherent I-Loop Observatory
-Latest cleanup merged:        docs archive (PR #12)
+Latest completed campaign:    Phase 3.13 Growth Ledger (PR #14)
+Latest bridge merge:          Stage B Claude → Codex CLI → ChatGPT
+                              limited-write bridge (PR #15)
 Available advisory bridge:    Stage A /ask-chatgpt through Codex CLI wrapper
                               (PR #13)
-Canonical Phase 3.13 design seed:
-  docs/campaigns/phase3_12/PHASE3_12_SELF_MODEL_GROWTH_LEDGER_ROADMAP.md
-Current mission:              Phase 3.13 Growth Ledger
-Phase 3.13 Steps 1-7 status:  complete on campaign branch (Step 7
-                              landed the I-GROW-01..22 row family at
-                              v0.23 over brain/development/growth_ledger.py)
-Next eligible step:           Step 8 Growth Ledger behavior report
+Available limited-write bridge: Stage B /ask-chatgpt-write through Codex CLI
+                              wrapper (PR #15)
+Canonical Phase 3.14 design seed:
+  PHASE3_14_LLM_CACHE_DISCIPLINE_ROADMAP.md
+Current mission:              Phase 3.14 LLM Cache Discipline
+Phase 3.14 Step 1 status:     in flight on campaign branch
+Next eligible step:           Step 2 LLM cache discipline synthesis
+                              (after Step 1 commits/pushes)
 ```
 
-Stop if the catalog counts disagree or if the Phase 3.12 roadmap seed is missing.
+Stop if the catalog counts disagree or if the Phase 3.14 roadmap seed is missing.
 
 ---
 
@@ -102,20 +110,24 @@ README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
+PHASE3_14_LLM_CACHE_DISCIPLINE_ROADMAP.md
 .claude/agents/brain-current-mission.md
 .claude/agents/chatgpt-codex-subagent.md
+.claude/agents/chatgpt-codex-writer.md
 .claude/commands/go.md
 .claude/commands/ask-chatgpt.md
+.claude/commands/ask-chatgpt-write.md
 tools/claude_helpers/codex_chatgpt_subagent.py
+tools/claude_helpers/codex_chatgpt_write_worker.py
 CODEX_CHATGPT_SUBAGENT_BRIDGE_AUDIT.md
-docs/README.md
-docs/campaigns/README.md
-docs/campaigns/phase3_12/PHASE3_12_SELF_MODEL_GROWTH_LEDGER_ROADMAP.md
-docs/campaigns/phase3_12/PHASE3_12_COHERENT_I_LOOP_AUDIT.md
-brain/development/pattern_ledger.py
-brain/development/coherence_monitor.py
-brain/ui/session.py
+CODEX_CHATGPT_LIMITED_WRITE_BRIDGE_AUDIT.md
 brain/tick.py
+brain/llm/client.py
+brain/llm/ptcns_backed.py
+brain/llm/prompts.py
+brain/ui/llm_runtime.py
+brain/ui/session.py
+brain/ui/__main__.py
 tools/check_all.sh
 ```
 
@@ -123,51 +135,50 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 
 ---
 
-## Phase 3.13 architectural guardrails
+## Phase 3.14 architectural guardrails
 
-Preserve these constraints throughout Phase 3.13:
+Preserve these constraints throughout Phase 3.14:
 
 ```text
-no SelfModel implementation in Phase 3.13
 no consciousness claim
 no sentience claim
 no subjective-experience claim
 no semantic-understanding claim
-no truth adjudication / PRESERVE / DAMAGE judgment from raw text
+no truth-adjudication claim
 no agency claim
 no self-modification claim
 no aggregate consciousness / sentience / awareness / I-ness / growth score
+no SelfModel implementation
+no Growth Ledger semantic change
 no model-backed default behavior; offline remains the default
 no hidden LLM calls
-no hidden persistence
-no DB schema changes in v1 unless explicitly planned and accepted at the review gate
-no real external LLM smoke beyond the sanctioned Stage A /ask-chatgpt bridge
-Growth Ledger counts accepted, constructor-validated events only
-failed parse / failed dispatch / failed tick / read-only command do not count
-the existing outcome-detection contract (Phase 3.10c autosave precedent)
-  is the canonical filter for "successful mutation"
-COGITO_ID remains reserved on every id-bearing Growth Ledger field
-no Growth Ledger field equals COGITO_ID
-no Growth Ledger event mutates BrainState / MSI / PtCns / ContentRegistry
-  / source histories / OperatorSession.event_queue / stream history /
-  stream candidates / stream_chunk_serial / Pattern Ledger / Coherence
-  Monitor records / persistence config / autosave config
-no tick() call inside the Growth Ledger
-no LLM client field; no eval_consistency-bearing object stored or accepted
-copy-on-write history discipline (observe returns a NEW ledger)
-anti-Goodhart deduplication and saturation (no inflation under spam)
-references-only event records — no raw text payload
-session-local first; no save-session / load-session / autosave extension in v1
+no silent network/model calls in offline/mock modes
+no unbounded cache growth
+no DB schema change in v1 unless explicitly planned and accepted at the
+  review gate
+no tick semantic change before the Phase 3.14 review gate
+no /save-session / /load-session / autosave extension in v1 unless
+  explicitly planned and accepted at the review gate
+no raw prompts or model outputs committed to the repo
+no secrets committed to the repo
+no cache files committed to the repo (brain/.llm_cache stays ignored)
+no UI expansion unless explicitly reviewed
+no raw codex invocation
+no unbounded Codex collaboration loop
+no real external LLM smoke beyond the sanctioned Stage A /ask-chatgpt
+  and Stage B /ask-chatgpt-write bridges and any explicitly approved
+  Phase 3.14 measurement step
 ```
 
 The permitted experimental framing is:
 
 ```text
-bounded accepted-event accumulation
-constructor-validated growth events
-session-local developmental history
-references-only event records
-read-only quotation of upstream substrates (Pattern Ledger, Coherence Monitor)
+bounded model-backed cache discipline
+explicit semantic vs non-semantic cache key choices
+deterministic, documented, observable cache behavior
+opt-in model-backed runtime preserved
+session-local first; persistent on disk only with explicit policy
+references-only diagnostics; no raw prompt or response payload
 ```
 
 The prohibited framing is:
@@ -178,38 +189,56 @@ unbounded self-modification
 semantic truth authority from raw text
 model-backed default behavior
 hidden LLM calls
-hidden autosave or hidden persistence
-aggregate growth / I-ness / awareness score
+unbounded cache growth
+silent persistence
+aggregate awareness / sentience / I-ness / growth score
 SelfModel implementation
+Growth Ledger semantic change
 ```
 
 ---
 
-## ChatGPT/Codex consultation (Stage A bridge)
+## ChatGPT/Codex consultation (Stage A and Stage B bridges)
 
-This repository now ships an explicit Claude → Codex CLI → ChatGPT advisory bridge (PR #13). Stage A is read-only, transport + policy bounded, and advisory only.
+This repository ships two explicit Claude → Codex CLI → ChatGPT bridges:
 
-Use only the sanctioned Stage A path:
+- Stage A (PR #13) is read-only, transport + policy bounded, and advisory only.
+- Stage B (PR #15) is limited-write, allowlist-based, sequential, and bounded by a temp git worktree.
+
+Use only the sanctioned paths:
 
 ```text
-slash command:
+Stage A slash command:
   /ask-chatgpt --mode <mode> --model gpt-5.5 --effort <effort> <prompt>
 
-direct wrapper:
+Stage A direct wrapper:
   python3 tools/claude_helpers/codex_chatgpt_subagent.py \
     --mode <mode> --model gpt-5.5 --effort <effort> \
     --timeout <seconds> --prompt-file <path>
+
+Stage B slash command:
+  /ask-chatgpt-write --model gpt-5.5 --effort high \
+    --allowed-file <path> [--allowed-file <path> ...] --apply <prompt>
+
+Stage B direct wrapper:
+  python3 tools/claude_helpers/codex_chatgpt_write_worker.py \
+    --mode write --model gpt-5.5 --effort <effort> \
+    --timeout <seconds> --allowed-file <path> [--apply] \
+    --prompt-file <path>
 ```
 
-The direct wrapper is the policy boundary. Do not invoke raw `codex` or `codex exec`. Do not add `Bash(codex:*)` / `Bash(codex exec:*)` allowlists. Do not use `code` mode. Do not ask Codex to produce patches. Do not apply Codex suggestions automatically.
+The direct wrappers are the policy boundary. Do not invoke raw `codex` or `codex exec`. Do not add `Bash(codex:*)` / `Bash(codex exec:*)` allowlists. Stage A `code` mode is forbidden. Stage B requires exact `--allowed-file` entries and never stages, commits, pushes, restores, or merges.
 
 Allowed Stage A modes: `plan` / `review` / `summarize` / `debug`.
-Preferred model: `gpt-5.5` (the only model the local ChatGPT-account Codex backend accepted during the Stage A smoke; other candidates including `gpt-5.1-codex`, `gpt-5`, `gpt-5-codex`, `gpt-5.1`, `o3`, and `gpt-4o` were rejected with HTTP 400).
-Effort guidance: `low` for quick sanity checks, `medium` for normal review critique, `high` only for row-family or invariant-boundary analysis.
+Allowed Stage B mode: `write`.
+Preferred model: `gpt-5.5` (the only model the local ChatGPT-account Codex backend accepted during the Stage A/B smokes; other candidates including `gpt-5.1-codex`, `gpt-5`, `gpt-5-codex`, `gpt-5.1`, `o3`, and `gpt-4o` were rejected with HTTP 400).
+Effort guidance: `low` for quick sanity checks, `medium` for normal review critique, `high` for row-family or invariant-boundary analysis and for Stage B write work.
 
-Use the bridge only at high-leverage points: row-family design, competing invariant choices, unresolved validation failure after local inspection, scope ambiguity, possible TLICA boundary violation, pre-review-gate adversarial check, pre-final-audit critique.
+Use the bridges only at high-leverage points: row-family design, competing invariant choices, unresolved validation failure after local inspection, scope ambiguity, possible TLICA boundary violation, pre-review-gate adversarial check, pre-final-audit critique, and (Stage B only) bounded single-file doc drafts whose exact path is on the allowlist.
 
-The wrapper writes hash-only audit JSONL under `.claude/codex_bridge_logs/`, which is gitignored. Do not commit those logs.
+The wrappers write hash-only audit JSONL under `.claude/codex_bridge_logs/`, which is gitignored. Do not commit those logs.
+
+More than three real Codex calls in a single step requires fresh operator approval. Stage B is never to be used for staging / committing / pushing — parent Claude does that after inspecting the diff.
 
 Treat ChatGPT as advisory. Claude remains the parent integrator. Repo-local files, gates, and invariants override ChatGPT advice. If ChatGPT advice conflicts with a repo-local constraint, report the conflict and follow the repo.
 
@@ -242,7 +271,7 @@ Git:
 - commit: <sha or none>
 - push: success / not needed
 
-ChatGPT/Codex consultation:
+Stage A ChatGPT/Codex consultation:
 - used: yes / no
 - mode / model / effort: <values or n/a>
 - wrapper command: <command or n/a>
@@ -251,6 +280,19 @@ ChatGPT/Codex consultation:
 - wrapper status: <exit code + error class or n/a>
 - accepted advice: <bullets or none>
 - rejected advice: <bullets or none>
+- reason: <one sentence>
+
+Stage B limited-write collaboration:
+- used: yes / no
+- mode / model / effort: <values or n/a>
+- wrapper command: <command or n/a>
+- allowed files: <paths or n/a>
+- question file / prompt file: <path or n/a>
+- answer file: <path or n/a>
+- wrapper status: <exit code + error class or n/a>
+- files changed: <paths or none>
+- accepted edits: <bullets or none>
+- rejected edits: <bullets or none>
 - reason: <one sentence>
 
 Next:

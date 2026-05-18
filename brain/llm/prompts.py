@@ -7,6 +7,14 @@ shell logic.
 """
 from __future__ import annotations
 
+
+# Bump rule (Phase 3.14 LOCK D / LOCK M): any change to ``PROMPT_TEMPLATE``
+# or ``RETRY_TEMPLATE`` body that alters the rendered prompt for the same
+# semantic inputs requires bumping this version string. Bumping
+# invalidates older L2 semantic cache entries by key namespace
+# separation; no migration / silent reuse.
+PROMPT_TEMPLATE_VERSION = "prompt-template-v1"
+
 PROMPT_TEMPLATE = """You are evaluating a new piece of content for inclusion in a self-modeling system.
 
 The system has an identity anchor (the "cogito": the system's bare self-as-self) and currently contains the following non-cogito contents in its maximally-self-defined I (MSI):
