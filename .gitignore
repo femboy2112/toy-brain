@@ -29,3 +29,6 @@ brain/.llm_cache/
 
 # Runtime audit logs from codex_chatgpt_subagent.py (do not commit)
 .claude/codex_bridge_logs/
+
+# Runtime state from codex_chatgpt_write_worker.py (do not commit)
+.claude/codex_bridge_state/
