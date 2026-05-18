@@ -62,6 +62,11 @@ from brain.development.coherence_monitor import (
     _FORBIDDEN_NON_CLAIM_TERMS,
     build_full_coherence_report,
 )
+from brain.development.dispatch_tracer import (
+    DispatchMutationKind,
+    DispatchTraceReport,
+)
+from brain.development.processing_window import FeedbackMode
 from brain.development.pattern_ledger import (
     PatternLedgerSaturationState,
     STREAM_PATTERN_RECURRENCE_MAX,
@@ -83,7 +88,7 @@ from brain.ui.session import OperatorSession
 # Bounded constants.
 # ---------------------------------------------------------------------------
 
-BATTERY_VERSION: str = "phase3.22.v1"
+BATTERY_VERSION: str = "phase3.23.v1"
 TRANSCRIPT_DIGEST_HEX_LEN: int = 16
 BENCHMARK_CASE_SUMMARY_MAX_LEN: int = 240
 BENCHMARK_CASE_NOTES_MAX_LEN: int = 320
@@ -105,6 +110,8 @@ class BenchmarkAxis(str, Enum):
     BLIND_TRANSCRIPT = "blind_transcript"
     LEARNING_EVIDENCE = "learning_evidence"
     REASONING_TRACE = "reasoning_trace"
+    # Phase 3.23 (I-DTRACE-11): the dispatch trace battery axis.
+    DISPATCH_TRACE = "dispatch_trace"
 
 
 class BenchmarkCaseStatus(str, Enum):
@@ -2063,8 +2070,413 @@ def run_axis_a9_reasoning_trace() -> AxisResult:
     )
 
 
+def run_axis_a10_dispatch_trace() -> AxisResult:
+    """Phase 3.23 (I-DTRACE-11): dispatch trace battery axis.
+
+    Twelve closed cases A10.01..A10.12 covering:
+    * STREAM_APPEND trace shape + mutation classification,
+    * processing-window internal feedback split (STREAM_WINDOW_INTERNAL),
+    * PATTERN_AND_COHERENCE feedback-mode capture in before_facts,
+    * cognitive-claim refusal still records a (no-dispatch) route,
+    * REPL valid-effective path records the synthetic REPL route,
+    * renamed-transfer reasoning trace cites the dispatch trace digest,
+    * STEP_TICK missing-client records ERROR_ONLY,
+    * NOOP records the no-op route,
+    * determinism across two fresh-session runs,
+    * dispatch tracer module source forbidden-term audit,
+    * A1..A9 axis case totals are retained (the new axis is additive).
+    """
+    # Lazy imports keep the module-level imports light.
+    from brain.development import dispatch_tracer as _dispatch_tracer_module
+    import inspect as _inspect
+
+    cases: list[BenchmarkCaseResult] = []
+
+    # A10.01 — STREAM_APPEND produces a non-empty dispatch trace.
+    session = _fresh_session()
+    _append_stream(session, "alpha line one")
+    trace_report = session.latest_dispatch_trace
+    a10_01_ok = (
+        isinstance(trace_report, DispatchTraceReport)
+        and trace_report.step_total >= 1
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.01",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_01_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"stream_append produces dispatch trace: "
+                f"steps={trace_report.step_total if trace_report else 0} "
+                f"digest={trace_report.trace_digest_hex16 if trace_report else ''}"
+            ),
+            primary_metric=trace_report.step_total if trace_report else 0,
+            secondary_metric=int(a10_01_ok),
+        )
+    )
+
+    # A10.02 — STREAM_APPEND trace records route + mutation kind.
+    session = _fresh_session()
+    _append_stream(session, "beta line one")
+    trace = session.latest_dispatch_trace
+    a10_02_ok = (
+        trace is not None
+        and trace.command_kind == "stream_append"
+        and trace.mutation_kind is DispatchMutationKind.STREAM_APPEND
+        and trace.route_path == "stream-append"
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.02",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_02_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"stream_append route+mut: "
+                f"cmd={trace.command_kind if trace else ''} "
+                f"mut={trace.mutation_kind.value if trace else ''} "
+                f"route={trace.route_path if trace else ''}"
+            ),
+            primary_metric=1 if a10_02_ok else 0,
+            secondary_metric=0,
+        )
+    )
+
+    # A10.03 — processing window ON + PATTERN_LEDGER feedback records
+    # STREAM_WINDOW_INTERNAL.
+    session = _fresh_session()
+    session.processing_window_size = 2
+    session.feedback_mode = FeedbackMode.PATTERN_LEDGER
+    _append_stream(session, "alpha line two")
+    trace = session.latest_dispatch_trace
+    a10_03_ok = (
+        trace is not None
+        and trace.mutation_kind is DispatchMutationKind.STREAM_WINDOW_INTERNAL
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.03",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_03_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"processing window internal mutation: "
+                f"mut={trace.mutation_kind.value if trace else ''}"
+            ),
+            primary_metric=int(a10_03_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.04 — PATTERN_AND_COHERENCE captured in before_facts.feedback_mode.
+    session = _fresh_session()
+    session.processing_window_size = 2
+    session.feedback_mode = FeedbackMode.PATTERN_AND_COHERENCE
+    _append_stream(session, "alpha line three")
+    trace = session.latest_dispatch_trace
+    pre_step = None
+    if trace is not None:
+        for s in trace.trace.steps:
+            if s.kind.value == "pre_state_snapshot":
+                pre_step = s
+                break
+    fm_before = ""
+    if pre_step is not None:
+        for k, v in pre_step.before_facts:
+            if k == "feedback_mode":
+                fm_before = v
+                break
+    a10_04_ok = fm_before == FeedbackMode.PATTERN_AND_COHERENCE.value
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.04",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_04_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"feedback_mode captured in pre-state: "
+                f"feedback_mode={fm_before!r}"
+            ),
+            primary_metric=int(a10_04_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.05 — cognitive-claim refusal records a no-dispatch route
+    # without mutating the session. The carrier text is synthesized
+    # at runtime from _FORBIDDEN_NON_CLAIM_TERMS so this source file
+    # never contains a forbidden term verbatim.
+    state = make_initial_agent_loop_state()
+    pre_chunks = len(state.session.stream_history.chunks)
+    refusal_carrier = f"a query about {_FORBIDDEN_NON_CLAIM_TERMS[0]}"
+    state, r = run_agent_interaction_step(state, refusal_carrier)
+    post_chunks = len(state.session.stream_history.chunks)
+    a10_05_ok = (
+        r.reply.disposition is AgentReplyDisposition.REFUSAL
+        and r.latest_dispatch_trace is not None
+        and r.latest_dispatch_trace.mutation_kind is DispatchMutationKind.NONE
+        and pre_chunks == post_chunks
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.05",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_05_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"refusal records no-dispatch route: "
+                f"mut={r.latest_dispatch_trace.mutation_kind.value if r.latest_dispatch_trace else ''} "
+                f"chunks_pre={pre_chunks} chunks_post={post_chunks}"
+            ),
+            primary_metric=int(a10_05_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.06 — REPL valid-effective path records the synthetic REPL route.
+    state = make_initial_agent_loop_state()
+    state, r = run_agent_interaction_step(state, "EMIT ALPHA")
+    a10_06_ok = (
+        r.latest_dispatch_trace is not None
+        and r.latest_dispatch_trace.route_path == "repl-bridge"
+        and r.latest_dispatch_trace.mutation_kind is DispatchMutationKind.NONE
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.06",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_06_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"repl valid-effective route: "
+                f"route={r.latest_dispatch_trace.route_path if r.latest_dispatch_trace else ''} "
+                f"mut={r.latest_dispatch_trace.mutation_kind.value if r.latest_dispatch_trace else ''}"
+            ),
+            primary_metric=int(a10_06_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.07 — renamed-transfer reasoning trace references the dispatch
+    # trace digest via CHECK_DISPATCH_TRACE.
+    state = make_initial_agent_loop_state()
+    state, _ = run_agent_interaction_step(state, "red blue red blue")
+    state, r = run_agent_interaction_step(state, "cat dog cat dog")
+    cdt_step = None
+    if r.reasoning_trace is not None:
+        for s in r.reasoning_trace.steps:
+            if s.kind is ReasoningStepKind.CHECK_DISPATCH_TRACE:
+                cdt_step = s
+                break
+    cited_digest = ""
+    if cdt_step is not None and r.latest_dispatch_trace is not None:
+        marker = f"dispatch_digest={r.latest_dispatch_trace.trace_digest_hex16}"
+        if marker in cdt_step.input_facts:
+            cited_digest = r.latest_dispatch_trace.trace_digest_hex16
+    a10_07_ok = cited_digest != ""
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.07",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_07_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"renamed-transfer trace cites dispatch digest: "
+                f"digest={cited_digest!r}"
+            ),
+            primary_metric=int(a10_07_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.08 — missing-client STEP_TICK records ERROR_ONLY with no
+    # kernel mutation.
+    session = _fresh_session()
+    pre_tick = session.tick_counter
+    session.dispatch(Command(OperatorCommand.STEP_TICK))  # client=None
+    post_tick = session.tick_counter
+    trace = session.latest_dispatch_trace
+    a10_08_ok = (
+        trace is not None
+        and trace.mutation_kind is DispatchMutationKind.ERROR_ONLY
+        and pre_tick == post_tick
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.08",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_08_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"step_tick missing-client: "
+                f"mut={trace.mutation_kind.value if trace else ''} "
+                f"tick_pre={pre_tick} tick_post={post_tick}"
+            ),
+            primary_metric=int(a10_08_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.09 — NOOP records noop route and no mutation.
+    session = _fresh_session()
+    session.dispatch(Command(OperatorCommand.NOOP))
+    trace = session.latest_dispatch_trace
+    a10_09_ok = (
+        trace is not None
+        and trace.mutation_kind is DispatchMutationKind.NONE
+        and trace.route_path == "noop-early-return"
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.09",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_09_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"noop route: "
+                f"route={trace.route_path if trace else ''} "
+                f"mut={trace.mutation_kind.value if trace else ''}"
+            ),
+            primary_metric=int(a10_09_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.10 — dispatch trace digest stable across two fresh-session runs.
+    session_a = _fresh_session()
+    session_b = _fresh_session()
+    _append_stream(session_a, "gamma line one")
+    _append_stream(session_b, "gamma line one")
+    digest_a = (
+        session_a.latest_dispatch_trace.trace_digest_hex16
+        if session_a.latest_dispatch_trace
+        else ""
+    )
+    digest_b = (
+        session_b.latest_dispatch_trace.trace_digest_hex16
+        if session_b.latest_dispatch_trace
+        else ""
+    )
+    a10_10_ok = digest_a != "" and digest_a == digest_b
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.10",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_10_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"dispatch trace digest stable: "
+                f"digest={digest_a} match={a10_10_ok}"
+            ),
+            primary_metric=int(a10_10_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.11 — dispatch tracer module source has zero forbidden-term hits.
+    src = _inspect.getsource(_dispatch_tracer_module)
+    hit_term = _text_has_forbidden_term(src)
+    a10_11_ok = hit_term is None
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.11",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_11_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"dispatch_tracer source non-claim-clean: hit={hit_term!r}"
+            ),
+            primary_metric=int(a10_11_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A10.12 — adding A10 is additive: A1..A9 axis case totals match
+    # the pre-A10 expected counts.
+    a1 = run_axis_a1_pattern_recognition()
+    a2 = run_axis_a2_cross_input_structural()
+    a3 = run_axis_a3_coherence_variation()
+    a4 = run_axis_a4_repl_coherence()
+    a5 = run_axis_a5_communication()
+    a6 = run_axis_a6_session_continuity()
+    earlier = (a1, a2, a3, a4, a5, a6)
+    a7 = run_axis_a7_blind_transcript(earlier)
+    a8 = run_axis_a8_learning_evidence()
+    a9 = run_axis_a9_reasoning_trace()
+    pre_a10_case_counts = (
+        len(a1.cases),
+        len(a2.cases),
+        len(a3.cases),
+        len(a4.cases),
+        len(a5.cases),
+        len(a6.cases),
+        len(a7.cases),
+        len(a8.cases),
+        len(a9.cases),
+    )
+    expected = (9, 5, 4, 5, 9, 3, 4, 7, 7)
+    a10_12_ok = pre_a10_case_counts == expected
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A10.12",
+            axis=BenchmarkAxis.DISPATCH_TRACE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a10_12_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"A1..A9 case counts retained: "
+                f"got={pre_a10_case_counts!r} expected={expected!r}"
+            ),
+            primary_metric=int(a10_12_ok),
+            secondary_metric=0,
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.DISPATCH_TRACE,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
 def run_full_battery() -> BenchmarkRun:
-    """Run every axis A1..A9 and assemble a BenchmarkRun.
+    """Run every axis A1..A10 and assemble a BenchmarkRun.
 
     Two invocations produce identical BenchmarkRun records (modulo
     object identity).
@@ -2079,7 +2491,8 @@ def run_full_battery() -> BenchmarkRun:
     a7 = run_axis_a7_blind_transcript(earlier)
     a8 = run_axis_a8_learning_evidence()
     a9 = run_axis_a9_reasoning_trace()
-    return _assemble_battery_run(earlier + (a7, a8, a9))
+    a10 = run_axis_a10_dispatch_trace()
+    return _assemble_battery_run(earlier + (a7, a8, a9, a10))
 
 
 def _assemble_battery_run(axes: tuple[AxisResult, ...]) -> BenchmarkRun:
@@ -2152,6 +2565,16 @@ def run_partial_battery_phase3_22b() -> BenchmarkRun:
         run_axis_a8_learning_evidence(),
         run_axis_a9_reasoning_trace(),
     )
+    return _assemble_battery_run(axes)
+
+
+def run_partial_battery_phase3_23() -> BenchmarkRun:
+    """Run the A10 dispatch_trace axis only; assemble a BenchmarkRun.
+
+    Phase 3.23 entry point — exercises only the dispatch trace axis
+    without re-running the (already-covered) A1..A9 axes.
+    """
+    axes = (run_axis_a10_dispatch_trace(),)
     return _assemble_battery_run(axes)
 
 
@@ -2267,9 +2690,11 @@ __all__ = (
     "run_axis_a7_blind_transcript",
     "run_axis_a8_learning_evidence",
     "run_axis_a9_reasoning_trace",
+    "run_axis_a10_dispatch_trace",
     "run_full_battery",
     "run_partial_battery_pattern_axes",
     "run_partial_battery_phase3_22b",
+    "run_partial_battery_phase3_23",
     "run_partial_battery_with_coherence",
 )
 

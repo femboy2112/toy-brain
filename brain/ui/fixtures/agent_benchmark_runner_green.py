@@ -36,6 +36,8 @@ _EXPECTED_AXES = (
     BenchmarkAxis.BLIND_TRANSCRIPT,
     BenchmarkAxis.LEARNING_EVIDENCE,
     BenchmarkAxis.REASONING_TRACE,
+    # Phase 3.23 (I-DTRACE-11) dispatch trace axis.
+    BenchmarkAxis.DISPATCH_TRACE,
 )
 
 

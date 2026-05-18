@@ -41,6 +41,8 @@ _EXPECTED_AXIS_VALUES = frozenset(
         "blind_transcript",
         "learning_evidence",
         "reasoning_trace",
+        # Phase 3.23 (I-DTRACE-11): dispatch trace battery axis.
+        "dispatch_trace",
     }
 )
 
