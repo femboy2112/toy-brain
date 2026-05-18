@@ -24,7 +24,32 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.33 expected counts — bumped by the Phase 3.24 Worldlet Feedback
+# v0.34 expected counts — bumped by the Phase 3.25 Osmotic Learning
+# Live Test catalog patch (I-OSMO-01..14: +13 REQUIRED rows, +1
+# STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
+# Phase 3.25 adds the new module
+# brain/development/osmotic_learning_probe.py: a pure bounded
+# deterministic OFFLINE live-test runner with the closed
+# OsmoticCondition (4 values) and OsmoticProbeStatus (4 values)
+# enums and the bounded OsmoticExposureEvent, OsmoticProbeTrial,
+# OsmoticProbeResult, OsmoticLiveTestReport records. The runner
+# probes whether the existing substrate realizes the operational
+# analogue of osmotic imprinting + activation under four bounded
+# conditions: CONTROL_NO_EXPOSURE, TRUE_EXPOSURE, SHAM_EXPOSURE,
+# DISTRACTOR_INTERFERENCE. The v1 ten-trial battery covers ABAB,
+# ABBA, AAB, ABCABC target shapes. Ten new fixtures land in
+# brain/ui/fixtures/. The benchmark battery adds one axis: A12
+# osmotic_learning (14 cases A12.01..A12.14). Total benchmark
+# cases: 91 (77 + 14); 90 PASS + 1 WARN (A3.04 carry-over) + 0
+# FAIL. brain/tick.py is not edited; no existing runtime file's
+# behavior changes; OFFLINE default preserved; zero real model
+# calls; non-claim discipline enforced via the canonical
+# _FORBIDDEN_NON_CLAIM_TERMS tuple on every produced summary
+# string and the new module source. "Osmotic learning" is
+# engineering shorthand for unlabeled exposure-driven structural
+# uptake at the substrate level; the runtime is not claimed to
+# have intuition, awareness, perception, or unconscious learning.
+# v0.33 history retained: bumped by the Phase 3.24 Worldlet Feedback
 # Bridge catalog patch (I-WFDBK-01..12: +11 REQUIRED rows, +1
 # STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
 # Phase 3.24 adds the bounded pure helper build_worldlet_summary_text
@@ -103,8 +128,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 335,
-    "STRUCTURAL": 97,
+    "REQUIRED": 348,
+    "STRUCTURAL": 98,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,
