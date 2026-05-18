@@ -135,12 +135,12 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 Expected current state:
 
 ```text
-Catalog: v0.24
+Catalog: v0.25
 Counts:
-  REQUIRED:        277
-  STRUCTURAL:       87
+  REQUIRED:        281
+  STRUCTURAL:       88
   NOT-EXERCISED:    14
-  DEFERRED:         16
+  DEFERRED:         15
   OBSERVED:         16
 Latest completed campaign:  Phase 3.14 LLM Cache Discipline
 Latest merged PRs:          PR #16 (Phase 3.14 LLM Cache Discipline),

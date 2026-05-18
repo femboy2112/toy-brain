@@ -162,6 +162,15 @@ class MockClient:
 # ---------------------------------------------------------------------------
 
 
+# Phase 3.15 LOCK A / I-LLMCACHE-20: L1 entry-count bound. The
+# CachedClient applies a write-skip-at-cap admission policy: at cap, a
+# miss still calls the inner client but does not write a new entry.
+# Existing entries are never removed by the cache itself (bounded
+# admission, not eviction). Mirrors the L2 cap value of 1024 from
+# Phase 3.14; sized in Phase 3.15 by the Step 3 probe.
+L1_CACHE_MAX_ENTRIES = 1024
+
+
 class CachedClient:
     """SHA-256 prompt-keyed disk cache wrapping an inner ``LLMClient``.
 
@@ -175,6 +184,16 @@ class CachedClient:
 
     Phase 2 v1.1: optional ``tracer`` records ``llm.cache_hit`` and
     ``llm.cache_miss`` events with an 8-char key prefix for debugging.
+
+    Phase 3.15 (I-LLMCACHE-20 / -23 / -24 / -25): write-skip-at-cap
+    admission policy. When the cache directory already contains at
+    least ``L1_CACHE_MAX_ENTRIES`` ``*.json`` files at the moment of a
+    miss write, the new entry is not written; the inner client is
+    still called and the response is still returned. ``skip_count``
+    is incremented and ``llm.cache_skip`` is emitted with payload
+    ``{"cache_key_prefix", "reason"}`` and ``reason="capacity"``.
+    Existing entries are never removed; corrupt entries still fail
+    loud on read.
     """
 
     def __init__(
@@ -188,10 +207,26 @@ class CachedClient:
         self._tracer: CognitionTracer = tracer if tracer is not None else NullTracer()
         self.hit_count = 0
         self.miss_count = 0
+        self.skip_count = 0
 
     def _key_path(self, prompt: str) -> tuple[Path, str]:
         digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
         return self._cache_dir / f"{digest}.json", digest
+
+    def _at_capacity(self) -> bool:
+        # The cap is checked against the count of top-level ``*.json``
+        # files in the cache directory. The L2 subdirectory
+        # ``eval_v1/`` does not match the glob, so L2 entries are not
+        # counted toward the L1 cap (LOCK D / I-LLMCACHE-26).
+        if not self._cache_dir.exists():
+            return False
+        existing = 0
+        for entry in self._cache_dir.iterdir():
+            if entry.is_file() and entry.suffix == ".json":
+                existing += 1
+                if existing >= L1_CACHE_MAX_ENTRIES:
+                    return True
+        return False
 
     def eval_consistency(self, prompt: str) -> str:
         path, digest = self._key_path(prompt)
@@ -210,6 +245,15 @@ class CachedClient:
         self.miss_count += 1
         self._tracer.record("llm.cache_miss", {"cache_key_prefix": key_prefix})
         response = self._inner.eval_consistency(prompt)
+        if self._at_capacity():
+            # Phase 3.15: bounded admission. Inner was called and
+            # response is returned; the new entry is NOT written.
+            self.skip_count += 1
+            self._tracer.record(
+                "llm.cache_skip",
+                {"cache_key_prefix": key_prefix, "reason": "capacity"},
+            )
+            return response
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         path.write_text(
             json.dumps({"prompt": prompt, "response": response}, indent=2),

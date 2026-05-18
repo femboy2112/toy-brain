@@ -76,12 +76,12 @@ never merge the PR without explicit user approval
 Expected current baseline (must match before any step runs):
 
 ```text
-Catalog: v0.24
+Catalog: v0.25
 Counts:
-  REQUIRED:        277
-  STRUCTURAL:       87
+  REQUIRED:        281
+  STRUCTURAL:       88
   NOT-EXERCISED:    14
-  DEFERRED:         16
+  DEFERRED:         15
   OBSERVED:         16
 Latest completed campaign:    Phase 3.14 LLM Cache Discipline (PR #16)
 Latest bridge merge:          Stage C Claude → Codex CLI → ChatGPT
