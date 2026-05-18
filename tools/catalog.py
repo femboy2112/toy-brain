@@ -24,10 +24,24 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.28 expected counts — bumped by the Phase 3.20 Coherence
-# Feedback Bridge catalog patch (I-CFBK-01..02: +1 REQUIRED row,
+# v0.29 expected counts — bumped by the Phase 3.21 Developmental
+# Trajectory catalog patch (I-DEVMILE-01..11: +10 REQUIRED rows,
 # +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED
-# unchanged). Phase 3.20 extends brain/development/processing_window.py
+# unchanged). Phase 3.21 adds the brain/development/milestone_harness.py
+# module: a strict consumer of existing public surfaces that
+# defines a closed ten-member DevelopmentalMilestone enum, a
+# closed four-member MilestoneStatus enum, a frozen / slotted
+# MilestoneResult record, ten pure deterministic helpers
+# run_m01_*..run_m10_*, and an aggregator run_all_milestones().
+# Eleven new fixtures land in brain/ui/fixtures/ (one per
+# milestone + one static audit). brain/tick.py is not edited;
+# no existing runtime file is modified; OFFLINE default
+# preserved; zero real model calls; non-claim discipline
+# enforced via the canonical _FORBIDDEN_NON_CLAIM_TERMS tuple
+# on every produced summary string and the harness module
+# source. "Developmental" / "milestone" / "trajectory" are used
+# in the operational sense only, never psychological.
+# v0.28 history retained: Phase 3.20 extends brain/development/processing_window.py
 # with two new FeedbackMode members (COHERENCE and
 # PATTERN_AND_COHERENCE), a pure build_cohmon_summary_text helper
 # accepting only bounded primitives, the COHMON_SUMMARY_TEXT_*
@@ -45,8 +59,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 284,
-    "STRUCTURAL": 91,
+    "REQUIRED": 294,
+    "STRUCTURAL": 92,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,

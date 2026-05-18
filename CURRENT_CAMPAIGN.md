@@ -84,17 +84,18 @@ See `CURRENT_MISSION.md` "Required source files to read first".
 Expected current state at campaign start (pre-Step-6):
 
 ```text
-Catalog: v0.28
+Catalog: v0.29
 Counts:
-  REQUIRED:        284
-  STRUCTURAL:       91
+  REQUIRED:        294
+  STRUCTURAL:       92
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
 Latest completed campaign:    Phase 3.20 Coherence Feedback Bridge
                               (PR #25 open against Phase 3.19 branch)
 Current campaign:             Phase 3.21 Developmental Trajectory
-Next eligible step:           Step 1 mission sync (in flight)
+                              (Step 6 implementation landed)
+Next eligible step:           Step 7 milestone log
 Canonical design seed:        PHASE3_21_DEVELOPMENTAL_TRAJECTORY_ROADMAP.md
 ```
 

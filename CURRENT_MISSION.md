@@ -161,10 +161,10 @@ never edit brain/tick.py in Phase 3.21
 Expected current baseline (must match before any step runs):
 
 ```text
-Catalog: v0.28 (inherited from Phase 3.20; will become v0.29 at Step 6)
-Counts (pre-Step-6):
-  REQUIRED:        284
-  STRUCTURAL:       91
+Catalog: v0.29 (Phase 3.21 Step 6 landed)
+Counts:
+  REQUIRED:        294
+  STRUCTURAL:       92
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
