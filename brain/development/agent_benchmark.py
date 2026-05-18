@@ -772,6 +772,161 @@ def run_axis_a2_cross_input_structural() -> AxisResult:
 
 
 # ---------------------------------------------------------------------------
+# Axis A3 — Coherence-state variation (Phase 3.21 W3 follow-up).
+#
+# Documented LOCK H: the overall_status values reachable through
+# the public operator surface are bounded by what the existing
+# Coherence Monitor checks permit. The probe attempts each of
+# {pass, warn, fail, not_applicable} via the operator-visible
+# surface plus, where necessary, direct dataclass-field assignment
+# on the (non-frozen) OperatorSession dataclass. Each case records
+# whether the status was reached and what lever was used. A case
+# that cannot reach the target status without breaking LOCK A..G
+# is marked WARN with a notes line documenting the exact blocker;
+# the axis still PASSes provided ``pass`` is reached and the
+# unreachable statuses are accompanied by explicit notes.
+# ---------------------------------------------------------------------------
+
+
+def _coherence_overall_status_value(session: OperatorSession) -> str:
+    return build_full_coherence_report(session).overall_status.value
+
+
+def run_axis_a3_coherence_variation() -> AxisResult:
+    cases: list[BenchmarkCaseResult] = []
+
+    # A3.01 — pass: fresh OperatorSession.
+    session = _fresh_session()
+    val = _coherence_overall_status_value(session)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A3.01",
+            axis=BenchmarkAxis.COHERENCE_VARIATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if val == CoherenceCheckStatus.PASS.value
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"fresh session overall_status={val}",
+            primary_metric=int(val == CoherenceCheckStatus.PASS.value),
+            secondary_metric=0,
+        )
+    )
+
+    # A3.02 — warn: append several chunks, then assign
+    # stream_chunk_serial to a value below the chunk count. This is a
+    # deliberate dataclass-field mutation (the OperatorSession
+    # dataclass is non-frozen by design) used as a probe lever per
+    # LOCK H. The check ``stream.chunk_serial_consistent`` emits
+    # WARN when serial < len(chunks); overall aggregates to WARN
+    # because no FAIL is present.
+    session = _fresh_session()
+    for index in range(3):
+        _append_stream(session, f"warn-probe-text-{index:03d}")
+    chunk_count = len(session.stream_history.chunks)
+    session.stream_chunk_serial = 0
+    val = _coherence_overall_status_value(session)
+    reached_warn = val == CoherenceCheckStatus.WARN.value
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A3.02",
+            axis=BenchmarkAxis.COHERENCE_VARIATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if reached_warn
+                else BenchmarkCaseStatus.WARN
+            ),
+            summary=(
+                f"warn probe: serial=0 chunks={chunk_count} "
+                f"overall={val}"
+            ),
+            primary_metric=int(reached_warn),
+            secondary_metric=chunk_count,
+            notes=(
+                "Probe lever: set OperatorSession.stream_chunk_serial = 0 "
+                "after appending chunks. Per LOCK H this dataclass-field "
+                "assignment is a deliberate probe; the OperatorSession "
+                "dataclass is non-frozen by design and stream.chunk_serial"
+                "_consistent emits WARN when serial < len(chunks)."
+            ) if reached_warn else (
+                "WARN status not reached: WARN lever blocked by an "
+                "unanticipated guard. Documented as not-publicly-reachable; "
+                "the axis WARN does not block axis PASS provided pass is "
+                "reached."
+            ),
+        )
+    )
+
+    # A3.03 — fail: set session.active_view to a value not in
+    # ACTIVE_VIEWS. The check session.active_view_legal emits FAIL;
+    # overall aggregates to FAIL (dominates WARN/PASS).
+    session = _fresh_session()
+    session.active_view = "agent-loop-probe-bogus-view"
+    val = _coherence_overall_status_value(session)
+    reached_fail = val == CoherenceCheckStatus.FAIL.value
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A3.03",
+            axis=BenchmarkAxis.COHERENCE_VARIATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if reached_fail
+                else BenchmarkCaseStatus.WARN
+            ),
+            summary=(
+                f"fail probe: active_view=invalid overall={val}"
+            ),
+            primary_metric=int(reached_fail),
+            secondary_metric=0,
+            notes=(
+                "Probe lever: set OperatorSession.active_view to a value "
+                "outside ACTIVE_VIEWS after construction. The check "
+                "session.active_view_legal returns FAIL; overall is FAIL."
+            ) if reached_fail else (
+                "FAIL status not reached: FAIL lever blocked. Documented "
+                "as not-publicly-reachable; the axis records WARN."
+            ),
+        )
+    )
+
+    # A3.04 — not_applicable at overall level: NOT publicly reachable.
+    # The kernel.* checks always emit PASS for a valid BrainState
+    # (cogito anchor presence, profile bounds, MSI subset, ptcns
+    # totality). Per compute_overall_status, presence of any PASS
+    # check yields overall PASS (not NA). Reaching overall NA would
+    # require all 29 checks to be NA, which is unreachable through
+    # public surfaces without invalidating BrainState.
+    session = _fresh_session()
+    val = _coherence_overall_status_value(session)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A3.04",
+            axis=BenchmarkAxis.COHERENCE_VARIATION,
+            status=BenchmarkCaseStatus.WARN,
+            summary=(
+                f"not_applicable probe: unreachable at overall level; "
+                f"fresh overall={val} (PASS-dominated)"
+            ),
+            primary_metric=0,
+            secondary_metric=0,
+            notes=(
+                "NOT_APPLICABLE at the overall level is not publicly "
+                "reachable: compute_overall_status returns NOT_APPLICABLE "
+                "only when every check is NA, but kernel.* checks always "
+                "PASS for a valid BrainState. Per-check NA IS reachable "
+                "(fresh session has 8 NA checks). Documented blocker."
+            ),
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.COHERENCE_VARIATION,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Transcript serialization (used by later steps).
 # ---------------------------------------------------------------------------
 
@@ -801,18 +956,7 @@ def _compute_transcript_digest(lines: tuple[str, ...]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def run_partial_battery_pattern_axes() -> BenchmarkRun:
-    """Run axes A1 + A2 only; assemble a BenchmarkRun record.
-
-    This entry point lets Step 5's fixture exercise the pattern
-    axes end-to-end without the (later-step) coherence / REPL /
-    communication / session-continuity / blind-transcript axes.
-    """
-    axes = (
-        run_axis_a1_pattern_recognition(),
-        run_axis_a2_cross_input_structural(),
-    )
-
+def _assemble_battery_run(axes: tuple[AxisResult, ...]) -> BenchmarkRun:
     case_total = 0
     case_passed = 0
     case_warned = 0
@@ -847,6 +991,30 @@ def run_partial_battery_pattern_axes() -> BenchmarkRun:
     )
 
 
+def run_partial_battery_pattern_axes() -> BenchmarkRun:
+    """Run axes A1 + A2 only; assemble a BenchmarkRun record.
+
+    This entry point lets Step 5's fixture exercise the pattern
+    axes end-to-end without the (later-step) coherence / REPL /
+    communication / session-continuity / blind-transcript axes.
+    """
+    axes = (
+        run_axis_a1_pattern_recognition(),
+        run_axis_a2_cross_input_structural(),
+    )
+    return _assemble_battery_run(axes)
+
+
+def run_partial_battery_with_coherence() -> BenchmarkRun:
+    """Run axes A1 + A2 + A3; assemble a BenchmarkRun record."""
+    axes = (
+        run_axis_a1_pattern_recognition(),
+        run_axis_a2_cross_input_structural(),
+        run_axis_a3_coherence_variation(),
+    )
+    return _assemble_battery_run(axes)
+
+
 # ---------------------------------------------------------------------------
 # Module-produced strings (audited).
 # ---------------------------------------------------------------------------
@@ -857,11 +1025,13 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
-# Main entry — Step 5 stub.
+# Main entry.
 #
-# Step 7 extends ``main()`` to support `--json` and the full battery.
-# For Step 5, the entry simply prints the partial battery PASS / FAIL
-# counts.
+# Step 7 extends this with the remaining axes (REPL, communication,
+# session continuity, blind transcript) via a full-battery runner.
+# Until then, ``main()`` runs the currently-implemented partial
+# battery (A1 + A2 + A3 after Step 6) and exits with the appropriate
+# status code.
 # ---------------------------------------------------------------------------
 
 
@@ -876,7 +1046,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--quiet", action="store_true", default=False)
     args = parser.parse_args(argv)
 
-    run = run_partial_battery_pattern_axes()
+    run = run_partial_battery_with_coherence()
     if args.json:
         out = {
             "battery_version": run.battery_version,
@@ -947,7 +1117,9 @@ __all__ = (
     "main",
     "run_axis_a1_pattern_recognition",
     "run_axis_a2_cross_input_structural",
+    "run_axis_a3_coherence_variation",
     "run_partial_battery_pattern_axes",
+    "run_partial_battery_with_coherence",
 )
 
 
