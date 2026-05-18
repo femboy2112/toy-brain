@@ -71,6 +71,11 @@ from brain.development.coherence_monitor import (
     _FORBIDDEN_NON_CLAIM_TERMS,
     build_full_coherence_report,
 )
+from brain.development.dispatch_tracer import (
+    DispatchMutationKind,
+    DispatchTraceReport,
+    build_synthetic_no_dispatch_report,
+)
 from brain.development.growth_ledger import GROWTH_LEDGER_MAX_EVENTS
 from brain.development.learning_evidence import (
     LearningEvidenceKind,
@@ -82,6 +87,7 @@ from brain.development.learning_evidence import (
     make_abstract_pattern_acquired_record,
     make_abstract_pattern_reused_record,
     make_diminishing_returns_record,
+    make_dispatch_trace_recorded_record,
     make_limitation_recorded_record,
     make_observed_record,
     make_recurrence_increased_record,
@@ -602,6 +608,11 @@ class AgentLoopResult:
     repl_line_result: Optional[AgentReplLineResult] = None
     learning_evidence_trace: Optional[LearningEvidenceTrace] = None
     reasoning_trace: Optional[ReasoningTrace] = None
+    # Phase 3.23 (I-DTRACE-08): the bounded DispatchTraceReport for the
+    # OperatorSession.dispatch call this step routed through (or a
+    # synthetic no-dispatch report for the REFUSAL / FAIL / WARN-empty /
+    # REPL bridge paths that bypass OperatorSession.dispatch entirely).
+    latest_dispatch_trace: Optional[DispatchTraceReport] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.input, AgentInput):
@@ -640,6 +651,13 @@ class AgentLoopResult:
             raise TypeError(
                 "I-AGENTLEARN-09 violated: AgentLoopResult.reasoning_trace "
                 "must be a ReasoningTrace or None"
+            )
+        if self.latest_dispatch_trace is not None and not isinstance(
+            self.latest_dispatch_trace, DispatchTraceReport
+        ):
+            raise TypeError(
+                "I-DTRACE-08 violated: AgentLoopResult.latest_dispatch_trace "
+                "must be a DispatchTraceReport or None"
             )
 
 
@@ -1341,6 +1359,7 @@ def _build_reasoning_trace_for_step(
     repl_line_result: Optional[AgentReplLineResult],
     reply_section_count: int,
     extra_hints: tuple[ReasoningStepHint, ...],
+    dispatch_trace_report: Optional[DispatchTraceReport] = None,
 ) -> ReasoningTrace:
     """Compose the deterministic reasoning trace for one interaction."""
     builder = new_trace_builder(input_id)
@@ -1443,6 +1462,23 @@ def _build_reasoning_trace_for_step(
         derived_facts=f"disposition={disposition.value}",
         next_action="emit_reply",
     )
+    # Phase 3.23 (I-DTRACE-09): record the dispatch trace digest the
+    # reasoning trace is citing. Always inserted before EMIT_REPLY so
+    # the reply can reference the dispatch route via a bounded
+    # 16-hex digest.
+    if dispatch_trace_report is not None:
+        builder.add(
+            ReasoningStepKind.CHECK_DISPATCH_TRACE,
+            input_facts=(
+                f"dispatch_digest={dispatch_trace_report.trace_digest_hex16}"
+            ),
+            derived_facts=(
+                f"route_path={dispatch_trace_report.route_path} "
+                f"cmd={dispatch_trace_report.command_kind} "
+                f"mut={dispatch_trace_report.mutation_kind.value}"
+            ),
+            next_action="cite-in-emit-reply",
+        )
     builder.add(
         ReasoningStepKind.EMIT_REPLY,
         input_facts=f"sections={reply_section_count}",
@@ -1707,6 +1743,20 @@ def run_agent_interaction_step(
                     f"dist={hint.edit_distance}"
                 )
 
+    # Phase 3.23 (I-DTRACE-08): resolve the dispatch trace report that
+    # accompanies this step. The STREAM_APPEND path reads
+    # session.latest_dispatch_trace (set by OperatorSession.dispatch);
+    # every no-dispatch path synthesizes a bounded report so the
+    # downstream reasoning trace and learning evidence ledger always
+    # have a digest to cite.
+    if dispatch_path == _DISPATCH_PATH_STREAM_APPEND:
+        latest_dispatch_trace = state.session.latest_dispatch_trace
+    else:
+        latest_dispatch_trace = build_synthetic_no_dispatch_report(
+            interaction_id=f"agent-step:{counter:05d}:{dispatch_path}",
+            route_label=dispatch_path,
+        )
+
     new_learning_trace, hints = _derive_evidence_for_step(
         interaction_id=input_id,
         operator_text=operator_text,
@@ -1721,6 +1771,26 @@ def run_agent_interaction_step(
         current_input_pattern_id=current_input_pattern_id,
         prior_near_miss_hint=prior_near_miss_hint,
     )
+
+    # Phase 3.23 (I-DTRACE-10): append a DISPATCH_TRACE_RECORDED
+    # evidence record citing the dispatch trace digest. The cite is
+    # always emitted (never gated on dispatch path) so the bounded
+    # ledger documents the dispatch route for every interaction.
+    if latest_dispatch_trace is not None:
+        new_learning_trace = append_record(
+            new_learning_trace,
+            make_dispatch_trace_recorded_record(
+                interaction_id=input_id,
+                dispatch_trace_digest_hex16=(
+                    latest_dispatch_trace.trace_digest_hex16
+                ),
+                command_kind=latest_dispatch_trace.command_kind,
+                mutation_kind_value=(
+                    latest_dispatch_trace.mutation_kind.value
+                ),
+                route_path=latest_dispatch_trace.route_path,
+            ),
+        )
 
     reasoning_trace = _build_reasoning_trace_for_step(
         input_id=input_id,
@@ -1738,6 +1808,7 @@ def run_agent_interaction_step(
         repl_line_result=repl_line_result,
         reply_section_count=len(reply.sections),
         extra_hints=tuple(hints),
+        dispatch_trace_report=latest_dispatch_trace,
     )
 
     result = AgentLoopResult(
@@ -1747,6 +1818,7 @@ def run_agent_interaction_step(
         repl_line_result=repl_line_result,
         learning_evidence_trace=new_learning_trace,
         reasoning_trace=reasoning_trace,
+        latest_dispatch_trace=latest_dispatch_trace,
     )
     new_state = AgentLoopState(
         session=state.session,

@@ -71,6 +71,7 @@ def check_learning_proof_report() -> None:
         + report_a.repl_correction_applied_count
         + report_a.diminishing_returns_updated_count
         + report_a.limitation_recorded_count
+        + report_a.dispatch_trace_recorded_count
     )
     assert counts_sum == report_a.record_total
 

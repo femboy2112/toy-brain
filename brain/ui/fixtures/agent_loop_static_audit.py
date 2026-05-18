@@ -165,6 +165,9 @@ def check_agent_loop_static_audit() -> None:
             "repl_line_result",
             "learning_evidence_trace",
             "reasoning_trace",
+            # Phase 3.23 (I-DTRACE-08): the bounded DispatchTraceReport
+            # the loop attaches on every interaction (real or synthetic).
+            "latest_dispatch_trace",
         ),
         AgentLoopState: (
             "session",
