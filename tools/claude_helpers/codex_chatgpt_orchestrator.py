@@ -51,6 +51,7 @@ EXIT_MANIFEST_INVALID = 40
 EXIT_COLLISION_DETECTED = 41
 EXIT_PARALLEL_LIMIT_EXCEEDED = 42
 EXIT_SHARD_FAILED = 43
+EXIT_APPLY_PREFLIGHT_FAILED = 44
 
 EFFORT_VALUES = {"low", "medium", "high"}
 EFFORT_TIMEOUT_DEFAULTS = {"low": 180, "medium": 600, "high": 1200}
@@ -569,6 +570,39 @@ def run_shard(*, repo: str, codex_path: str, task: str, shard: Shard, template: 
         return ShardResult(shard_id=shard.shard_id, exit_code=EXIT_WORKTREE_SETUP_FAILED, error_class="WORKTREE_OR_RUNTIME_ERROR", worktree=worktree, stderr=str(exc), duration_ms=int((time.monotonic() - start) * 1000))
 
 
+def validate_all_copybacks(*, repo: str, shards: list[Shard], results: list[ShardResult]) -> None:
+    """Preflight: verify every shard's copy-back is safe BEFORE any live-repo write.
+
+    Walks every changed path across all shard results and validates the
+    write/delete that copy_allowed_changes would perform. Raises
+    SymlinkPathRejected on symlink violations and RuntimeError on directory
+    or undeclared-deletion violations. No live-repo file is modified here.
+    """
+    shard_by_id = {s.shard_id: s for s in shards}
+    for result in results:
+        shard = shard_by_id.get(result.shard_id)
+        if shard is None:
+            continue
+        allowed = set(shard.allowed_files)
+        allow_delete = set(shard.allow_delete)
+        for path in sorted(result.changed_paths):
+            if path not in allowed:
+                raise RuntimeError(f"preflight: shard {shard.shard_id} change {path!r} is not in allowed_files")
+            try:
+                validate_path(path, repo=repo, label=f"apply target for {shard.shard_id}")
+            except ValueError as exc:
+                raise RuntimeError(f"preflight: {exc}") from exc
+            src = Path(result.worktree) / path
+            if src.is_symlink():
+                raise SymlinkPathRejected(f"preflight: temp worktree source is a symlink: {path} (shard {shard.shard_id})")
+            if src.exists():
+                if src.is_dir():
+                    raise RuntimeError(f"preflight: source is a directory; refusing to copy: {path} (shard {shard.shard_id})")
+            else:
+                if path not in allow_delete:
+                    raise RuntimeError(f"preflight: Codex deleted {path} in shard {shard.shard_id}, but deletion was not explicitly allowed")
+
+
 def copy_allowed_changes(*, repo: str, worktree: str, changed: set[str], allowed: set[str], allow_delete: set[str]) -> None:
     for path in sorted(changed):
         if path not in allowed:
@@ -686,6 +720,7 @@ def main(argv: list[str]) -> int:
     waited_seconds = 0
     exit_code = EXIT_SUCCESS
     error_class: str | None = None
+    apply_preflight_failed = False
     try:
         lock.acquire()
         waited_seconds = enforce_wave_interval(state_dir, args.min_wave_interval_seconds, disabled=args.selftest_no_pacing)
@@ -702,22 +737,36 @@ def main(argv: list[str]) -> int:
             exit_code = EXIT_SHARD_FAILED
             error_class = "SHARD_FAILED"
         if exit_code == EXIT_SUCCESS and args.apply:
-            # All-or-nothing apply after every shard is clean. Apply in manifest order.
+            # All-or-nothing apply after every shard is clean. Preflight first;
+            # only then copy back in manifest order.
             if git_status_porcelain(live_repo):
                 exit_code = EXIT_LIVE_WORKTREE_DIRTY
                 error_class = "LIVE_WORKTREE_DIRTY"
             else:
                 try:
-                    for shard, result in zip(shards, results):
-                        copy_allowed_changes(repo=live_repo, worktree=result.worktree, changed=result.changed_paths, allowed=set(shard.allowed_files), allow_delete=set(shard.allow_delete))
+                    validate_all_copybacks(repo=live_repo, shards=shards, results=results)
                 except SymlinkPathRejected as exc:
-                    exit_code = EXIT_SYMLINK_PATH_REJECTED
-                    error_class = "SYMLINK_PATH_REJECTED"
-                    results.append(ShardResult(shard_id="apply", exit_code=exit_code, error_class=error_class, worktree="", stderr=str(exc)))
+                    exit_code = EXIT_APPLY_PREFLIGHT_FAILED
+                    error_class = "APPLY_PREFLIGHT_FAILED"
+                    apply_preflight_failed = True
+                    results.append(ShardResult(shard_id="apply_preflight", exit_code=exit_code, error_class=error_class, worktree="", stderr=str(exc)))
                 except RuntimeError as exc:
-                    exit_code = EXIT_APPLY_FAILED
-                    error_class = "APPLY_FAILED"
-                    results.append(ShardResult(shard_id="apply", exit_code=exit_code, error_class=error_class, worktree="", stderr=str(exc)))
+                    exit_code = EXIT_APPLY_PREFLIGHT_FAILED
+                    error_class = "APPLY_PREFLIGHT_FAILED"
+                    apply_preflight_failed = True
+                    results.append(ShardResult(shard_id="apply_preflight", exit_code=exit_code, error_class=error_class, worktree="", stderr=str(exc)))
+                else:
+                    try:
+                        for shard, result in zip(shards, results):
+                            copy_allowed_changes(repo=live_repo, worktree=result.worktree, changed=result.changed_paths, allowed=set(shard.allowed_files), allow_delete=set(shard.allow_delete))
+                    except SymlinkPathRejected as exc:
+                        exit_code = EXIT_SYMLINK_PATH_REJECTED
+                        error_class = "SYMLINK_PATH_REJECTED"
+                        results.append(ShardResult(shard_id="apply", exit_code=exit_code, error_class=error_class, worktree="", stderr=str(exc)))
+                    except RuntimeError as exc:
+                        exit_code = EXIT_APPLY_FAILED
+                        error_class = "APPLY_FAILED"
+                        results.append(ShardResult(shard_id="apply", exit_code=exit_code, error_class=error_class, worktree="", stderr=str(exc)))
     except RuntimeError as exc:
         return fail(exit_code=EXIT_RATE_LIMIT_STATE_ERROR, error_class="LOCK_OR_RATE_LIMIT_ERROR", message=str(exc), metadata=meta_common)
     finally:
@@ -741,6 +790,7 @@ def main(argv: list[str]) -> int:
         "duration_ms": duration_ms,
         "waited_seconds": waited_seconds,
         "apply": args.apply,
+        "apply_preflight_failed": apply_preflight_failed,
         "shards": [
             {
                 "id": r.shard_id,
