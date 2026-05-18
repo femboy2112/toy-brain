@@ -1,10 +1,10 @@
 """Phase 3.22b Reasoning Trace — explicit audit trail of structural ops.
 
 "Reasoning trace" in Phase 3.22b means an **explicit audit trail of
-deterministic structural operations**, not private subjective
-reasoning. The trace is externally inspectable, bounded, printable,
-and non-claim-clean. It is NOT private chain-of-thought. It is NOT a
-metacognitive description of the system's "inner experience".
+deterministic structural operations**. The trace is externally
+inspectable, bounded, printable, and non-claim-clean. It is NOT
+private chain-of-thought. It is NOT a metacognitive description of
+any "inner experience" of the running system.
 
 Non-claim discipline (binding):
 
@@ -79,7 +79,7 @@ class ReasoningStepKind(str, Enum):
     COMPARE_STRUCTURE = "compare_structure"
     CHECK_COHERENCE = "check_coherence"
     CHECK_REPL = "check_repl"
-    SELECT_REPLY_INTENT = "select_reply_intent"
+    SELECT_REPLY_DISPOSITION = "select_reply_disposition"
     CHECK_LIMITATION = "check_limitation"
     EMIT_REPLY = "emit_reply"
 
@@ -190,7 +190,7 @@ class ReasoningTrace:
 
     def filter_kind(self, kind: ReasoningStepKind) -> "ReasoningTrace":
         # Returns a new ReasoningTrace with steps renumbered. The
-        # renumbering preserves the invariant that step_number is
+        # renumbering maintains the invariant that step_number is
         # 1..len(steps).
         kept = tuple(s for s in self.steps if s.kind is kind)
         renumbered = tuple(
@@ -224,7 +224,7 @@ class ReasoningTraceReport:
     compare_structure_count: int
     check_coherence_count: int
     check_repl_count: int
-    select_reply_intent_count: int
+    select_reply_disposition_count: int
     check_limitation_count: int
     emit_reply_count: int
     trace_digest_hex16: str
@@ -245,7 +245,7 @@ class ReasoningTraceReport:
             ("compare_structure_count", self.compare_structure_count),
             ("check_coherence_count", self.check_coherence_count),
             ("check_repl_count", self.check_repl_count),
-            ("select_reply_intent_count", self.select_reply_intent_count),
+            ("select_reply_disposition_count", self.select_reply_disposition_count),
             ("check_limitation_count", self.check_limitation_count),
             ("emit_reply_count", self.emit_reply_count),
         ):
@@ -407,7 +407,7 @@ def build_reasoning_trace_report(
         f"cmp={counts.get(ReasoningStepKind.COMPARE_STRUCTURE, 0)} "
         f"coh={counts.get(ReasoningStepKind.CHECK_COHERENCE, 0)} "
         f"rpl={counts.get(ReasoningStepKind.CHECK_REPL, 0)} "
-        f"sel={counts.get(ReasoningStepKind.SELECT_REPLY_INTENT, 0)} "
+        f"sel={counts.get(ReasoningStepKind.SELECT_REPLY_DISPOSITION, 0)} "
         f"lim={counts.get(ReasoningStepKind.CHECK_LIMITATION, 0)} "
         f"emit={counts.get(ReasoningStepKind.EMIT_REPLY, 0)} "
         f"digest={digest}"
@@ -434,8 +434,8 @@ def build_reasoning_trace_report(
             ReasoningStepKind.CHECK_COHERENCE, 0
         ),
         check_repl_count=counts.get(ReasoningStepKind.CHECK_REPL, 0),
-        select_reply_intent_count=counts.get(
-            ReasoningStepKind.SELECT_REPLY_INTENT, 0
+        select_reply_disposition_count=counts.get(
+            ReasoningStepKind.SELECT_REPLY_DISPOSITION, 0
         ),
         check_limitation_count=counts.get(
             ReasoningStepKind.CHECK_LIMITATION, 0
@@ -483,7 +483,7 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     ReasoningStepKind.COMPARE_STRUCTURE.value,
     ReasoningStepKind.CHECK_COHERENCE.value,
     ReasoningStepKind.CHECK_REPL.value,
-    ReasoningStepKind.SELECT_REPLY_INTENT.value,
+    ReasoningStepKind.SELECT_REPLY_DISPOSITION.value,
     ReasoningStepKind.CHECK_LIMITATION.value,
     ReasoningStepKind.EMIT_REPLY.value,
 )

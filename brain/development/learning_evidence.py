@@ -7,7 +7,8 @@ operational claim "this runtime accumulates structural records and
 reuses them in later interactions" auditable and replayable.
 
 This is NOT memory in the psychological sense. This is NOT semantic
-understanding. This is NOT agency, will, desire, belief, or intent.
+interpretation. It asserts no cognitive property of the running
+system.
 
 Non-claim discipline (binding):
 

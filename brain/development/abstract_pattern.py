@@ -2,14 +2,15 @@
 
 This module is a strict pure helper layer. It extracts a bounded
 abstract structural form (token-equality class, recurrence class,
-shape string) from an input text without claiming any semantic
-understanding.
+shape string) from an input text. No semantic interpretation is
+performed; the layer operates purely on surface tokens.
 
 Non-claim discipline (binding):
 
-* No claim of cognitive properties is made. The function names below
-  use "derive" deliberately; nothing in this module "understands",
-  "recognizes" semantically, or "comprehends" anything.
+* No claim of cognitive properties is made. The function names use
+  "derive" deliberately; this module performs no semantic
+  interpretation and asserts no cognitive property of the running
+  system.
 * Every produced string passes the canonical
   ``brain.development.coherence_monitor._FORBIDDEN_NON_CLAIM_TERMS``
   audit (case-insensitive substring).

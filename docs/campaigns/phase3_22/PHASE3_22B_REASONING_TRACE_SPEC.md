@@ -24,7 +24,7 @@ LOOKUP_PRIOR_STRUCTURE
 COMPARE_STRUCTURE
 CHECK_COHERENCE
 CHECK_REPL
-SELECT_REPLY_INTENT
+SELECT_REPLY_DISPOSITION
 CHECK_LIMITATION
 EMIT_REPLY
 ```
@@ -47,7 +47,7 @@ EMIT_REPLY
   from the post-dispatch observation; record the value.
 - **CHECK_REPL** — read the bridge result (if any); record
   `parse=<value> exec=<value>`.
-- **SELECT_REPLY_INTENT** — record the chosen
+- **SELECT_REPLY_DISPOSITION** — record the chosen
   `AgentReplyDisposition`.
 - **CHECK_LIMITATION** — record whether refusal / warn / fail
   preempts other intents.
@@ -89,7 +89,7 @@ A9 axis cases (7 cases):
 - A9.01 every agent reply has a non-empty reasoning trace
 - A9.02 refusal reply trace shows CLASSIFY_REFUSAL match path
 - A9.03 pattern reply trace shows DERIVE_PATTERN ->
-  LOOKUP_PRIOR_STRUCTURE -> SELECT_REPLY_INTENT path
+  LOOKUP_PRIOR_STRUCTURE -> SELECT_REPLY_DISPOSITION path
 - A9.04 REPL reply trace shows the parse/build/execute/feedback
   path (CHECK_REPL step records non-empty parse/exec values)
 - A9.05 limitation reply trace documents `not_applicable` blocker
