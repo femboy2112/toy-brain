@@ -57,7 +57,8 @@ PROCESSING_WINDOW_SIZE_MAX: int = 255
 #: STEP_TICK-driven path (S3 from the Phase 3.17 synthesis); the v1
 #: REHEARSAL source under STREAM_APPEND consumes zero real model
 #: calls, so this field is unused on the v1 path. Kept as a bounded
-#: int to preserve I-UI-10 (no callable / handle / client field).
+#: int so the I-UI-10 surface (no callable / handle / client field)
+#: stays intact.
 PROCESSING_WINDOW_CALL_BUDGET_MAX: int = 65535
 
 

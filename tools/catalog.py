@@ -24,30 +24,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.24 expected counts — bumped by the Phase 3.14 LLM Cache Discipline
-# catalog patch (I-LLMCACHE-01..22: +18 REQUIRED rows, +1 STRUCTURAL
-# row, +1 DEFERRED row, +2 NOT-EXERCISED rows; OBSERVED unchanged).
-# Phase 3.14 makes L1 transport cache default-on after explicit
-# model-backed mode selection (new --llm-disable-cache opt-out flag),
-# adds an L2 canonical semantic evaluation cache inside
-# brain/llm/ptcns_backed.py (keyed by cache_schema_version /
-# prompt_template_version / parse_schema_version / backend_family /
-# model_identity / existing_msi_context / new_text; evaluated new_id
-# is excluded from the key but retained in the rendered prompt for
-# diagnostics), bounds L2 at 1024 entries, and keeps brain/tick.py
-# untouched. Phase 3.15 retires the DEFERRED I-LLMCACHE-20 row by
-# binding a deterministic write-skip-at-cap admission policy with
-# L1_CACHE_MAX_ENTRIES = 1024 to the existing CachedClient L1
-# transport cache; adds I-LLMCACHE-23..26 for at-cap miss behavior,
-# observability (llm.cache_skip event with payload
-# {cache_key_prefix, reason="capacity"} and skip_count counter),
-# no-silent-repair guarantees, and a static AST audit over the new L1
-# hygiene code. L2 (eval_v1) semantics are unchanged. Offline remains
-# default; model-backed modes remain explicit opt-in. brain/tick.py
-# is not edited. I-LLMCACHE-21 and I-LLMCACHE-22 remain NOT-EXERCISED.
+# v0.26 expected counts — bumped by the Phase 3.18 Bounded Internal
+# Processing Window catalog patch (I-PWND-01..02: +1 REQUIRED row,
+# +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
+# Phase 3.18 adds a session-level rehearsal loop after a successful
+# external STREAM_APPEND, driven by two new optional OperatorSession
+# fields (processing_window_size, processing_window_call_budget)
+# both default 0 (OFF). The new module brain/development/processing_window.py
+# is closed-import; the new fixtures are
+# processing_window_static_audit.py (STRUCTURAL) and
+# processing_window_integration.py (REQUIRED). brain/tick.py is not
+# edited; L1 / L2 cache semantics unchanged; parser / prompt
+# unchanged; no new GrowthEventType / OperatorCommand / operator
+# verb; STREAM_APPEND consumes zero real model calls so the window
+# consumes zero real model calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 281,
-    "STRUCTURAL": 88,
+    "REQUIRED": 282,
+    "STRUCTURAL": 89,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,
