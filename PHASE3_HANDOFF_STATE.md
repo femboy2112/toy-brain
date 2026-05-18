@@ -4,11 +4,12 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.20 PR #25 opened; Phase 3.21 about to start
-**Active branch (about to switch):** `campaign/phase3-21-developmental-trajectory`
-                                     (branches off `campaign/phase3-20-coherence-feedback-bridge` HEAD `1ecb810`)
-**Active campaign:** Phase 3.21 Developmental Trajectory (starting Step 1)
-**Prior campaign:** Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25)
+**Last updated:** Phase 3.21 PR #26 opened — both campaigns COMPLETE
+**Active branch:** `campaign/phase3-21-developmental-trajectory` (PR #26)
+**Active campaign:** none in flight; queued candidate Phase 3.22
+**Prior campaigns:**
+  - Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25 open)
+  - Phase 3.21 Developmental Trajectory — COMPLETE (PR #26 open)
 
 ---
 
@@ -44,14 +45,16 @@ recurrence accounting, not a consciousness claim.
 ## Current step pointer
 
 ```text
-campaign:   Phase 3.21 Developmental Trajectory
-step:       Step 1 — Mission sync + roadmap
-status:     STARTING (about to branch off Phase 3.20 HEAD)
-file:       PHASE3_21_DEVELOPMENTAL_TRAJECTORY_ROADMAP.md (to write)
-gates:      v0.28 baseline; all 5 gates PASS at Phase 3.20 audit
-branch:     campaign/phase3-21-developmental-trajectory (NEW)
-                branches from campaign/phase3-20-coherence-feedback-bridge HEAD 1ecb810
-remote:     not yet pushed
+campaign:   none in flight
+status:     two PRs (#25 + #26) open, awaiting operator merge decision
+gates:      v0.29 baseline; all 5 gates PASS at Phase 3.21 audit
+branch:     campaign/phase3-21-developmental-trajectory (PR #26)
+
+queued candidate:
+  campaign:   Phase 3.22 deliberately-tilted CoherenceReport probe
+              (W3 / R1 follow-up from Phase 3.21 findings)
+  base:       Phase 3.21 HEAD (or main once all stacked PRs merge)
+  not started.
 ```
 
 ---
@@ -76,22 +79,22 @@ Verdict: **PASS WITH DEFERRED FOLLOW-UPS**. Catalog v0.28.
 
 ---
 
-## Phase 3.21 step ledger (queued; do not start until Phase 3.20 PR opens)
+## Phase 3.21 step ledger (COMPLETE)
 
 ```text
-Step  1  Mission sync + roadmap                        queued
-Step  2  Human-development deep analysis               queued
-Step  3  Define 10 distinct milestones                 queued
-Step  4  Catalog patch plan + processing-window
-         extensions required                           queued
-Step  5  Review Gate B                                 queued
-Step  6  Implement milestone harness + fixtures       queued
-Step  7  Run all 10 milestones (per-milestone
-         commit + push)                                queued
-Step  8  Behavior + findings report                    queued
-Step  9  Final audit                                   queued
-Step 10  PR preparation                                queued
+Step  1  Mission sync + roadmap                        DONE   commit 5eefd28 (pushed)
+Step  2  Human-development synthesis                   DONE   commit 4d6abf4 (pushed)
+Step  3  Ten milestones + corrigenda                   DONE   commit 45f5ca9 (pushed)
+Step  4  Catalog patch plan                            DONE   commit 8c5bdbe (pushed)
+Step  5  Review Gate B                                 DONE   (in Step 6 preamble)
+Step  6  Implement milestone harness + fixtures        DONE   commit c25d726 (pushed)
+Step  7  Run all 10 milestones                         DONE   commit f035836 (pushed)
+Step  8  Behavior + findings report                    DONE   commit b0ab467 (pushed)
+Step  9  Final audit                                   DONE   commit aff48e0 (pushed)
+Step 10  PR preparation                                DONE   PR #26 opened (base=Phase 3.20 branch)
 ```
+
+Verdict: **PASS WITH DEFERRED FOLLOW-UPS**. Catalog v0.29.
 
 The 10 milestones (working titles; Step 3 of Phase 3.21 may rename):
 
@@ -170,7 +173,8 @@ Then resume at the step named under **Current step pointer** above.
 
 - PR #24 Phase 3.19 → `main`, OPEN, MERGEABLE.
 - PR #25 Phase 3.20 → `campaign/phase3-19-internal-feedback-loop`, OPEN, MERGEABLE, CLEAN. Retargets to `main` once PR #24 merges.
-- Phase 3.21 branch stacks on Phase 3.20 HEAD; final PR targets `campaign/phase3-20-coherence-feedback-bridge` while PR #25 is open; retargets to `main` once both PR #24 and PR #25 merge.
+- PR #26 Phase 3.21 → `campaign/phase3-20-coherence-feedback-bridge`, OPEN. Retargets to `main` once both PR #24 and PR #25 merge.
+- Stack merge order: PR #24 → PR #25 → PR #26.
 
 ---
 
