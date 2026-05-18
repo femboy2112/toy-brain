@@ -91,8 +91,8 @@ queue full, etc.):
 | HELP                                  | help-view                    | VIEW_CHANGE              |
 | QUIT                                  | quit-flag                    | QUIT_FLAG                |
 | NOOP                                  | noop-early-return            | NONE                     |
-| STREAM_APPEND (window OFF)            | stream-append                | STREAM_APPEND            |
-| STREAM_APPEND (window ON, feedback)   | stream-append-internal       | STREAM_WINDOW_INTERNAL   |
+| STREAM_APPEND (window == 0)           | stream-append                | STREAM_APPEND            |
+| STREAM_APPEND (window > 0)            | stream-append                | STREAM_WINDOW_INTERNAL   |
 | STREAM_PROMOTE                        | stream-promote               | STREAM_PROMOTE           |
 | SAVE_SESSION / LOAD_SESSION           | session-persistence          | SESSION_PERSISTENCE      |
 | SESSION_STATUS                        | session-status               | UI_ONLY                  |
@@ -104,10 +104,15 @@ queue full, etc.):
 | AUTOSAVE_ENABLE / AUTOSAVE_DISABLE    | autosave-config              | AUTOSAVE                 |
 
 The `STREAM_APPEND` route splits at the post-handler step: when
-`processing_window_size > 0` and `feedback_mode != OFF`, the
-`MUTATION_CLASSIFIED` step records `STREAM_WINDOW_INTERNAL` instead
-of `STREAM_APPEND`. This mirrors the existing rehearsal-window
-implementation in `_dispatch_stream_append` / `_run_processing_window`.
+`processing_window_size > 0`, the `MUTATION_CLASSIFIED` step records
+`STREAM_WINDOW_INTERNAL` instead of `STREAM_APPEND` (because the
+Phase 3.18 rehearsal window appends `window_size` additional internal
+chunks beyond the seed, regardless of `feedback_mode`). This mirrors
+the existing rehearsal-window implementation in
+`_dispatch_stream_append` / `_run_processing_window`. `feedback_mode`
+controls whether *additional* pledger / cohmon summary chunks fire on
+top of the rehearsals; both branches still classify as
+`STREAM_WINDOW_INTERNAL`.
 
 ## 6. Required trace facts
 
