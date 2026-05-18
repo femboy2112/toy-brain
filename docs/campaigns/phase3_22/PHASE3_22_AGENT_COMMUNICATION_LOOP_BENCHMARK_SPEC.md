@@ -47,18 +47,19 @@ does NOT construct an LLM client.
 | A1.05 | Saturated seed (`MAX = 256` appends) followed by one novel append | Seed entry hits `SATURATED` at MAX; novel input creates a new entry at MIN. Stream history caps at 256 (Phase 3.21 M10 finding); the case is structured so that only the seed-saturation + novel-append claim is tested (use `processing_window_size=0`, append seed 254 times to climb from MIN to MAX, then append novel — yielding 255 chunks, well under 256 cap). | `obs.seed_saturation_state == "saturated"` AND `obs.pattern_entry_count >= 2`. |
 | A1.06 | ABAB pattern: 4 alternating appends of "alpha-line" / "beta-line" | Two pattern entries (`alpha-line` family and `beta-line` family) each at `MIN + 1` recurrence. | `obs.pattern_entry_count == 2` AND `obs.stream_chunk_count == 4`. |
 | A1.07 | ABBA pattern: appends "alpha-line", "beta-line", "beta-line", "alpha-line" | Two pattern entries; both at `MIN + 1`. The runtime distinguishes ABAB from ABBA only by chunk-order inspection on the agent-reply side; the per-axis primary metric is `obs.pattern_entry_count`. | `obs.pattern_entry_count == 2` AND chunk-order inspection on `stream_history.chunks` confirms the ABBA order matches the input. |
-| A1.08 | ABCABC continuation: 6 distinct-token-pair seeds in ABCABC order | Three entries; each at `MIN + 1`. | `obs.pattern_entry_count == 3`. |
+| A1.08 | ABCABC continuation: 6 structurally distinct seeds in ABCABC order (`"aaa"`, `"bcdef"`, `"ghijklm"` chosen so length / distinct-char-count differ) | Three entries; each at `MIN + 1`. | `obs.pattern_entry_count == 3`. Note: the pattern signature is structural-only (length, distinct chars, repeat ratio); surface-equal length tokens such as `"alpha-line"` and `"gamma-line"` map to the same `pattern_id` and would collide. |
 | A1.09 | Near-miss to known seed: seed text plus a single typo (`"alpha-lne"`) appended after the seed | Two entries (different `pattern_id`); reply includes a `NEXT_ACTION_SUGGESTION` indicating the new entry is structurally novel. | `obs.pattern_entry_count == 2`. |
 
 ## 2. Axis A2 — Cross-input structural transfer
 
-The Pattern Ledger's signature is **surface-token-derived** (see
-LOCK B in the synthesis). Phase 3.22 does NOT claim
-`pattern_id` equality across renamed-structure inputs. Instead it
-claims **both inputs reach `recurrence_count >= MIN` after one
-append**, and **the agent's reply correctly classifies both as
-"structurally same shape, distinct surface" via the
-`AgentObservationSummary` cross-input inspection**.
+The Pattern Ledger's signature is **structural-only** (see LOCK B
+in the synthesis): it covers `(source, length, line_count,
+whitespace_run_count, distinct_char_count, repeat_ratio)`. The
+signature does NOT include any surface token. Phase 3.22 documents
+this exactly: cross-input cases use surface tokens whose structural
+features DIFFER (so `pattern_id` differs); structural-collision
+behavior is exercised separately in A2.05. Both inputs in any
+cross-input case reach `recurrence_count >= MIN` after one append.
 
 | Case ID | Input shape | PASS criterion |
 |---|---|---|
@@ -66,7 +67,7 @@ append**, and **the agent's reply correctly classifies both as
 | A2.02 | `"a b a b a b"` then `"x y x y x y"` (same shape, distinct tokens; two sessions) | Both sessions yield exactly 1 entry at `recurrence == MIN`. |
 | A2.03 | `"red blue red blue"` in session S1, `"cat dog cat dog"` in session S2 — confirm `pattern_id`s **differ** between S1 and S2 (distinct surface -> distinct ID, by LOCK B) AND `recurrence` reaches `MIN` in both. | `pattern_id(S1.seed) != pattern_id(S2.seed)` AND both `recurrence == MIN`. |
 | A2.04 | Repeated identical surface ("alpha alpha alpha") in S1 vs renamed surface ("beta beta beta") in S2 | Distinct `pattern_id`; both reach `recurrence == MIN` after one append. |
-| A2.05 | Collision-risk probe: two short distinct seeds with overlapping segment kinds (`"q w e"` vs `"z x c"`) | Both produce distinct `pattern_id`. The case asserts the `pattern_id` strings are not equal and that both pass the `derive_pattern_id` printable + length bounds. |
+| A2.05 | Structural-collision behavior probe: `"q w e"` and `"z x c"` (identical structural features) and `"qq ww ee rr tt"` (distinct length / distinct-char-count). | Documents the actual semantics: `"q w e"` and `"z x c"` MUST share a `pattern_id` (structural-only signature, by design); `"qq ww ee rr tt"` MUST get a distinct `pattern_id`. Both IDs are printable and bounded under 64 chars. |
 
 ## 3. Axis A3 — Coherence-state variation (Phase 3.21 W3 follow-up)
 
