@@ -363,10 +363,12 @@ class CodexCLIClient:
     """
 
     # ``exec`` runs the codex CLI non-interactively for a single
-    # prompt-response cycle. The tuple is minimal: no version-specific
-    # flags whose semantics could shift between codex binary versions
-    # (corrigenda Section 7).
-    command: tuple[str, ...] = ("codex", "exec")
+    # prompt-response cycle. ``--skip-git-repo-check`` is documented
+    # and required for codex-cli >= 0.130: without it the binary
+    # refuses the neutral cwd=/tmp before any prompt is forwarded
+    # (Phase 3.17 Step 2 patch plan; the parent repo's CLAUDE.md /
+    # hooks must NOT be auto-discovered, so cwd stays /tmp).
+    command: tuple[str, ...] = ("codex", "exec", "--skip-git-repo-check")
     timeout_seconds: float = 60.0
     tracer: CognitionTracer = field(default_factory=NullTracer)
     # When invoking the nested CLI, drop into a neutral cwd so the child
