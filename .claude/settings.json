@@ -28,7 +28,8 @@
       "Bash(find ./.claude:*)",
       "Bash(find ./scenarios:*)",
       "Bash(find ./traces:*)",
-      "Bash(python3 tools/claude_helpers/codex_chatgpt_subagent.py:*)"
+      "Bash(python3 tools/claude_helpers/codex_chatgpt_subagent.py:*)",
+      "Bash(python3 tools/claude_helpers/codex_chatgpt_write_worker.py:*)"
     ]
   }
 }
