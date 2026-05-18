@@ -150,6 +150,7 @@ _EXPECTED_INTERNAL_EVENT_SOURCE_VALUES: frozenset[str] = frozenset({
     "rehearsal",
     "pledger_summary",
     "cohmon_summary",
+    "worldlet_summary",
 })
 
 
@@ -322,6 +323,7 @@ def check_processing_window_static_audit() -> None:
         InternalEventSource.REHEARSAL,
         InternalEventSource.PLEDGER_SUMMARY,
         InternalEventSource.COHMON_SUMMARY,
+        InternalEventSource.WORLDLET_SUMMARY,
     ):
         for k in (1, 2, 3, 42, 255):
             provenance = build_rehearsal_provenance(tick_index=k, source=source)
