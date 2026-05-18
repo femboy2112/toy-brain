@@ -204,6 +204,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.llm_cache_observability",
     "brain.ui.fixtures.llm_cache_no_tick_change",
     "brain.ui.fixtures.llm_cache_static_audit",
+    "brain.ui.fixtures.llm_cache_l1_capacity",
 ]
 
 

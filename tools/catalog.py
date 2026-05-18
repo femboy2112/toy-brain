@@ -35,14 +35,21 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # model_identity / existing_msi_context / new_text; evaluated new_id
 # is excluded from the key but retained in the rendered prompt for
 # diagnostics), bounds L2 at 1024 entries, and keeps brain/tick.py
-# untouched. L1 bounding remains DEFERRED (I-LLMCACHE-20); the real
-# external model-backed cache smoke (I-LLMCACHE-21) and the end-to-end
-# behavior-report row (I-LLMCACHE-22) are NOT-EXERCISED in v1.
+# untouched. Phase 3.15 retires the DEFERRED I-LLMCACHE-20 row by
+# binding a deterministic write-skip-at-cap admission policy with
+# L1_CACHE_MAX_ENTRIES = 1024 to the existing CachedClient L1
+# transport cache; adds I-LLMCACHE-23..26 for at-cap miss behavior,
+# observability (llm.cache_skip event with payload
+# {cache_key_prefix, reason="capacity"} and skip_count counter),
+# no-silent-repair guarantees, and a static AST audit over the new L1
+# hygiene code. L2 (eval_v1) semantics are unchanged. Offline remains
+# default; model-backed modes remain explicit opt-in. brain/tick.py
+# is not edited. I-LLMCACHE-21 and I-LLMCACHE-22 remain NOT-EXERCISED.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 277,
-    "STRUCTURAL": 87,
+    "REQUIRED": 281,
+    "STRUCTURAL": 88,
     "NOT-EXERCISED": 14,
-    "DEFERRED": 16,
+    "DEFERRED": 15,
     "OBSERVED": 16,
 }
 

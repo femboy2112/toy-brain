@@ -1,4 +1,4 @@
-"""Phase 3.14 LLM cache static-audit fixture.
+"""Phase 3.14 / 3.15 LLM cache static-audit fixture.
 
 Drives:
 
@@ -14,6 +14,11 @@ Drives:
 * ``I-LLMCACHE-19`` (STRUCTURAL) — Cache dependency direction is
   one-way: ``brain.llm.ptcns_backed`` does not import ``brain.ui.*``
   or ``brain.tick``.
+* ``I-LLMCACHE-26`` (STRUCTURAL) — Phase 3.15 L1 hygiene static audit
+  over ``brain/llm/client.py``: rejects forbidden imports, eval/exec
+  calls, and confirms the new ``llm.cache_skip`` event payload uses
+  only ``cache_key_prefix`` and ``reason`` as payload keys. Distinct
+  from the existing L2 audit by target path and function name.
 """
 from __future__ import annotations
 
@@ -285,3 +290,140 @@ def check_I_LLMCACHE_19_dependency_direction() -> None:
                 f"{module_path.relative_to(llm_root.parent.parent)} "
                 f"imports {name!r}"
             )
+
+
+# Phase 3.15 L1 hygiene static audit. Scope: brain/llm/client.py only.
+# Distinct from the L2 audit (I-LLMCACHE-17) by target path and label.
+_CLIENT_PATH = _PTCNS_BACKED_PATH.parent / "client.py"
+
+
+_CLIENT_ALLOWED_IMPORT_NAMES: frozenset[str] = frozenset({
+    "__future__",
+    "hashlib",
+    "json",
+    "os",
+    "shutil",
+    "subprocess",
+    "time",
+    "urllib.error",
+    "urllib.request",
+    "dataclasses",
+    "pathlib",
+    "typing",
+    "brain.trace",
+})
+
+
+_CLIENT_FORBIDDEN_IMPORT_PREFIXES: tuple[str, ...] = (
+    "brain.ui",
+    "brain.tick",
+    "brain.development",
+    "socket",
+    "http",
+    "requests",
+    "sqlite3",
+    "tempfile",
+    "atexit",
+    "threading",
+    "asyncio",
+    "signal",
+)
+
+
+_CLIENT_FORBIDDEN_CALL_NAMES: frozenset[str] = frozenset({
+    "eval",
+    "exec",
+    "compile",
+    "__import__",
+    "tick",
+    "save_session",
+    "load_session",
+    "maybe_autosave_after_mutation",
+})
+
+
+@register("I-LLMCACHE-26", status="STRUCTURAL")
+def check_I_LLMCACHE_26_l1_hygiene_static_audit() -> None:
+    assert _CLIENT_PATH.exists(), (
+        "I-LLMCACHE-26 violated: client.py not found at "
+        f"{_CLIENT_PATH}"
+    )
+    source = _CLIENT_PATH.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(_CLIENT_PATH))
+
+    # 1. Import allowlist: client.py legitimately imports stdlib
+    # subprocess + urllib for the CLI/HTTP backends, but must not
+    # import brain.ui / brain.tick / brain.development or net/IPC
+    # surfaces the L1 hygiene policy does not need.
+    for name in _import_targets(tree):
+        for forbidden in _CLIENT_FORBIDDEN_IMPORT_PREFIXES:
+            if name == forbidden or name.startswith(forbidden + "."):
+                raise AssertionError(
+                    "I-LLMCACHE-26 violated: forbidden import "
+                    f"{name!r} in client.py"
+                )
+        assert name in _CLIENT_ALLOWED_IMPORT_NAMES, (
+            "I-LLMCACHE-26 violated: unrecognized import "
+            f"{name!r} in client.py (extend the allowlist if "
+            "intentional)"
+        )
+
+    # 2. Forbidden calls.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = _call_name(node)
+            if name in _CLIENT_FORBIDDEN_CALL_NAMES:
+                raise AssertionError(
+                    "I-LLMCACHE-26 violated: forbidden call "
+                    f"{name!r} at line {node.lineno}"
+                )
+
+    # 3. The new llm.cache_skip event payload must use only
+    # ``cache_key_prefix`` and ``reason``. We locate the
+    # ``_tracer.record("llm.cache_skip", {...})`` call inside the
+    # CachedClient class and inspect the dict literal keys.
+    found_skip = False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "record":
+            continue
+        if not node.args:
+            continue
+        first = node.args[0]
+        if not isinstance(first, ast.Constant):
+            continue
+        if first.value != "llm.cache_skip":
+            continue
+        # Second positional arg must be a dict literal with keys
+        # exactly {"cache_key_prefix", "reason"}.
+        assert len(node.args) >= 2, (
+            "I-LLMCACHE-26 violated: llm.cache_skip record(...) call "
+            "missing payload dict argument"
+        )
+        payload = node.args[1]
+        assert isinstance(payload, ast.Dict), (
+            "I-LLMCACHE-26 violated: llm.cache_skip payload is not "
+            "a dict literal"
+        )
+        keys: set[str] = set()
+        for key_node in payload.keys:
+            assert isinstance(key_node, ast.Constant) and isinstance(
+                key_node.value, str
+            ), (
+                "I-LLMCACHE-26 violated: llm.cache_skip payload key "
+                "is not a string literal"
+            )
+            keys.add(key_node.value)
+        assert keys == {"cache_key_prefix", "reason"}, (
+            "I-LLMCACHE-26 violated: llm.cache_skip payload keys "
+            f"are {sorted(keys)}; expected "
+            "{'cache_key_prefix', 'reason'}"
+        )
+        found_skip = True
+    assert found_skip, (
+        "I-LLMCACHE-26 violated: no llm.cache_skip record(...) call "
+        "found in client.py"
+    )
