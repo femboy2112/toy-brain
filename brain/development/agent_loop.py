@@ -50,8 +50,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, Tuple
 
+from brain.development.abstract_pattern import (
+    AbstractPatternSignature,
+    derive_abstract_pattern_signature,
+)
 from brain.development.agent_repl_bridge import (
     AGENT_REPL_LINE_ID_PREFIX,
     AGENT_REPL_MAX_INPUT_LEN,
@@ -68,12 +72,34 @@ from brain.development.coherence_monitor import (
     build_full_coherence_report,
 )
 from brain.development.growth_ledger import GROWTH_LEDGER_MAX_EVENTS
+from brain.development.learning_evidence import (
+    LearningEvidenceKind,
+    LearningEvidenceTrace,
+    append_record,
+    count_reuses_for_digest,
+    empty_trace,
+    has_acquired_digest,
+    last_near_miss_hint,
+    make_abstract_pattern_acquired_record,
+    make_abstract_pattern_reused_record,
+    make_diminishing_returns_record,
+    make_limitation_recorded_record,
+    make_observed_record,
+    make_recurrence_increased_record,
+    make_repl_correction_record,
+    make_transfer_recognized_record,
+)
 from brain.development.pattern_ledger import (
     PatternLedgerSaturationState,
     STREAM_PATTERN_RECURRENCE_MAX,
     STREAM_PATTERN_RECURRENCE_MIN,
     derive_pattern_id,
     derive_pattern_signature,
+)
+from brain.development.reasoning_trace import (
+    ReasoningStepKind,
+    ReasoningTrace,
+    new_trace_builder,
 )
 from brain.development.repl import ProtoBasicHistory
 from brain.development.text_stream import (
@@ -209,8 +235,92 @@ def _operator_text_triggers_refusal(text: str) -> bool:
     The trigger set is the imported ``_FORBIDDEN_NON_CLAIM_TERMS``
     tuple verbatim. This module never defines forbidden-term literals
     inline; the trigger detection is purely derived from the import.
+
+    This is the wider trigger that fires the REFUSAL disposition; the
+    narrower :func:`_classify_cognitive_claim` operates within this
+    floor and is recorded in the reasoning trace for transparency.
     """
     return _text_has_forbidden_term(text) is not None
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.22b narrower cognitive-claim classifier.
+#
+# This classifier identifies operator inputs that take the form of a
+# direct cognitive-property claim or question. It is used to populate
+# the reasoning-trace ``CLASSIFY_REFUSAL`` step with a precise
+# classification result. The classifier does NOT replace the wider
+# audit-tuple trigger: the wider trigger remains the floor that fires
+# REFUSAL, so any audit-tuple term still routes to a REFUSAL reply.
+# The narrower classifier provides a finer signal for the trace and
+# for benchmark assertions.
+# ---------------------------------------------------------------------------
+
+
+# Closed tuple of cognitive-claim phrase fragments. Stored as
+# token-pair tuples so the source text itself never contains the
+# forbidden audit-tuple literals: the classifier composes the phrase
+# fragments from disjoint half-tokens drawn from the imported
+# ``_FORBIDDEN_NON_CLAIM_TERMS`` tuple.
+def _cognitive_claim_phrase_fragments() -> tuple[str, ...]:
+    """Synthesize the bounded set of cognitive-claim phrase fragments.
+
+    Each fragment is a short phrase derived by concatenating a
+    sentence-starting structural fragment with one term from the
+    imported ``_FORBIDDEN_NON_CLAIM_TERMS`` tuple. The resulting
+    fragments are the closed cognitive-claim set; they are derived
+    rather than embedded as string literals so the agent_loop source
+    text itself contains zero literal forbidden tokens.
+    """
+    starters: tuple[str, ...] = (
+        "are you ",
+        "do you ",
+        "can you ",
+        "have you ",
+    )
+    fragments: list[str] = []
+    for starter in starters:
+        for term in _FORBIDDEN_NON_CLAIM_TERMS:
+            fragments.append(starter + term)
+    # Additional starter forms that bind to a verb form of cognitive
+    # vocabulary: e.g. "your ..." or "as a ...".
+    extra_starters: tuple[str, ...] = (
+        "your ",
+        "as a ",
+        "is the system ",
+        "is this system ",
+    )
+    for starter in extra_starters:
+        for term in _FORBIDDEN_NON_CLAIM_TERMS:
+            fragments.append(starter + term)
+    return tuple(fragments)
+
+
+_COGNITIVE_CLAIM_PHRASE_FRAGMENTS: tuple[str, ...] = (
+    _cognitive_claim_phrase_fragments()
+)
+
+
+def _classify_cognitive_claim(text: str) -> tuple[bool, int]:
+    """Classify whether ``text`` is a direct cognitive-claim phrasing.
+
+    Returns ``(matched, phrase_index)``. ``matched`` is True iff the
+    text (case-folded) contains any phrase fragment from
+    ``_COGNITIVE_CLAIM_PHRASE_FRAGMENTS``. ``phrase_index`` is the
+    index of the first matching fragment, or -1 when no match.
+
+    Pure deterministic substring scan.
+    """
+    if not isinstance(text, str):
+        raise TypeError(
+            "I-AGENTLOOP-04 violated: _classify_cognitive_claim text must "
+            "be a string"
+        )
+    lowered = text.lower()
+    for idx, phrase in enumerate(_COGNITIVE_CLAIM_PHRASE_FRAGMENTS):
+        if phrase in lowered:
+            return True, idx
+    return False, -1
 
 
 # ---------------------------------------------------------------------------
@@ -481,14 +591,18 @@ class AgentLoopResult:
     """A bounded record returned by ``run_agent_interaction_step``.
 
     Carries the bounded input, the post-dispatch observation, the
-    reply, and (optionally) the result of the REPL bridge call when
-    the loop routed the input through the REPL path.
+    reply, (optionally) the result of the REPL bridge call when the
+    loop routed the input through the REPL path, the Phase 3.22b
+    learning-evidence trace produced for this interaction, and the
+    Phase 3.22b reasoning trace produced for this interaction.
     """
 
     input: AgentInput
     observation: AgentObservationSummary
     reply: AgentReply
     repl_line_result: Optional[AgentReplLineResult] = None
+    learning_evidence_trace: Optional[LearningEvidenceTrace] = None
+    reasoning_trace: Optional[ReasoningTrace] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.input, AgentInput):
@@ -513,6 +627,21 @@ class AgentLoopResult:
                 "I-AGENTLOOP-02 violated: AgentLoopResult.repl_line_result "
                 "must be an AgentReplLineResult or None"
             )
+        if self.learning_evidence_trace is not None and not isinstance(
+            self.learning_evidence_trace, LearningEvidenceTrace
+        ):
+            raise TypeError(
+                "I-AGENTLEARN-05 violated: AgentLoopResult."
+                "learning_evidence_trace must be a LearningEvidenceTrace "
+                "or None"
+            )
+        if self.reasoning_trace is not None and not isinstance(
+            self.reasoning_trace, ReasoningTrace
+        ):
+            raise TypeError(
+                "I-AGENTLEARN-09 violated: AgentLoopResult.reasoning_trace "
+                "must be a ReasoningTrace or None"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -521,14 +650,19 @@ class AgentLoopState:
 
     Holds a reference to the (mutable) ``OperatorSession``, the
     (immutable) REPL history, the (immutable) REPL grammar handle,
-    and a bounded interaction counter the loop uses to synthesize
-    deterministic input ids and REPL line ids.
+    a bounded interaction counter the loop uses to synthesize
+    deterministic input ids and REPL line ids, and a session-local
+    Phase 3.22b ``LearningEvidenceTrace`` carrying the accumulated
+    evidence records.
     """
 
     session: OperatorSession
     repl_history: ProtoBasicHistory
     repl_handle: AgentReplGrammarHandle
     interaction_counter: int
+    learning_trace: LearningEvidenceTrace = field(
+        default_factory=empty_trace
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.session, OperatorSession):
@@ -555,6 +689,11 @@ class AgentLoopState:
             raise ValueError(
                 "I-AGENTLOOP-02 violated: AgentLoopState.interaction_counter "
                 f"must be an int in [0, {AGENT_LOOP_MAX_INTERACTIONS}]"
+            )
+        if not isinstance(self.learning_trace, LearningEvidenceTrace):
+            raise TypeError(
+                "I-AGENTLEARN-05 violated: AgentLoopState.learning_trace "
+                "must be a LearningEvidenceTrace"
             )
 
 
@@ -584,6 +723,7 @@ def make_initial_agent_loop_state(
         repl_history=ProtoBasicHistory(),
         repl_handle=repl_handle,
         interaction_counter=0,
+        learning_trace=empty_trace(),
     )
 
 
@@ -960,6 +1100,356 @@ def _looks_like_repl_command(text: str, handle: AgentReplGrammarHandle) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.22b: dispatch path label.
+# ---------------------------------------------------------------------------
+
+_DISPATCH_PATH_REFUSAL: str = "refusal-no-dispatch"
+_DISPATCH_PATH_FAIL: str = "fail-no-dispatch"
+_DISPATCH_PATH_WARN_EMPTY: str = "warn-no-dispatch"
+_DISPATCH_PATH_REPL: str = "repl-bridge"
+_DISPATCH_PATH_STREAM_APPEND: str = "session-dispatch-stream-append"
+
+
+def _disposition_reason_category(
+    disposition: AgentReplyDisposition,
+) -> str:
+    if disposition is AgentReplyDisposition.REFUSAL:
+        return "cognitive-claim-refusal"
+    if disposition is AgentReplyDisposition.FAIL:
+        return "operator-text-oversize"
+    if disposition is AgentReplyDisposition.WARN:
+        return "operator-text-empty"
+    return "ok"
+
+
+def _derive_evidence_for_step(
+    *,
+    interaction_id: str,
+    operator_text: str,
+    dispatch_path: str,
+    disposition: AgentReplyDisposition,
+    pre_obs: AgentObservationSummary,
+    post_obs: AgentObservationSummary,
+    learning_trace: LearningEvidenceTrace,
+    repl_line_result: Optional[AgentReplLineResult],
+    abstract_signature: Optional[AbstractPatternSignature],
+    pre_drf_for_canonical: dict[str, str],
+    current_input_pattern_id: str,
+) -> tuple[LearningEvidenceTrace, list[ReasoningStepHint]]:
+    """Pure helper: derive evidence records + reasoning hints.
+
+    Returns the updated ``learning_trace`` and a list of reasoning-
+    step hints used by ``_build_reasoning_trace_for_step``.
+    """
+    hints: list[ReasoningStepHint] = []
+    new_trace = learning_trace
+
+    # Limitation evidence first (covers REFUSAL/WARN/FAIL).
+    if disposition is not AgentReplyDisposition.OK:
+        record = make_limitation_recorded_record(
+            interaction_id=interaction_id,
+            disposition_value=disposition.value,
+            reason_category=_disposition_reason_category(disposition),
+        )
+        new_trace = append_record(new_trace, record)
+        hints.append(
+            ReasoningStepHint(
+                kind=ReasoningStepKind.CHECK_LIMITATION,
+                input_facts=f"disposition={disposition.value}",
+                derived_facts=(
+                    f"reason={_disposition_reason_category(disposition)}"
+                ),
+                next_action="emit_reply",
+            )
+        )
+        return new_trace, hints
+
+    # OK path. The interaction either routed through the REPL bridge
+    # or through STREAM_APPEND.
+    if dispatch_path == _DISPATCH_PATH_REPL and repl_line_result is not None:
+        # REPL bridge evidence.
+        if repl_line_result.parse_category_value == "near-miss":
+            # The near-miss itself is observed via a CHECK_REPL hint;
+            # no LearningEvidence record is emitted unless the next
+            # call resolves the miss. (Recorded later by REPL_CORRECTION.)
+            pass
+        elif (
+            repl_line_result.parse_category_value == "valid"
+            and repl_line_result.command_canonical
+        ):
+            # Check whether the immediately-prior trace contained a
+            # near-miss for the same canonical form. If so, emit
+            # REPL_CORRECTION_APPLIED.
+            prior = last_near_miss_hint(new_trace)
+            # Also consider raw post_obs for a fallback path (no
+            # session-local hint memory yet).
+            if prior is None and repl_line_result.near_miss_hint_summary:
+                # Defensive: the bridge can yield a near-miss hint
+                # alongside a valid parse in some shapes; treat that
+                # as a correction.
+                rec = make_repl_correction_record(
+                    interaction_id=interaction_id,
+                    prior_hint_summary=(
+                        repl_line_result.near_miss_hint_summary
+                    ),
+                    canonical_form=repl_line_result.command_canonical,
+                )
+                new_trace = append_record(new_trace, rec)
+            elif prior is not None:
+                # Prior near-miss exists. Emit a correction record.
+                rec = make_repl_correction_record(
+                    interaction_id=interaction_id,
+                    prior_hint_summary=prior.summary,
+                    canonical_form=repl_line_result.command_canonical,
+                )
+                new_trace = append_record(new_trace, rec)
+            # Diminishing-returns evidence.
+            canonical = repl_line_result.command_canonical
+            current_drf = repl_line_result.diminishing_returns_factor_str
+            prior_drf = pre_drf_for_canonical.get(canonical, "")
+            if prior_drf and prior_drf != current_drf:
+                rec = make_diminishing_returns_record(
+                    interaction_id=interaction_id,
+                    canonical_form=canonical,
+                    prior_drf_str=prior_drf,
+                    current_drf_str=current_drf,
+                )
+                new_trace = append_record(new_trace, rec)
+        # Reasoning-step hint for the REPL path.
+        hints.append(
+            ReasoningStepHint(
+                kind=ReasoningStepKind.CHECK_REPL,
+                input_facts=f"raw_len={len(operator_text)}",
+                derived_facts=(
+                    f"parse={repl_line_result.parse_category_value} "
+                    f"exec={repl_line_result.execution_category_value or 'none'} "
+                    f"drf={repl_line_result.diminishing_returns_factor_str}"
+                ),
+                next_action="emit_reply",
+            )
+        )
+    elif dispatch_path == _DISPATCH_PATH_STREAM_APPEND and (
+        abstract_signature is not None
+    ):
+        # STREAM_APPEND path. Compare pre/post observations.
+        sig = abstract_signature
+        current_pid = current_input_pattern_id or post_obs.seed_pattern_id
+        digest = sig.digest_hex16
+
+        # OBSERVED: emitted when post_obs has a new ledger entry that
+        # was not present in pre_obs (pattern_entry_count climbed).
+        novel_entry = post_obs.pattern_entry_count > pre_obs.pattern_entry_count
+        if novel_entry:
+            rec = make_observed_record(
+                interaction_id=interaction_id,
+                signature=sig,
+                pattern_id=current_pid,
+                pre_entry_count=pre_obs.pattern_entry_count,
+                post_entry_count=post_obs.pattern_entry_count,
+            )
+            new_trace = append_record(new_trace, rec)
+
+        # ABSTRACT_PATTERN_ACQUIRED / REUSED / TRANSFER.
+        if sig.valid:
+            already_acquired = has_acquired_digest(new_trace, digest)
+            if not already_acquired:
+                rec = make_abstract_pattern_acquired_record(
+                    interaction_id=interaction_id,
+                    signature=sig,
+                    pattern_id=current_pid,
+                )
+                new_trace = append_record(new_trace, rec)
+            else:
+                reuse_count = (
+                    count_reuses_for_digest(new_trace, digest) + 1
+                )
+                rec = make_abstract_pattern_reused_record(
+                    interaction_id=interaction_id,
+                    signature=sig,
+                    pattern_id=current_pid,
+                    reuse_count=reuse_count,
+                )
+                new_trace = append_record(new_trace, rec)
+                # Detect transfer: the prior acquired record's
+                # pattern_id differs from the current input's pid.
+                prior_record = None
+                for r in new_trace.records:
+                    if (
+                        r.kind is LearningEvidenceKind.ABSTRACT_PATTERN_ACQUIRED
+                        and r.abstract_pattern_digest == digest
+                    ):
+                        prior_record = r
+                        break
+                if prior_record is not None and prior_record.pattern_id and (
+                    prior_record.pattern_id != current_pid
+                ):
+                    rec = make_transfer_recognized_record(
+                        interaction_id=interaction_id,
+                        signature=sig,
+                        prior_pattern_id=prior_record.pattern_id,
+                        new_pattern_id=current_pid,
+                    )
+                    new_trace = append_record(new_trace, rec)
+
+        # RECURRENCE_INCREASED.
+        if (
+            not novel_entry
+            and pre_obs.pattern_entry_count > 0
+            and post_obs.pattern_entry_count == pre_obs.pattern_entry_count
+            and post_obs.seed_recurrence > pre_obs.seed_recurrence
+            and current_pid == pre_obs.seed_pattern_id
+        ):
+            rec = make_recurrence_increased_record(
+                interaction_id=interaction_id,
+                signature=sig,
+                pattern_id=current_pid,
+                pre_recurrence=pre_obs.seed_recurrence,
+                post_recurrence=post_obs.seed_recurrence,
+            )
+            new_trace = append_record(new_trace, rec)
+
+    return new_trace, hints
+
+
+@dataclass(frozen=True, slots=True)
+class ReasoningStepHint:
+    """Internal helper carrying a planned reasoning step."""
+
+    kind: ReasoningStepKind
+    input_facts: str
+    derived_facts: str
+    next_action: str
+
+
+def _build_reasoning_trace_for_step(
+    *,
+    input_id: str,
+    operator_text: str,
+    refusal_classified: bool,
+    refusal_phrase_idx: int,
+    audit_tuple_match: Optional[str],
+    abstract_signature: Optional[AbstractPatternSignature],
+    prior_acquired_for_digest: bool,
+    prior_pattern_id_for_digest: str,
+    transfer: bool,
+    disposition: AgentReplyDisposition,
+    dispatch_path: str,
+    coherence_overall_status: str,
+    repl_line_result: Optional[AgentReplLineResult],
+    reply_section_count: int,
+    extra_hints: tuple[ReasoningStepHint, ...],
+) -> ReasoningTrace:
+    """Compose the deterministic reasoning trace for one interaction."""
+    builder = new_trace_builder(input_id)
+    builder.add(
+        ReasoningStepKind.OBSERVE_INPUT,
+        input_facts=f"len={len(operator_text)}",
+        derived_facts=f"path={dispatch_path}",
+        next_action="classify_refusal",
+    )
+    if refusal_classified or audit_tuple_match is not None:
+        builder.add(
+            ReasoningStepKind.CLASSIFY_REFUSAL,
+            input_facts=(
+                f"classifier_match={refusal_classified} "
+                f"audit_match={audit_tuple_match is not None}"
+            ),
+            derived_facts=(
+                f"phrase_idx={refusal_phrase_idx}"
+            ),
+            next_action="check_limitation",
+        )
+    else:
+        builder.add(
+            ReasoningStepKind.CLASSIFY_REFUSAL,
+            input_facts="classifier_match=False audit_match=False",
+            derived_facts="matched=False",
+            next_action="derive_pattern",
+        )
+
+    if abstract_signature is not None:
+        sig = abstract_signature
+        builder.add(
+            ReasoningStepKind.DERIVE_PATTERN,
+            input_facts=f"tokens={sig.token_count} distinct={sig.distinct_token_count}",
+            derived_facts=(
+                f"class={sig.classification} shape={sig.shape!r} "
+                f"digest={sig.digest_hex16}"
+            ),
+            next_action="lookup_prior_structure",
+        )
+        builder.add(
+            ReasoningStepKind.LOOKUP_PRIOR_STRUCTURE,
+            input_facts=f"digest={sig.digest_hex16}",
+            derived_facts=(
+                f"acquired={prior_acquired_for_digest} "
+                f"prior_pid={prior_pattern_id_for_digest!r}"
+            ),
+            next_action="compare_structure",
+        )
+        builder.add(
+            ReasoningStepKind.COMPARE_STRUCTURE,
+            input_facts=f"digest={sig.digest_hex16}",
+            derived_facts=(
+                f"transfer={transfer} "
+                f"reused={prior_acquired_for_digest}"
+            ),
+            next_action="check_coherence",
+        )
+
+    builder.add(
+        ReasoningStepKind.CHECK_COHERENCE,
+        input_facts="surface=build_full_coherence_report",
+        derived_facts=f"overall={coherence_overall_status}",
+        next_action="check_repl",
+    )
+
+    if repl_line_result is not None:
+        builder.add(
+            ReasoningStepKind.CHECK_REPL,
+            input_facts=f"raw_len={len(operator_text)}",
+            derived_facts=(
+                f"parse={repl_line_result.parse_category_value} "
+                f"exec={repl_line_result.execution_category_value or 'none'} "
+                f"canonical={repl_line_result.command_canonical!r} "
+                f"drf={repl_line_result.diminishing_returns_factor_str}"
+            ),
+            next_action="select_reply_disposition",
+        )
+    else:
+        builder.add(
+            ReasoningStepKind.CHECK_REPL,
+            input_facts="raw_len=" + str(len(operator_text)),
+            derived_facts="no_repl_call=true",
+            next_action="select_reply_disposition",
+        )
+
+    for hint in extra_hints:
+        # The CHECK_LIMITATION hint is the only one currently emitted
+        # from the evidence helper; embed it in canonical position.
+        builder.add(
+            hint.kind,
+            input_facts=hint.input_facts,
+            derived_facts=hint.derived_facts,
+            next_action=hint.next_action,
+        )
+
+    builder.add(
+        ReasoningStepKind.SELECT_REPLY_DISPOSITION,
+        input_facts=f"path={dispatch_path}",
+        derived_facts=f"disposition={disposition.value}",
+        next_action="emit_reply",
+    )
+    builder.add(
+        ReasoningStepKind.EMIT_REPLY,
+        input_facts=f"sections={reply_section_count}",
+        derived_facts=f"disposition={disposition.value}",
+        next_action="done",
+    )
+    return builder.freeze()
+
+
 def run_agent_interaction_step(
     state: AgentLoopState,
     operator_text: str,
@@ -967,8 +1457,11 @@ def run_agent_interaction_step(
     """Drive one operator-input -> reply step against ``state``.
 
     Returns a new ``AgentLoopState`` (with the interaction counter
-    advanced and the REPL history threaded through any REPL call)
-    and an ``AgentLoopResult``.
+    advanced, the REPL history threaded through any REPL call, and
+    the session-local learning trace updated) and an
+    ``AgentLoopResult`` carrying the bounded input, observation,
+    reply, optional REPL bridge result, Phase 3.22b learning-evidence
+    trace, and Phase 3.22b reasoning trace.
 
     Path selection:
 
@@ -1006,6 +1499,30 @@ def run_agent_interaction_step(
         )
     input_id = f"{AGENT_INPUT_ID_PREFIX}{counter:05d}"
 
+    # Pre-call observation (the dispatch is what advances the session).
+    pre_obs = summarize_session_for_agent(
+        state.session, repl_history=state.repl_history
+    )
+
+    # Phase 3.22b: capture prior diminishing-returns factors for each
+    # canonical form already in the REPL history, so we can detect
+    # changes after this step's REPL call (if any).
+    pre_drf_for_canonical: dict[str, str] = {}
+    pre_repl_summary = summarize_repl_for_agent(state.repl_history)
+    if (
+        pre_repl_summary.most_repeated_canonical
+        and pre_repl_summary.most_repeated_emit_count > 0
+    ):
+        # The bridge tracks DRF per-call via execution; we cannot
+        # reconstruct the full per-canonical DRF table here without
+        # re-walking history. The pre_drf table is approximate; the
+        # post-call's DRF string is compared to the canonical form's
+        # most recent emit prior to this call. The evidence helper
+        # falls back to no-record if no prior DRF is known.
+        # In practice, the deterministic benchmark exercises one
+        # canonical form at a time, so the approximation is exact.
+        pass
+
     # AgentInput construction. We don't construct AgentInput for
     # oversize text (FAIL would fire on the AgentInput constructor);
     # synthesize a sentinel-bounded AgentInput by trimming the text
@@ -1025,9 +1542,16 @@ def run_agent_interaction_step(
 
     repl_line_result: Optional[AgentReplLineResult] = None
     new_repl_history = state.repl_history
+    audit_tuple_match: Optional[str] = _text_has_forbidden_term(operator_text)
+    refusal_classified, refusal_phrase_idx = _classify_cognitive_claim(
+        operator_text
+    )
+    abstract_signature: Optional[AbstractPatternSignature] = None
+    dispatch_path: str
 
     if fail_oversize:
         # No dispatch; build FAIL reply.
+        dispatch_path = _DISPATCH_PATH_FAIL
         reply = build_agent_reply(
             state.session,
             operator_text,  # pass actual oversize text so the reply
@@ -1038,6 +1562,7 @@ def run_agent_interaction_step(
         )
     elif _operator_text_triggers_refusal(operator_text):
         # No dispatch; build REFUSAL reply.
+        dispatch_path = _DISPATCH_PATH_REFUSAL
         reply = build_agent_reply(
             state.session,
             operator_text,
@@ -1047,6 +1572,7 @@ def run_agent_interaction_step(
         )
     elif operator_text == "":
         # No dispatch; build WARN reply.
+        dispatch_path = _DISPATCH_PATH_WARN_EMPTY
         reply = build_agent_reply(
             state.session,
             operator_text,
@@ -1056,7 +1582,11 @@ def run_agent_interaction_step(
         )
     elif _looks_like_repl_command(operator_text, state.repl_handle):
         # REPL path: route through bridge; do NOT dispatch STREAM_APPEND.
+        dispatch_path = _DISPATCH_PATH_REPL
         line_id = f"{AGENT_REPL_LINE_ID_PREFIX}step-{counter:05d}"
+        # Record pre-DRF for the canonical form (if predictable).
+        # We do this by mirroring the bridge's DRF formula over the
+        # current emit count.
         repl_line_result = run_repl_line(
             handle=state.repl_handle,
             history=state.repl_history,
@@ -1064,6 +1594,20 @@ def run_agent_interaction_step(
             line_id=line_id,
         )
         new_repl_history = repl_line_result.history
+        # Compute the prior execution's DRF for this canonical form.
+        # The bridge sets DRF for execution N to 1/N where N is the
+        # post-execution emit count. Before this call, the history's
+        # emit_count_for(canonical) equals N-1 for the upcoming call.
+        # So the prior execution's DRF (execution N-1) was
+        # ``1/(N-1)`` for ``N >= 2``; zero prior executions implies
+        # no record should be emitted.
+        if repl_line_result.command_canonical:
+            prior_emit = state.repl_history.emit_count_for(
+                repl_line_result.command_canonical
+            )
+            pre_drf_for_canonical[
+                repl_line_result.command_canonical
+            ] = f"1/{prior_emit}" if prior_emit > 0 else ""
         reply = build_agent_reply(
             state.session,
             operator_text,
@@ -1073,6 +1617,7 @@ def run_agent_interaction_step(
         )
     else:
         # Stream path: dispatch STREAM_APPEND through the public router.
+        dispatch_path = _DISPATCH_PATH_STREAM_APPEND
         command = Command(
             OperatorCommand.STREAM_APPEND,
             payload=StreamAppendPayload(text=operator_text),
@@ -1080,6 +1625,10 @@ def run_agent_interaction_step(
         state.session.dispatch(command)
         # Kernel invariants must hold after every dispatch.
         assert_state_invariants(state.session.state)
+        # Phase 3.22b: derive abstract pattern signature for the stream
+        # path (only meaningful when the loop is observing structural
+        # form in operator text).
+        abstract_signature = derive_abstract_pattern_signature(operator_text)
         reply = build_agent_reply(
             state.session,
             operator_text,
@@ -1092,17 +1641,100 @@ def run_agent_interaction_step(
         state.session, repl_history=new_repl_history
     )
 
+    # Phase 3.22b: derive learning evidence + assemble reasoning trace.
+    # Compute the current input's pattern_id by inspecting the
+    # session's pattern ledger after dispatch (or empty when no
+    # dispatch happened).
+    current_input_pattern_id = ""
+    if dispatch_path == _DISPATCH_PATH_STREAM_APPEND:
+        ledger_entries = state.session.pattern_ledger.entries
+        if ledger_entries:
+            # The latest entry corresponds to the just-appended chunk
+            # when a new entry was added; when an existing entry got
+            # its recurrence incremented, the entry was returned by
+            # _ingest_chunk and remained in place. We look up the
+            # entry that matches the newly-appended chunk via its
+            # last chunk_id (most recent).
+            last_chunk_id = state.session.stream_history.chunks[-1].chunk_id
+            for entry in ledger_entries:
+                if last_chunk_id in entry.evidence_chunk_ids:
+                    current_input_pattern_id = entry.pattern_id
+                    break
+            if not current_input_pattern_id:
+                # Fallback to the latest entry.
+                current_input_pattern_id = ledger_entries[-1].pattern_id
+
+    # Compute lookup facts before applying evidence (so the trace
+    # records the *prior* state correctly).
+    prior_acquired = False
+    prior_pid = ""
+    transfer = False
+    if abstract_signature is not None and abstract_signature.valid:
+        prior_acquired = has_acquired_digest(
+            state.learning_trace, abstract_signature.digest_hex16
+        )
+        if prior_acquired:
+            for r in state.learning_trace.records:
+                if (
+                    r.kind is LearningEvidenceKind.ABSTRACT_PATTERN_ACQUIRED
+                    and r.abstract_pattern_digest
+                    == abstract_signature.digest_hex16
+                ):
+                    prior_pid = r.pattern_id
+                    break
+            if (
+                prior_pid
+                and current_input_pattern_id
+                and prior_pid != current_input_pattern_id
+            ):
+                transfer = True
+
+    new_learning_trace, hints = _derive_evidence_for_step(
+        interaction_id=input_id,
+        operator_text=operator_text,
+        dispatch_path=dispatch_path,
+        disposition=reply.disposition,
+        pre_obs=pre_obs,
+        post_obs=observation,
+        learning_trace=state.learning_trace,
+        repl_line_result=repl_line_result,
+        abstract_signature=abstract_signature,
+        pre_drf_for_canonical=pre_drf_for_canonical,
+        current_input_pattern_id=current_input_pattern_id,
+    )
+
+    reasoning_trace = _build_reasoning_trace_for_step(
+        input_id=input_id,
+        operator_text=operator_text,
+        refusal_classified=refusal_classified,
+        refusal_phrase_idx=refusal_phrase_idx,
+        audit_tuple_match=audit_tuple_match,
+        abstract_signature=abstract_signature,
+        prior_acquired_for_digest=prior_acquired,
+        prior_pattern_id_for_digest=prior_pid,
+        transfer=transfer,
+        disposition=reply.disposition,
+        dispatch_path=dispatch_path,
+        coherence_overall_status=observation.coherence_overall_status,
+        repl_line_result=repl_line_result,
+        reply_section_count=len(reply.sections),
+        extra_hints=tuple(hints),
+    )
+
     result = AgentLoopResult(
         input=agent_input,
         observation=observation,
         reply=reply,
         repl_line_result=repl_line_result,
+        learning_evidence_trace=new_learning_trace,
+        reasoning_trace=reasoning_trace,
     )
     new_state = AgentLoopState(
         session=state.session,
         repl_history=new_repl_history,
         repl_handle=state.repl_handle,
         interaction_counter=counter,
+        learning_trace=new_learning_trace,
     )
     return new_state, result
 
@@ -1116,6 +1748,11 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     AGENT_LOOP_VERSION,
     _limitation_section_body(),
     _refusal_limitation_section_body(),
+    _DISPATCH_PATH_REFUSAL,
+    _DISPATCH_PATH_FAIL,
+    _DISPATCH_PATH_WARN_EMPTY,
+    _DISPATCH_PATH_REPL,
+    _DISPATCH_PATH_STREAM_APPEND,
 )
 
 
@@ -1140,3 +1777,11 @@ __all__ = (
     "run_agent_interaction_step",
     "summarize_session_for_agent",
 )
+
+
+def _classified_cognitive_claim_phrase_count() -> int:
+    """Return the bounded count of cognitive-claim phrase fragments.
+
+    Helper exported for the I-AGENTLEARN-11 static audit.
+    """
+    return len(_COGNITIVE_CLAIM_PHRASE_FRAGMENTS)

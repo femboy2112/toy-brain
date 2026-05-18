@@ -163,12 +163,15 @@ def check_agent_loop_static_audit() -> None:
             "observation",
             "reply",
             "repl_line_result",
+            "learning_evidence_trace",
+            "reasoning_trace",
         ),
         AgentLoopState: (
             "session",
             "repl_history",
             "repl_handle",
             "interaction_counter",
+            "learning_trace",
         ),
         AgentReplGrammarHandle: ("grammar", "handle_id"),
         AgentReplLineResult: (
