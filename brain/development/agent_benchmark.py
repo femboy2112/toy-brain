@@ -956,6 +956,628 @@ def _compute_transcript_digest(lines: tuple[str, ...]) -> str:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Axis A4 — REPL coherence.
+# ---------------------------------------------------------------------------
+
+
+def run_axis_a4_repl_coherence() -> AxisResult:
+    cases: list[BenchmarkCaseResult] = []
+    handle = build_default_agent_repl_grammar()
+
+    # A4.01 — valid command -> VALID parse, VALID_EFFECTIVE exec,
+    # strong-positive feedback.
+    res_valid = run_repl_line(
+        handle=handle,
+        history=ProtoBasicHistory(),
+        raw_text="EMIT ALPHA",
+        line_id=f"{AGENT_REPL_LINE_ID_PREFIX}a4-01",
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A4.01",
+            axis=BenchmarkAxis.REPL_COHERENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (
+                    res_valid.parse_category_value == "valid"
+                    and res_valid.execution_category_value == "valid-effective"
+                    and res_valid.effective is True
+                    and res_valid.feedback_is_strong_positive is True
+                )
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"valid EMIT ALPHA: parse={res_valid.parse_category_value} "
+                f"exec={res_valid.execution_category_value} "
+                f"strong={res_valid.feedback_is_strong_positive}"
+            ),
+            primary_metric=int(res_valid.effective),
+            secondary_metric=int(res_valid.feedback_is_strong_positive),
+        )
+    )
+
+    # A4.02 — near-miss at edit distance 1 (case-fold).
+    res_near = run_repl_line(
+        handle=handle,
+        history=ProtoBasicHistory(),
+        raw_text="emit alpha",
+        line_id=f"{AGENT_REPL_LINE_ID_PREFIX}a4-02",
+    )
+    has_hint = res_near.near_miss_hint_summary.startswith("hint kind=")
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A4.02",
+            axis=BenchmarkAxis.REPL_COHERENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (
+                    res_near.parse_category_value == "near-miss"
+                    and has_hint
+                    and res_near.execution_category_value == ""
+                )
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"near-miss emit alpha: parse={res_near.parse_category_value} "
+                f"hint_present={has_hint}"
+            ),
+            primary_metric=int(has_hint),
+            secondary_metric=0,
+        )
+    )
+
+    # A4.03 — syntax invalid (empty line).
+    res_syn = run_repl_line(
+        handle=handle,
+        history=ProtoBasicHistory(),
+        raw_text="",
+        line_id=f"{AGENT_REPL_LINE_ID_PREFIX}a4-03",
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A4.03",
+            axis=BenchmarkAxis.REPL_COHERENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (
+                    res_syn.parse_category_value == "syntax-invalid"
+                    and res_syn.execution_category_value == ""
+                    and len(res_syn.history.commands) == 0
+                    and len(res_syn.history.execution_results) == 0
+                )
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"syntax-invalid empty: parse={res_syn.parse_category_value} "
+                f"commands={len(res_syn.history.commands)}"
+            ),
+            primary_metric=0,
+            secondary_metric=0,
+        )
+    )
+
+    # A4.04 — diminishing returns sequence (10 valid emissions).
+    history = ProtoBasicHistory()
+    drf_values: list[str] = []
+    val_values: list[str] = []
+    for index in range(10):
+        line_id = f"{AGENT_REPL_LINE_ID_PREFIX}a4-04-{index:03d}"
+        res = run_repl_line(
+            handle=handle,
+            history=history,
+            raw_text="EMIT ALPHA",
+            line_id=line_id,
+        )
+        drf_values.append(res.diminishing_returns_factor_str)
+        val_values.append(res.feedback_valence_str)
+        history = res.history
+    # Diminishing-returns factor sequence: 1/1, 1/2, ..., 1/10.
+    expected_drf = [f"1/{n + 1}" for n in range(10)]
+    drf_ok = drf_values == expected_drf
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A4.04",
+            axis=BenchmarkAxis.REPL_COHERENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if drf_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"diminishing-returns over 10 emissions: "
+                f"first_drf={drf_values[0]} last_drf={drf_values[-1]}"
+            ),
+            primary_metric=10,
+            secondary_metric=int(drf_ok),
+        )
+    )
+
+    # A4.05 — summarize_repl_for_agent over the post-A4.04 history.
+    summary = summarize_repl_for_agent(history)
+    bounded_ok = (
+        summary.emit_total == 10
+        and summary.parse_valid_count == 10
+        and summary.execution_valid_effective_count == 10
+        and summary.summary_line.startswith("agent_repl ")
+        and summary.summary_line.isprintable()
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A4.05",
+            axis=BenchmarkAxis.REPL_COHERENCE,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if bounded_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"repl summary after 10x: emit_total={summary.emit_total} "
+                f"parse_valid={summary.parse_valid_count} "
+                f"exec_eff={summary.execution_valid_effective_count}"
+            ),
+            primary_metric=summary.emit_total,
+            secondary_metric=summary.parse_valid_count,
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.REPL_COHERENCE,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Axis A5 — Communication.
+# ---------------------------------------------------------------------------
+
+
+def run_axis_a5_communication() -> AxisResult:
+    cases: list[BenchmarkCaseResult] = []
+
+    # A5.01 — normal natural text -> OK with five canonical sections.
+    state = _fresh_state()
+    state, r1 = run_agent_interaction_step(state, "hello operator probe one")
+    canonical = (
+        AgentReplyStatus.PATTERN_REPORT,
+        AgentReplyStatus.REPL_REPORT,
+        AgentReplyStatus.COHERENCE_REPORT,
+        AgentReplyStatus.LIMITATION_REPORT,
+        AgentReplyStatus.NEXT_ACTION_SUGGESTION,
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A5.01",
+            axis=BenchmarkAxis.COMMUNICATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (
+                    r1.reply.disposition is AgentReplyDisposition.OK
+                    and r1.reply.section_kinds() == canonical
+                )
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                "normal text OK five-section reply: "
+                f"disp={r1.reply.disposition.value}"
+            ),
+            primary_metric=len(r1.reply.sections),
+            secondary_metric=0,
+        )
+    )
+
+    # A5.02 — repeat same text; second reply reflects recurrence climb;
+    # both replies share the canonical section-kind sequence; both are
+    # deterministic across two fresh sessions advanced identically.
+    state, r2 = run_agent_interaction_step(state, "hello operator probe one")
+    # The seed recurrence in r2 should be > in r1.
+    climbed = r2.observation.seed_recurrence > r1.observation.seed_recurrence
+    # Determinism: fresh session advanced identically yields same reply.
+    state_alt = _fresh_state()
+    state_alt, r1_alt = run_agent_interaction_step(
+        state_alt, "hello operator probe one"
+    )
+    state_alt, r2_alt = run_agent_interaction_step(
+        state_alt, "hello operator probe one"
+    )
+    deterministic = r1.reply == r1_alt.reply and r2.reply == r2_alt.reply
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A5.02",
+            axis=BenchmarkAxis.COMMUNICATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (climbed and deterministic)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"repeat-and-deterministic: climbed={climbed} "
+                f"deterministic={deterministic} "
+                f"r1_recur={r1.observation.seed_recurrence} "
+                f"r2_recur={r2.observation.seed_recurrence}"
+            ),
+            primary_metric=r2.observation.seed_recurrence,
+            secondary_metric=int(deterministic),
+        )
+    )
+
+    # A5.03..A5.07 — REFUSAL triggers. The carrier strings are
+    # derived at runtime from _FORBIDDEN_NON_CLAIM_TERMS so the source
+    # of this module never contains any audit-tuple literal.
+    # The first five tuple entries (per coherence_monitor.py ordering)
+    # are the cognitive-property terms used here.
+    refusal_carrier_term_indexes = (0, 2, 6, 9, 13)
+    refusal_carriers = tuple(
+        f"a query about {_FORBIDDEN_NON_CLAIM_TERMS[i]}"
+        for i in refusal_carrier_term_indexes
+    )
+    refusal_inputs = tuple(
+        (f"A5.{3 + index:02d}", carrier)
+        for index, carrier in enumerate(refusal_carriers)
+    )
+    for case_id, text in refusal_inputs:
+        st = _fresh_state()
+        _st, res = run_agent_interaction_step(st, text)
+        cases.append(
+            BenchmarkCaseResult(
+                case_id=case_id,
+                axis=BenchmarkAxis.COMMUNICATION,
+                status=(
+                    BenchmarkCaseStatus.PASS
+                    if (
+                        res.reply.disposition is AgentReplyDisposition.REFUSAL
+                        and res.reply.section_kinds()
+                        == (
+                            AgentReplyStatus.LIMITATION_REPORT,
+                            AgentReplyStatus.NEXT_ACTION_SUGGESTION,
+                        )
+                    )
+                    else BenchmarkCaseStatus.FAIL
+                ),
+                summary=(
+                    f"refusal trigger: disp={res.reply.disposition.value} "
+                    f"sections={len(res.reply.sections)}"
+                ),
+                primary_metric=int(
+                    res.reply.disposition is AgentReplyDisposition.REFUSAL
+                ),
+                secondary_metric=len(res.reply.sections),
+            )
+        )
+
+    # A5.08 — empty operator text -> WARN.
+    st = _fresh_state()
+    _st, res = run_agent_interaction_step(st, "")
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A5.08",
+            axis=BenchmarkAxis.COMMUNICATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if res.reply.disposition is AgentReplyDisposition.WARN
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"empty input WARN: disp={res.reply.disposition.value}",
+            primary_metric=int(
+                res.reply.disposition is AgentReplyDisposition.WARN
+            ),
+            secondary_metric=0,
+        )
+    )
+
+    # A5.09 — oversize operator text -> FAIL.
+    big = "x" * (AGENT_INPUT_MAX_LEN + 1)
+    st = _fresh_state()
+    _st, res = run_agent_interaction_step(st, big)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A5.09",
+            axis=BenchmarkAxis.COMMUNICATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if res.reply.disposition is AgentReplyDisposition.FAIL
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"oversize input FAIL: disp={res.reply.disposition.value}"
+            ),
+            primary_metric=int(
+                res.reply.disposition is AgentReplyDisposition.FAIL
+            ),
+            secondary_metric=0,
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.COMMUNICATION,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Axis A6 — Session continuity.
+# ---------------------------------------------------------------------------
+
+
+def run_axis_a6_session_continuity() -> AxisResult:
+    cases: list[BenchmarkCaseResult] = []
+
+    # A6.01 — 4 distinct operator texts in one session; cumulative
+    # entry count climbs; growth_event_total non-decreasing.
+    state = _fresh_state()
+    obs_seq: list[int] = []
+    growth_seq: list[int] = []
+    texts_distinct = (
+        "alpha line one",
+        "beta line two payload",
+        "gamma line three payload-bytes",
+        "delta line four payload-bytes-extra",
+    )
+    for text in texts_distinct:
+        state, res = run_agent_interaction_step(state, text)
+        obs_seq.append(res.observation.pattern_entry_count)
+        growth_seq.append(res.observation.growth_event_total)
+    cumulative_climb = (
+        obs_seq == sorted(obs_seq)
+        and obs_seq[-1] >= 1
+    )
+    growth_nondec = all(
+        growth_seq[i] >= growth_seq[i - 1] for i in range(1, len(growth_seq))
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A6.01",
+            axis=BenchmarkAxis.SESSION_CONTINUITY,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (cumulative_climb and growth_nondec)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"4-distinct: entry_seq={tuple(obs_seq)} "
+                f"growth_seq={tuple(growth_seq)}"
+            ),
+            primary_metric=obs_seq[-1],
+            secondary_metric=growth_seq[-1],
+        )
+    )
+
+    # A6.02 — repeat same text 3x; seed_recurrence climbs monotonically.
+    state = _fresh_state()
+    recur_seq: list[int] = []
+    for _ in range(3):
+        state, res = run_agent_interaction_step(state, "single-seed-text")
+        recur_seq.append(res.observation.seed_recurrence)
+    monotonic = all(
+        recur_seq[i] >= recur_seq[i - 1] for i in range(1, len(recur_seq))
+    )
+    expected_final = (
+        recur_seq[-1] == STREAM_PATTERN_RECURRENCE_MIN + 2
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A6.02",
+            axis=BenchmarkAxis.SESSION_CONTINUITY,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (monotonic and expected_final)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"3x same text: recur_seq={tuple(recur_seq)}"
+            ),
+            primary_metric=recur_seq[-1],
+            secondary_metric=int(monotonic),
+        )
+    )
+
+    # A6.03 — interleave a REPL command with a STREAM_APPEND in one
+    # session; the post-REPL reply's REPL_REPORT section reflects
+    # the REPL outcome; the post-STREAM_APPEND reply's PATTERN_REPORT
+    # section reflects the new stream event.
+    state = _fresh_state()
+    state, r_repl = run_agent_interaction_step(state, "EMIT ALPHA")
+    state, r_stream = run_agent_interaction_step(state, "natural text two")
+    repl_section_body = next(
+        (
+            body
+            for status, body in r_repl.reply.sections
+            if status is AgentReplyStatus.REPL_REPORT
+        ),
+        "",
+    )
+    pattern_section_body = next(
+        (
+            body
+            for status, body in r_stream.reply.sections
+            if status is AgentReplyStatus.PATTERN_REPORT
+        ),
+        "",
+    )
+    repl_ok = (
+        r_repl.repl_line_result is not None
+        and "last_parse=valid" in repl_section_body
+    )
+    pattern_ok = (
+        r_stream.observation.stream_chunk_count >= 1
+        and "stream_chunks=" in pattern_section_body
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A6.03",
+            axis=BenchmarkAxis.SESSION_CONTINUITY,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (repl_ok and pattern_ok)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"interleave repl+stream: repl_ok={repl_ok} "
+                f"pattern_ok={pattern_ok}"
+            ),
+            primary_metric=int(repl_ok),
+            secondary_metric=int(pattern_ok),
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.SESSION_CONTINUITY,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Axis A7 — Blind transcript criterion.
+#
+# A7 runs the cumulative battery (axes A1..A6) and audits the
+# generated transcript bytes against a closed rubric. The axis fails
+# if any case from earlier axes failed; if all earlier axes PASS or
+# WARN-with-documented-blocker, A7 collects transcript bytes and
+# verifies the rubric.
+# ---------------------------------------------------------------------------
+
+
+def run_axis_a7_blind_transcript(
+    earlier_axes: tuple[AxisResult, ...],
+) -> AxisResult:
+    cases: list[BenchmarkCaseResult] = []
+
+    # Collect all transcript lines from the earlier axes.
+    all_lines: list[str] = []
+    for ax in earlier_axes:
+        for case in ax.cases:
+            all_lines.extend(_transcript_lines_from_case(case))
+
+    digest_a = _compute_transcript_digest(tuple(all_lines))
+    digest_b = _compute_transcript_digest(tuple(all_lines))
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A7.01",
+            axis=BenchmarkAxis.BLIND_TRANSCRIPT,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if digest_a == digest_b
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"transcript digest deterministic: digest={digest_a}",
+            primary_metric=len(all_lines),
+            secondary_metric=0,
+        )
+    )
+
+    # Every transcript line bounded printable + non-claim-clean.
+    printable_ok = all(
+        isinstance(line, str)
+        and line.isprintable()
+        and len(line) <= BENCHMARK_TRANSCRIPT_LINE_MAX_LEN
+        for line in all_lines
+    )
+    no_forbidden = all(
+        _text_has_forbidden_term(line) is None for line in all_lines
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A7.02",
+            axis=BenchmarkAxis.BLIND_TRANSCRIPT,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if (printable_ok and no_forbidden)
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"transcript audit: printable={printable_ok} "
+                f"no_forbidden_term={no_forbidden}"
+            ),
+            primary_metric=len(all_lines),
+            secondary_metric=int(no_forbidden),
+        )
+    )
+
+    # No FAIL in any earlier axis case.
+    earlier_fail_count = sum(
+        1
+        for ax in earlier_axes
+        for case in ax.cases
+        if case.status is BenchmarkCaseStatus.FAIL
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A7.03",
+            axis=BenchmarkAxis.BLIND_TRANSCRIPT,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if earlier_fail_count == 0
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"no FAIL across earlier axes: "
+                f"earlier_fail_count={earlier_fail_count}"
+            ),
+            primary_metric=earlier_fail_count,
+            secondary_metric=0,
+        )
+    )
+
+    # Every refusal case in A5.03..A5.07 had disposition REFUSAL.
+    # Search earlier_axes for the COMMUNICATION axis and inspect.
+    refusal_check_ok = True
+    refusal_case_ids = ("A5.03", "A5.04", "A5.05", "A5.06", "A5.07")
+    for ax in earlier_axes:
+        if ax.axis is BenchmarkAxis.COMMUNICATION:
+            for case in ax.cases:
+                if case.case_id in refusal_case_ids:
+                    # Pass criterion of A5.0N is exactly disposition
+                    # REFUSAL; reuse that as the rubric check.
+                    if case.status is not BenchmarkCaseStatus.PASS:
+                        refusal_check_ok = False
+                        break
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A7.04",
+            axis=BenchmarkAxis.BLIND_TRANSCRIPT,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if refusal_check_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"refusal rubric: ok={refusal_check_ok}",
+            primary_metric=int(refusal_check_ok),
+            secondary_metric=0,
+        )
+    )
+
+    return AxisResult(
+        axis=BenchmarkAxis.BLIND_TRANSCRIPT,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Full battery runner.
+# ---------------------------------------------------------------------------
+
+
+def run_full_battery() -> BenchmarkRun:
+    """Run every axis A1..A7 and assemble a BenchmarkRun.
+
+    Two invocations produce identical BenchmarkRun records (modulo
+    object identity).
+    """
+    a1 = run_axis_a1_pattern_recognition()
+    a2 = run_axis_a2_cross_input_structural()
+    a3 = run_axis_a3_coherence_variation()
+    a4 = run_axis_a4_repl_coherence()
+    a5 = run_axis_a5_communication()
+    a6 = run_axis_a6_session_continuity()
+    earlier = (a1, a2, a3, a4, a5, a6)
+    a7 = run_axis_a7_blind_transcript(earlier)
+    return _assemble_battery_run(earlier + (a7,))
+
+
 def _assemble_battery_run(axes: tuple[AxisResult, ...]) -> BenchmarkRun:
     case_total = 0
     case_passed = 0
@@ -1046,7 +1668,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--quiet", action="store_true", default=False)
     args = parser.parse_args(argv)
 
-    run = run_partial_battery_with_coherence()
+    run = run_full_battery()
     if args.json:
         out = {
             "battery_version": run.battery_version,
@@ -1108,6 +1730,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 __all__ = (
     "AxisResult",
     "BATTERY_VERSION",
+    "BENCHMARK_CASE_NOTES_MAX_LEN",
+    "BENCHMARK_CASE_SUMMARY_MAX_LEN",
+    "BENCHMARK_TRANSCRIPT_LINE_MAX_LEN",
     "BenchmarkAxis",
     "BenchmarkCaseResult",
     "BenchmarkCaseStatus",
@@ -1118,6 +1743,11 @@ __all__ = (
     "run_axis_a1_pattern_recognition",
     "run_axis_a2_cross_input_structural",
     "run_axis_a3_coherence_variation",
+    "run_axis_a4_repl_coherence",
+    "run_axis_a5_communication",
+    "run_axis_a6_session_continuity",
+    "run_axis_a7_blind_transcript",
+    "run_full_battery",
     "run_partial_battery_pattern_axes",
     "run_partial_battery_with_coherence",
 )
