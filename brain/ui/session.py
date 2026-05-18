@@ -48,9 +48,15 @@ from brain.development.growth_ledger import (
     GrowthLedger,
 )
 from brain.development.pattern_ledger import PatternLedger
+from brain.development.processing_window import (
+    plan_rehearsals,
+    validate_processing_window_call_budget,
+    validate_processing_window_size,
+)
 from brain.development.text_stream import (
     STREAM_PROMOTION_MAX,
     StreamPromotionCandidate,
+    TextStreamChunk,
     TextStreamHistory,
     TextStreamSource,
     make_stream_promotion_candidate,
@@ -211,6 +217,8 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "last_autosave_status",
     "pattern_ledger",
     "growth_ledger",
+    "processing_window_size",
+    "processing_window_call_budget",
 })
 
 
@@ -267,6 +275,13 @@ class OperatorSession:
     last_autosave_status: Optional["AutosaveStatusReport"] = None
     pattern_ledger: PatternLedger = field(default_factory=PatternLedger)
     growth_ledger: GrowthLedger = field(default_factory=GrowthLedger)
+    # Phase 3.18 processing-window controls. Defaults are 0 / OFF so
+    # every existing test, fixture, and CLI invocation behaves bit-
+    # identically to the pre-Phase-3.18 runtime. Operators opt in by
+    # setting ``processing_window_size`` to a positive int (bounded
+    # by ``brain.development.processing_window.PROCESSING_WINDOW_SIZE_MAX``).
+    processing_window_size: int = 0
+    processing_window_call_budget: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -384,6 +399,21 @@ class OperatorSession:
                 "OperatorSession.growth_ledger must be a GrowthLedger "
                 f"(got {type(self.growth_ledger).__name__})"
             )
+        # Phase 3.18 processing-window field validation. Delegates to
+        # the bounded validators in brain.development.processing_window
+        # so the range / type discipline lives next to the constants.
+        object.__setattr__(
+            self,
+            "processing_window_size",
+            validate_processing_window_size(self.processing_window_size),
+        )
+        object.__setattr__(
+            self,
+            "processing_window_call_budget",
+            validate_processing_window_call_budget(
+                self.processing_window_call_budget
+            ),
+        )
         self._assert_no_unsafe_resources()
 
     # ------------------------------------------------------------------
@@ -526,7 +556,15 @@ class OperatorSession:
             # "every command kind is handled" branch of I-UI-03.
             return
         elif kind is OperatorCommand.STREAM_APPEND:
-            self._dispatch_stream_append(command.payload)
+            appended_chunk = self._dispatch_stream_append(command.payload)
+            # Phase 3.18 I-PWND-01: after a successful external stream
+            # append, run the bounded internal rehearsal window (no-op
+            # at the default OFF size of 0). The window does not
+            # affect the autosave trigger contract (which is keyed on
+            # STEP_TICK / STREAM_PROMOTE, not STREAM_APPEND) and does
+            # not change ``mutation_outcome``.
+            if appended_chunk is not None:
+                self._run_processing_window(seed_chunk=appended_chunk)
         elif kind is OperatorCommand.STREAM_PROMOTE:
             mutation_outcome = self._dispatch_stream_promote(
                 command.payload
@@ -742,11 +780,55 @@ class OperatorSession:
 
     def _dispatch_stream_append(
         self, payload: Optional[StreamAppendPayload]
-    ) -> None:
+    ) -> Optional[TextStreamChunk]:
+        """Operator-path /stream append.
+
+        Returns the appended :class:`TextStreamChunk` on success, or
+        ``None`` on failure. The caller (the top-level :meth:`dispatch`)
+        reads the return value to decide whether to fire the Phase
+        3.18 processing window (drives ``I-PWND-01``); the rest of the
+        success path (active_view + status_message) remains here so
+        existing operator UX is unchanged.
+        """
         if not isinstance(payload, StreamAppendPayload):
             self.set_error("STREAM_APPEND requires a StreamAppendPayload")
-            return
+            return None
+        chunk = self._append_stream_chunk(
+            text=payload.text,
+            chunk_provenance="operator",
+            growth_provenance="stream_append:_dispatch_stream_append",
+        )
+        if chunk is None:
+            return None
+        self.set_active_view("stream_summary")
+        self.set_status(
+            f"stream chunk {chunk.chunk_id!r} appended "
+            f"(history size = {len(self.stream_history.chunks)})"
+        )
+        return chunk
 
+    def _append_stream_chunk(
+        self,
+        *,
+        text: str,
+        chunk_provenance: str,
+        growth_provenance: str,
+    ) -> Optional[TextStreamChunk]:
+        """Core stream-append helper shared by the operator path and
+        the Phase 3.18 internal rehearsal path.
+
+        Returns the appended :class:`TextStreamChunk` on success, or
+        ``None`` on failure (with :attr:`error_message` set). On
+        failure the kernel- and stream-side substrates are guaranteed
+        unchanged.
+
+        ``chunk_provenance`` is stamped into the constructed
+        :class:`TextStreamChunk.provenance` field (drives
+        ``I-PLEDGER-13``'s sole-trigger discipline and the Phase 3.18
+        ``I-PWND-02`` provenance audit). ``growth_provenance`` is
+        stamped into the emitted ``STREAM_CHUNK_ACCEPTED`` Growth
+        Ledger event's bounded printable provenance field.
+        """
         prior_history = self.stream_history
         prior_candidates = self.stream_candidates
         prior_serial = self.stream_chunk_serial
@@ -755,16 +837,16 @@ class OperatorSession:
         try:
             chunk = make_text_stream_chunk(
                 chunk_id=chunk_id,
-                text=payload.text,
+                text=text,
                 source=TextStreamSource.OPERATOR,
-                provenance="operator",
+                provenance=chunk_provenance,
             )
         except (TypeError, ValueError) as exc:
             self.set_error(f"stream append rejected: {exc}")
             assert self.stream_history is prior_history
             assert self.stream_candidates == prior_candidates
             assert self.stream_chunk_serial == prior_serial
-            return
+            return None
 
         try:
             new_history = prior_history.append(chunk)
@@ -781,7 +863,7 @@ class OperatorSession:
             assert self.stream_history is prior_history
             assert self.stream_candidates == prior_candidates
             assert self.stream_chunk_serial == prior_serial
-            return
+            return None
 
         self.stream_history = new_history
         self._append_stream_candidates((candidate,))
@@ -805,7 +887,7 @@ class OperatorSession:
             tick=self.tick_counter,
             source=GrowthEventSource.STREAM_APPEND,
             references=(chunk.chunk_id,),
-            provenance="stream_append:_dispatch_stream_append",
+            provenance=growth_provenance,
         )
         prior_recurrence_by_id: dict[str, int] = {
             entry.pattern_id: entry.recurrence_count
@@ -828,11 +910,59 @@ class OperatorSession:
                     references=(entry.pattern_id,),
                     provenance="pattern_ledger:observe",
                 )
-        self.set_active_view("stream_summary")
-        self.set_status(
-            f"stream chunk {chunk.chunk_id!r} appended "
-            f"(history size = {len(new_history.chunks)})"
-        )
+        return chunk
+
+    def _run_processing_window(
+        self, *, seed_chunk: TextStreamChunk
+    ) -> int:
+        """Phase 3.18 architecture A rehearsal loop.
+
+        After a successful external STREAM_APPEND, fire up to
+        :attr:`processing_window_size` internal rehearsals whose text
+        is the EXACT text of ``seed_chunk`` and whose provenance is
+        ``"internal_processing_window:<k>:rehearsal"``. Each rehearsal
+        goes through :meth:`_append_stream_chunk`, so the Pattern
+        Ledger trigger and the Growth Ledger emission path are
+        identical to the operator path — only the bounded printable
+        provenance strings differ.
+
+        Returns the number of internal rehearsals that actually fired
+        (which may be less than ``processing_window_size`` if a
+        bounded substrate raised partway through). Drives
+        ``I-PWND-01``: at OFF (size == 0) the call is a no-op and
+        returns 0; otherwise the call is synchronous, bounded, and
+        consumes zero real model calls because STREAM_APPEND does
+        not invoke ``brain.tick.tick`` or the LLM.
+
+        Failure semantics: if a rehearsal's
+        :meth:`_append_stream_chunk` returns ``None``, the loop
+        stops; :attr:`error_message` carries the failure reason. The
+        external operator status message (set by the caller) is
+        preserved.
+        """
+        n = self.processing_window_size
+        if n <= 0:
+            return 0
+        try:
+            plan = plan_rehearsals(seed_text=seed_chunk.text, window_size=n)
+        except (TypeError, ValueError) as exc:
+            self.set_error(f"processing window plan rejected: {exc}")
+            return 0
+        fired = 0
+        for step in plan:
+            chunk = self._append_stream_chunk(
+                text=step.text,
+                chunk_provenance=step.provenance,
+                growth_provenance="stream_append:_run_processing_window",
+            )
+            if chunk is None:
+                # A bounded substrate refused the rehearsal (e.g., a
+                # text_stream length bound or a chunk_id collision).
+                # error_message is already set; abort the window
+                # cleanly without retrying.
+                break
+            fired += 1
+        return fired
 
     def _resolve_stream_candidate(
         self, candidate_id: str
