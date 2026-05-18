@@ -78,6 +78,29 @@ _PHASE_3_13_SESSION_ATTRS: frozenset[str] = frozenset({
 })
 
 
+#: Phase 3.18 (Bounded Internal Processing Window) additions to the
+#: OperatorSession attribute surface. Both fields are bounded
+#: non-negative ints; the I-PWND-01 / I-PWND-02 rows assert the
+#: positive shape (no callable / handle / client / path / connection)
+#: of these fields. The v0.26 catalog patch authorizes them through
+#: this tier.
+_PHASE_3_18_SESSION_ATTRS: frozenset[str] = frozenset({
+    "processing_window_size",
+    "processing_window_call_budget",
+})
+
+
+#: Phase 3.19 (Internal Feedback Loop) additions to the
+#: OperatorSession attribute surface. The single field is a bounded
+#: ``FeedbackMode`` enum value; the I-IFBK-01 / I-IFBK-02 rows
+#: assert the positive shape (no callable / handle / client / path /
+#: connection) of this field. The v0.27 catalog patch authorizes it
+#: through this tier.
+_PHASE_3_19_SESSION_ATTRS: frozenset[str] = frozenset({
+    "feedback_mode",
+})
+
+
 def _assert_session_resource_free(session: OperatorSession, *, tag: str) -> None:
     """Raise if any session field exposes a forbidden resource."""
     for attr in _ALLOWED_SESSION_ATTRS:
@@ -122,6 +145,8 @@ def check_i_observe_08_session_resource_audit() -> None:
         | _PHASE_3_10C_SESSION_ATTRS
         | _PHASE_3_12C_SESSION_ATTRS
         | _PHASE_3_13_SESSION_ATTRS
+        | _PHASE_3_18_SESSION_ATTRS
+        | _PHASE_3_19_SESSION_ATTRS
     )
     if frozenset(_ALLOWED_SESSION_ATTRS) != allowed:
         added = set(_ALLOWED_SESSION_ATTRS) - allowed

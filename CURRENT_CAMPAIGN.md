@@ -1,4 +1,4 @@
-# CURRENT_CAMPAIGN.md — Phase 3.17 Codex Runtime Fix + Processing Window Research
+# CURRENT_CAMPAIGN.md — Phase 3.19 Internal Feedback Loop Prototype
 
 ## Campaign status
 
@@ -6,64 +6,67 @@
 DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / REVIEW-GATED
 ```
 
-Phase 3.17 follows the completed Phase 3.16 Real Model Operational
-Tuning campaign (PR #21). Phase 3.16 shipped:
+Phase 3.19 follows the completed Phase 3.18 Bounded Internal Processing
+Window campaign (PR #23). Phase 3.18 shipped:
 
 ```text
-- A complete real-model-backed operational walk through
-  OperatorSession.dispatch under claude-cli.
-- L1 (CachedClient) miss / hit / skip counters exercised end-to-end.
-- L2 (eval_v1) canonical semantic cache hit verified for identical
-  text under a different content_id.
-- 6 / 30 real model calls used.
-- An explicit, deferred follow-up: codex-cli 0.130.0 refuses to run
-  from cwd=/tmp without --skip-git-repo-check; the campaign recorded
-  the blocker but did not patch the runtime.
-- catalog v0.25 unchanged (281 REQUIRED / 88 STRUCTURAL /
-  14 NOT-EXERCISED / 15 DEFERRED / 16 OBSERVED).
+- brain/development/processing_window.py with plan_rehearsals,
+  InternalEventSource closed enum (REHEARSAL + reserved
+  PLEDGER_SUMMARY / COHMON_SUMMARY), RehearsalStep, bounded constants
+  PROCESSING_WINDOW_SIZE_MAX = 255, PROCESSING_WINDOW_CALL_BUDGET_MAX
+  = 65535, PROCESSING_WINDOW_PROVENANCE_PREFIX
+  = "internal_processing_window".
+- OperatorSession gained processing_window_size and
+  processing_window_call_budget integer fields, plus the
+  _run_processing_window(seed_chunk) method invoked from
+  dispatch() after a successful external STREAM_APPEND.
+- INVARIANT_CATALOG.md v0.25 -> v0.26 with rows I-PWND-01
+  (integration) and I-PWND-02 (static AST audit).
+- Pattern recognition demonstration PASS on D1 saturation
+  (N=255), D2 monotonicity, D3 determinism, D4 independence.
+- Zero real model calls; brain/tick.py unchanged; no LLM/cache/
+  parser/schema change; OFFLINE default preserved.
 ```
 
-Phase 3.17 asks two bounded questions in series:
+Phase 3.19 asks one bounded operational question:
 
 ```text
-1. Does adding "--skip-git-repo-check" to CodexCLIClient.command
-   unblock the codex-cli runtime through the public
-   OperatorSession.dispatch + brain.tick.tick path, with no other
-   runtime change, no L1 / L2 cache semantic change, no parser /
-   prompt / tick change, and (expected) no catalog count change?
-
-2. What is the smallest, safest, inspectable architecture for a
-   bounded post-input processing window of N internal ticks
-   following an external input? The campaign uses N = 50 as the
-   initial experimental default and proves the design out using
-   the existing public surfaces (no kernel patch shipped in v1).
+Can ToyI's runtime route a bounded internal feedback event,
+derived from Pattern Ledger state observed during the processing
+window, back into the same Pattern Ledger / Growth Ledger
+substrate -- without touching brain/tick.py, the LLM, the parser,
+the cache, or any consciousness-adjacent boundary?
 ```
 
-This is a **research** campaign toward an operationally learning /
-growing "I" approximation. It is **not** a proof of consciousness.
+This is a **research** campaign toward an operationally
+learning/growing "I" approximation. It is **not** a proof of
+consciousness.
 
-Phase 3.17 does **not** implement SelfModel, does **not** modify
-Growth Ledger / Pattern Ledger / Coherence Monitor semantics, does
-**not** modify L2 (eval_v1) semantics, does **not** modify L1 cache
-semantics, does **not** modify `brain/tick.py`, the parser, or the
-prompt, and does **not** modify persistence / autosave / observability /
-the SQLite schema. The single runtime touch is to
-`CodexCLIClient.command` and the codex-cli factory in
-`brain/llm/client.py` + `brain/ui/llm_runtime.py`. Catalog rows for
-`I-LLMTOG-16` / `I-LLMTOG-17` may need their fixture-side
-expectations refreshed to mention the new flag; the **count** is
-expected to remain `281 / 88 / 14 / 15 / 16`.
+Phase 3.19 does **not** implement SelfModel; does **not** modify
+Growth Ledger / Pattern Ledger / Coherence Monitor semantics; does
+**not** modify L1 / L2 / parser / prompt / tick / persistence /
+autosave / DB schema. The runtime touches are limited to:
+
+- `brain/development/processing_window.py` (extend with feedback
+  planner; emit the previously reserved `PLEDGER_SUMMARY`
+  `InternalEventSource` member);
+- `brain/ui/session.py` (add bounded session field
+  `feedback_mode`; extend `_run_processing_window` to optionally
+  fire a feedback chunk between or after rehearsals);
+- `INVARIANT_CATALOG.md` v0.26 -> v0.27 with bounded new row
+  family `I-IFBK-01..NN` (exact count fixed in Step 5);
+- new fixtures under `brain/ui/fixtures/`.
 
 Preferred campaign branch:
 
 ```text
-campaign/phase3-17-codex-processing-window
+campaign/phase3-19-internal-feedback-loop
 ```
 
 Preferred final PR title:
 
 ```text
-phase3.17: codex runtime and processing window research
+phase3.19: internal feedback loop prototype
 ```
 
 Rules:
@@ -75,7 +78,7 @@ push every successful step commit to the campaign branch
 finish by opening a PR into main
 never push campaign work directly to main
 never merge without explicit user approval
-never edit brain/tick.py in Phase 3.17
+never edit brain/tick.py in Phase 3.19
 ```
 
 ---
@@ -91,24 +94,20 @@ README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
-PHASE3_17_CODEX_PROCESSING_WINDOW_ROADMAP.md
-docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_AUDIT.md
-docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_FINDINGS.md
-docs/campaigns/phase3_16/PHASE3_16_REAL_MODEL_TUNING_RUN.md
-brain/llm/client.py
-brain/llm/ptcns_backed.py
-brain/llm/prompts.py
-brain/llm/parse.py
-brain/ui/llm_runtime.py
-brain/ui/__main__.py
-brain/ui/session.py
-brain/ui/commands.py
-brain/ui/command_line.py
-brain/ui/render.py
-brain/tick.py
-brain/development/growth_ledger.py
+PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
+docs/campaigns/phase3_18/PHASE3_18_HUMAN_DEVELOPMENT_SYNTHESIS.md
+docs/campaigns/phase3_18/PHASE3_18_PATTERN_RECOGNITION_DEMO.md
+docs/campaigns/phase3_18/PHASE3_18_AUDIT.md
+brain/development/processing_window.py
 brain/development/pattern_ledger.py
 brain/development/coherence_monitor.py
+brain/development/growth_ledger.py
+brain/development/text_stream.py
+brain/ui/session.py
+brain/ui/snapshot.py
+brain/tick.py
+brain/llm/client.py
+brain/llm/ptcns_backed.py
 tools/claude_helpers/campaign_state.py
 tools/claude_helpers/gate_runner.py
 tools/claude_helpers/flow_manifest.py
@@ -129,20 +128,21 @@ Then read whichever files the next campaign step names.
 Expected current state:
 
 ```text
-Catalog: v0.25
+Catalog: v0.27
 Counts:
-  REQUIRED:        281
-  STRUCTURAL:       88
+  REQUIRED:        283
+  STRUCTURAL:       90
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
-Latest completed campaign:    Phase 3.16 Real Model Operational
-                              Tuning (PR #21)
-Current campaign:             Phase 3.17 Codex Runtime Fix +
-                              Processing Window Research
-Next eligible step:           Step 1 mission sync and roadmap
-                              install (this file's first step)
-Canonical design seed:        PHASE3_17_CODEX_PROCESSING_WINDOW_ROADMAP.md
+Latest completed campaign:    Phase 3.18 Bounded Internal Processing
+                              Window (PR #23)
+Current campaign:             Phase 3.19 Internal Feedback Loop
+                              Prototype
+Next eligible step:           Step 8 internal feedback behavior
+                              report (Steps 1-7 + Review Gate A
+                              complete)
+Canonical design seed:        PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
 ```
 
 Inherited follow-ups deliberately deferred:
@@ -152,54 +152,61 @@ Inherited follow-ups deliberately deferred:
 - /pattern-ledger / /coherence-summary / /growth-ledger UIs remain
   DEFERRED at catalog level.
 - I-LLMCACHE-21 / I-LLMCACHE-22 remain NOT-EXERCISED.
-- Tracer wiring through OperatorSession.dispatch (F2 from Phase
-  3.16) remains DEFERRED.
-- Parser ambiguity hardening (F3 from Phase 3.16) remains DEFERRED.
-- Runtime processing-window implementation is DEFERRED behind the
-  Step 7 review gate.
+- Tracer wiring through OperatorSession.dispatch remains DEFERRED.
+- Coherence Monitor feedback (architecture C) may ship as a v1
+  read-only branch or remain DEFERRED depending on Step 4 LOCK F.
+- Combined pattern + coherence feedback (architecture D) is
+  DEFERRED unless Step 5 explicitly bundles it.
+- REPL / worldlet feedback (architectures D / E) remain
+  DEFERRED.
+- Real-model reflection over feedback events remains DEFERRED.
 ```
 
 ---
 
 ## Operational target
 
-Phase 3.17 uses this operational definition:
+Phase 3.19 uses this operational definition:
 
 ```text
-codex-cli compatibility WORKS iff:
-  - LlmRuntimeConfig(mode=CODEX_CLI, ...) factory-builds a real
-    CodexCLIClient whose .command contains "--skip-git-repo-check"
-  - OperatorSession.dispatch(QUEUE_PERCEPT ...) +
-    OperatorSession.dispatch(STEP_TICK, client=cached_codex)
-    completes one tick end-to-end with a parseable ConsistencyEval
-  - L1 (CachedClient) hit / miss / skip counters and L2 entry
-    presence reflect the result
-  - no raw prompts, raw responses, secrets, or cache files are
-    committed
-  - final report classifies the codex result as
-      CODEX RUNTIME PASS    /
-      CODEX RUNTIME PARTIAL /
-      CODEX RUNTIME BLOCKED BY ENV /
-      CODEX RUNTIME FAIL
+Bounded internal feedback WORKS iff:
+  - OperatorSession.feedback_mode = FEEDBACK_MODE_PATTERN_LEDGER
+    drives _run_processing_window to emit, in addition to the
+    Phase 3.18 rehearsal chunks, a bounded number of feedback
+    chunks whose text is a deterministic Pattern Ledger summary
+    string derived from the live entry's pattern_id /
+    recurrence_count / saturation_state.
+  - Each feedback chunk has provenance prefix
+    "internal_processing_window:<k>:pledger_summary".
+  - Each feedback chunk drives Pattern Ledger.observe and Growth
+    Ledger.observe through the existing _append_stream_chunk
+    call site (no new emission code, no new GrowthEventType).
+  - The feedback chunks produce SECOND-ORDER Pattern Ledger
+    entries whose structural signature differs from the seed
+    chunk's structural signature (they are derived from a
+    different deterministic text shape).
+  - Pattern Ledger reaches a final state with: 1 first-order
+    entry (the seed pattern) AND 1 second-order entry (the
+    feedback pattern); both have deterministic pattern_ids.
+  - Recurrence counts match deterministic formulas (no off-by-
+    one, no float drift).
+  - Same input + same configuration produces the same Pattern
+    Ledger / Growth Ledger state across runs / processes / OSes.
+  - Zero real model calls; brain/tick.py untouched; cache
+    counters unchanged; no schema change; OFFLINE default
+    preserved.
+  - The non-claim audit (canonical
+    _FORBIDDEN_NON_CLAIM_TERMS tuple) passes against the new
+    feedback-summary text generator and every bounded printable
+    string the module produces.
 
-processing window research SHIPS iff:
-  - Step 5 produces a synthesis distinguishing external / internal /
-    reflective / future-REPL/worldlet tick sources, the 50-tick
-    initial default, candidate architectures A–F, and the negative
-    control (window 0).
-  - Step 6 produces a probe plan with window sizes
-    {0, 1, 5, 10, 50}, mode set {mock, claude-cli, codex-cli (if
-    fixed)}, input types (motif / contradiction / self-reference /
-    valenced / neutral factual), and per-output measurements
-    (cache counters, profile / MSI / PtCns deltas, Pattern Ledger /
-    Growth Ledger / Coherence Monitor surfaces, status / error
-    events), with explicit failure limits.
-  - Step 7 produces a v1 implementation plan that the campaign does
-    NOT auto-implement; runtime code lands only behind an explicit
-    operator-approved review gate.
-  - Step 8 ships at least one negative-control experiment using
-    only existing public surfaces, with bounded mock-mode evidence
-    or a documented blocker.
+Coherence Monitor feedback (architecture C) SHIPS only if Step 4
+LOCK F authorizes a bounded read-only summary that does NOT touch
+truth claims, scalar I-ness, or aggregate scoring; otherwise
+DEFERRED.
+
+Combined feedback (architecture D) is DEFERRED unless Step 5
+explicitly bundles it.
 ```
 
 ---
@@ -208,11 +215,10 @@ processing window research SHIPS iff:
 
 ```text
 Max 20 real external model-backed calls total across the campaign.
-Count every model-backed attempt, including retries, timeouts,
-  parse failures, and nonzero exits.
+Phase 3.19 expects to consume ZERO real model calls because the
+  feedback path uses STREAM_APPEND which does not invoke
+  brain.tick.tick or the LLM.
 Stop before exceeding 20.
-If call count cannot be proven from logs, assume the higher number.
-Use cache-aware repeated probes after the first miss.
 No unbounded loops; no "keep trying forever."
 ```
 
@@ -221,23 +227,25 @@ No unbounded loops; no "keep trying forever."
 ## Non-goals
 
 ```text
-no SelfModel implementation in Phase 3.17
-no Growth Ledger semantic change
-no Pattern Ledger semantic change
+no SelfModel implementation
+no Growth Ledger semantic change (no new GrowthEventType, no new
+  GrowthEventSource)
+no Pattern Ledger semantic change (no new SourceKind, no new
+  saturation state, no signature shape change)
 no Coherence Monitor semantic change
+no L1 cache semantic change
 no L2 (eval_v1) semantic change
-no L1 cache semantic change beyond the codex-cli command tuple fix
 no parser change
 no prompt change
 no proof or claim of consciousness
 no claim of sentience
 no claim of subjective experience
 no claim of semantic understanding
-no truth adjudication or PRESERVE / DAMAGE judgment from raw text
+no truth adjudication
 no claim of agency / intent / will / desire
-no claim of self-modification
-no aggregate consciousness / sentience / awareness / I-ness / growth
-  score
+no claim of self-modification in the strong sense
+no aggregate consciousness / sentience / awareness / I-ness /
+  growth score
 no model-backed behavior as default
 no hidden LLM calls
 no silent network/model calls in offline/mock modes
@@ -245,20 +253,22 @@ no silent repair calls
 no hidden autosave behavior
 no direct raw-text-to-BrainState mutation
 no direct raw-text-to-COGITO_ID mapping
-no DB schema change in v1
+no DB schema change
 no SCHEMA_VERSION bump
-no /save-session / /load-session / autosave extension in v1
+no /save-session / /load-session / autosave extension
 no tick semantic change (brain/tick.py untouched)
 no raw prompts or model outputs committed to the repo
 no raw cache contents printed in docs
 no secrets committed to the repo
-no cache files committed to the repo (brain/.llm_cache stays ignored)
-no UI expansion unless explicitly reviewed
+no cache files committed to the repo (brain/.llm_cache stays
+  gitignored)
+no UI verb expansion unless explicitly reviewed
 no raw codex invocation outside the sanctioned bridges
 no Stage C.1 broad repo edits
 no unbounded Codex collaboration loop
-no runtime "internal tick" or "processing window" implementation
-  in v1 unless Step 7 review gate authorizes it explicitly
+no unbounded state growth
+no runtime change that elevates the "internal feedback" surface
+  above bounded printable record identifiers + ints + Fractions
 ```
 
 ---
@@ -266,23 +276,18 @@ no runtime "internal tick" or "processing window" implementation
 ## Macro sequence
 
 ```text
-Step 1   Mission sync and research roadmap
-Step 2   Codex-cli compatibility patch plan
-Step 3   Apply codex-cli compatibility fix
-Step 4   Codex-cli real model smoke
-Step 5   Processing window research synthesis
-Step 6   Processing window behavior probe design
-Step 7   Optional reviewed implementation plan
-Step 8   Mock processing-window initial test
+Step 1   Mission sync + roadmap
+Step 2   Internal feedback synthesis
+Step 3   Internal feedback probe matrix
+Step 4   Corrigenda / design locks
+Step 5   Catalog patch plan
+Step 6   Review Gate A
+Step 7   Apply implementation (if gated through)
+Step 8   Behavior report
 Step 9   Findings / triage
 Step 10  Final audit
 Step 11  PR preparation
 ```
-
-If Step 4 produces a clean codex-cli result, Steps 5+ proceed without
-further runtime change. If Step 4 reveals a deeper blocker, Steps
-5–8 still proceed using mock / claude-cli where appropriate, and
-Step 9 records the blocker.
 
 Every step that lands files must pass the standard preflight gates
 before commit and must push the campaign branch on success:
@@ -291,7 +296,7 @@ before commit and must push the campaign branch on success:
 python3 -m tools.claude_helpers.gate_runner --json
 ```
 
-(or, if `gate_runner` itself fails, fall back to:)
+(or, on gate_runner failure:)
 
 ```bash
 python3 -m tools.catalog counts
@@ -329,14 +334,13 @@ path is on the allowlist.
 Stage C.1 is allowed at:
 
 ```text
-Step 1   roadmap draft (optional; parent Claude writes directly)
-Step 2   patch plan draft (optional)
-Step 3   never for the runtime fix itself; the patch lands by parent
-         Claude direct edit so the diff and constraints are auditable
-Step 4   never for running the real codex-cli loop itself
-Step 5   synthesis doc draft (single or multi-node disjoint shards)
-Step 6   probe plan doc draft
-Step 7   implementation plan doc draft only
+Step 1   parent Claude writes directly
+Step 2   synthesis doc shard (optional)
+Step 3   probe matrix shard (optional)
+Step 4   corrigenda shard (optional)
+Step 5   catalog patch plan shard (optional)
+Step 6   never; review gate is a parent-Claude decision
+Step 7   bounded module/fixture shards permitted after review gate
 Step 8   docs around the test; not the test itself if a runtime
          change would be needed
 Step 9   findings doc draft after measurements exist
@@ -373,17 +377,17 @@ disclosure block defined in `CURRENT_MISSION.md`.
 
 ---
 
-# Step 1 — Mission sync and research roadmap
+# Step 1 — Mission sync + roadmap
 
-Purpose: replace the Phase 3.16 mission/campaign prose with
-Phase 3.17 as current, and land the Phase 3.17 roadmap at repo root.
+Purpose: install Phase 3.19 as the current mission and land the
+Phase 3.19 roadmap at repo root.
 
 Allowed files:
 
 ```text
 CURRENT_MISSION.md
 CURRENT_CAMPAIGN.md
-PHASE3_17_CODEX_PROCESSING_WINDOW_ROADMAP.md
+PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
 ```
 
 Forbidden in Step 1:
@@ -398,425 +402,233 @@ docs/campaigns/**
 lean_reference/**
 scenarios/**
 traces/**
-no fixtures
-no code
 ```
 
-Required work:
-
-```text
-sync fresh main and create branch
-  campaign/phase3-17-codex-processing-window
-run gate_runner --json green
-write Phase 3.17 CURRENT_MISSION.md (parent Claude)
-write Phase 3.17 CURRENT_CAMPAIGN.md (parent Claude)
-write PHASE3_17_CODEX_PROCESSING_WINDOW_ROADMAP.md
-  (parent Claude direct write; Stage C.1 optional)
-inspect git status / git diff to confirm only the three allowed
-  files changed
-```
-
-Validation:
-
-```bash
-python3 -m tools.claude_helpers.gate_runner --json
-python3 -m tools.claude_helpers.campaign_state summary
-git status --short
-git diff -- CURRENT_MISSION.md CURRENT_CAMPAIGN.md \
-  PHASE3_17_CODEX_PROCESSING_WINDOW_ROADMAP.md
-```
+Required work: write Phase 3.19 mission / campaign / roadmap;
+verify gate_runner --json green.
 
 Commit message:
 
 ```text
-phase3.17 step1: codex processing window mission sync
+phase3.19 step1: internal feedback mission sync
 ```
 
 Push.
 
 ---
 
-# Step 2 — Codex-cli compatibility patch plan
+# Step 2 — Internal feedback synthesis
 
 Create:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_CODEX_CLI_COMPAT_PATCH_PLAN.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_SYNTHESIS.md
 ```
 
-Required content:
+Required analysis (per Phase 3.19 mission):
 
 ```text
-- current CodexCLIClient.command is ("codex", "exec")
-- current cwd is "/tmp"
-- failure reason: codex-cli 0.130.0 refuses cwd=/tmp without
-  --skip-git-repo-check
-- preferred fix: command = ("codex", "exec", "--skip-git-repo-check")
-- rejected alternative: cwd = repo root (would let codex auto-discover
-  the parent repo's CLAUDE.md / hooks)
-- exact files to edit:
-    brain/llm/client.py
-    brain/ui/llm_runtime.py
-- whether any fixture under brain/ui/fixtures/ needs a constant or
-  command-tuple update (yes if it asserts the exact tuple shape)
-- INVARIANT_CATALOG.md status: expected count change = zero;
-  bodies of I-LLMTOG-16 / I-LLMTOG-17 may need a one-line
-  refresh to mention the new flag without bumping the catalog
-  version
-- tools/catalog.py: expected no change
-- validation plan: gate_runner --json, fixture smoke, manual
-  command construction probe
-- smoke plan: codex --version / codex exec --help (no real call),
-  then construct the client through the factory and run
-  CodexCLIClient.eval_consistency on a single short prompt
-- raw prompt / response / secret secrecy constraints
-- disclosure block
+1. Current Phase 3.18 mechanism (rehearsal-only).
+2. Gap (recurrence does not feed back; Coherence Monitor is
+   read-only; Growth Ledger records; no REPL/worldlet
+   participation).
+3. Proposed feedback loop and event shape.
+4. Candidate architectures A-F (see roadmap).
+5. Human-development analogy (carefully bounded).
+6. Testable hypotheses H1-H7.
+7. Recommended v1 (pattern-ledger feedback only; coherence
+   feedback either bundled bounded-read-only or DEFERRED;
+   no model-generated reflection; no SelfModel).
 ```
-
-Stage A review is allowed but optional.
 
 Commit message:
 
 ```text
-phase3.17 step2: codex-cli compatibility patch plan
+phase3.19 step2: internal feedback synthesis
 ```
 
 Push.
 
 ---
 
-# Step 3 — Apply codex-cli compatibility fix
-
-Implement only the accepted small fix unless Step 2 proves more is
-needed.
-
-Likely patch:
-
-```text
-In brain/llm/client.py:
-    CodexCLIClient.command = ("codex", "exec", "--skip-git-repo-check")
-
-In brain/ui/llm_runtime.py::_build_codex_cli_client:
-    CodexCLIClient(
-        command=(resolved_executable, "exec", "--skip-git-repo-check"),
-        timeout_seconds=config.timeout_seconds,
-    )
-```
-
-Do not change cwd unless the command fix fails.
-
-Add or update at least one fixture under `brain/ui/fixtures/` (or a
-catalog-bound fixture) proving:
-
-```text
-- CodexCLIClient.command contains "exec"
-- CodexCLIClient.command contains "--skip-git-repo-check"
-- command is still a bounded tuple of strings
-- subprocess is not invoked with shell=True
-- no raw broad codex mode is reachable from the factory
-- cwd remains "/tmp"
-- missing executable still fails early (existing behavior preserved)
-```
-
-Run gates.
-
-Forbidden in Step 3:
-
-```text
-brain/tick.py
-brain/llm/parse.py
-brain/llm/prompts.py
-brain/llm/ptcns_backed.py
-INVARIANT_CATALOG.md beyond a fixture-side body refresh, if at all
-tools/catalog.py
-schema files
-persistence files
-autosave files
-```
-
-Commit message:
-
-```text
-phase3.17 step3: fix codex-cli git repo check
-```
-
-Push.
-
----
-
-# Step 4 — Codex-cli real model smoke
+# Step 3 — Internal feedback probe matrix
 
 Create:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_CODEX_CLI_REAL_MODEL_SMOKE.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_PROBE_MATRIX.md
 ```
 
-Run actual codex-cli model-backed ToyI route if the environment
-permits.
-
-Use call budget <= 10 for this step.
-
-Route:
+Matrix:
 
 ```text
-- build LlmRuntimeConfig(mode=CODEX_CLI, ...)
-- build client via build_llm_client_from_config
-- queue one short input through OperatorSession.dispatch
-- run STEP_TICK
-- inspect state / tick / growth ledger / cache
-- repeat equivalent input once to test L2 cache if budget allows
+- window sizes: 0, 5, 10, 50
+- modes: rehearsal-only, pattern feedback, coherence feedback (if
+  in scope), combined feedback (if in scope)
+- inputs: repeated motif, contradiction pair, self-reference
+  phrase, neutral factual text, emotionally valenced text
+- measurements: stream chunk count, rehearsal step count, pattern
+  entries, recurrence_count, confidence, saturation_state, Growth
+  Ledger events, Coherence Monitor status, model call count if
+  any, L1 / L2 cache counters if any, state mutation footprint,
+  invariant status
 ```
 
-Record:
-
-```text
-- codex --version
-- codex login status (presence only; never the token)
-- command shape (no secrets)
-- calls used (count every attempt incl. failures)
-- parse result
-- tick result
-- cache hit / miss / skip
-- L2 behavior
-- state changes
-- whether route works
-```
-
-If codex-cli still fails, stop and report exact blocker.
+If implementation does not yet support feedback, mark cells as
+planned/probe-blocked and state exactly what runtime surface is
+missing.
 
 Commit message:
 
 ```text
-phase3.17 step4: codex-cli real model smoke
+phase3.19 step3: internal feedback probe matrix
 ```
 
 Push.
 
 ---
 
-# Step 5 — Processing window research synthesis
+# Step 4 — Corrigenda / design locks
 
 Create:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_PROCESSING_WINDOW_SYNTHESIS.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_CORRIGENDA.md
 ```
 
-The synthesis must analyze, per the campaign mission:
-
-```text
-- current system limits (one external percept per tick; session
-  refuses empty /step; no post-input processing window; ledger /
-  pattern / coherence read-only)
-- proposed processing-window model: bounded internalization period
-  of N internal ticks following an external input; initial N = 50;
-  bounded and interruptible; audit-trailed; bounded state
-- distinction between external input ticks, internal processing
-  ticks, reflective feedback ticks, future REPL/worldlet ticks
-- why current session route cannot process an empty queue
-- why kernel empty-event ticks are not enough for learning / growth
-- candidate architectures:
-    A. session-level post-input tick loop using generated internal
-       events
-    B. new internal event type / internal percept source
-    C. reflective REPL feedback generating queued internal events
-    D. worldlet / working-memory feedback later
-    E. no-op empty tick window as a negative control
-    F. delayed consolidation queue
-- human analogy used carefully (perception / working memory /
-  consolidation / rehearsal / self-monitoring / action selection)
-  with explicit "this is an architectural analogy, not a
-  consciousness claim"
-- testable hypotheses (0 vs 5 vs 10 vs 50 ticks; cache absorbs
-  repeats; pattern recurrence becomes more inspectable; coherence
-  PASS / WARN but never a scalar I-score)
-- minimal v1: do not implement full self-model; do not change tick
-  kernel; design an experimental controller / harness first; use
-  mock / claude-cli / codex-cli under budgets; report evidence
-- success criteria
-- non-claims and safety boundaries
-- disclosure block
-```
-
-Stage C.1 may draft the synthesis as a single-node doc shard.
+Lock LOCK A through LOCK J as described in the mission.
 
 Commit message:
 
 ```text
-phase3.17 step5: processing window synthesis
+phase3.19 step4: internal feedback corrigenda
 ```
 
 Push.
 
 ---
 
-# Step 6 — Processing window behavior probe design
+# Step 5 — Catalog patch plan
 
 Create:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_PROCESSING_WINDOW_PROBE_PLAN.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_CATALOG_PATCH_PLAN.md
 ```
 
-Design experiment matrix:
-
-```text
-- window sizes: 0, 1, 5, 10, 50
-- modes: mock, claude-cli, codex-cli if fixed
-- input types:
-    - repeated motif
-    - contradiction pair
-    - self-reference statement
-    - emotionally valenced text
-    - neutral factual text
-- outputs:
-    - tick count
-    - model call count
-    - cache hit / miss / skip
-    - profile domain delta
-    - MSI content delta
-    - PtCns eval map delta
-    - Pattern Ledger entries
-    - Growth Ledger entries
-    - Coherence Monitor report
-    - status / error events
-- failure limits:
-    - call budget cap
-    - cache cap
-    - parse failure threshold
-    - invariant failure threshold
-```
+Must include: exact implementation architecture, exact files,
+exact row family + statuses, exact catalog version/count delta,
+exact fixtures, exact behavior-report plan, exact non-goals,
+review-gate decision request.
 
 Commit message:
 
 ```text
-phase3.17 step6: processing window probe plan
+phase3.19 step5: internal feedback catalog patch plan
 ```
 
 Push.
 
 ---
 
-# Step 7 — Optional implementation plan
+# Step 6 — Review Gate A
 
-Only create implementation plan; do not implement until a fresh
-review-gate instruction is issued.
+Apply the autonomy authorization from `CURRENT_MISSION.md`. If
+all ten conditions pass, record `Review Gate A — ACCEPT PLAN AS
+WRITTEN` and proceed. If any fails, stop.
 
-Create:
+This step does NOT change files. Commit only if the gate-status
+record is part of an updated doc artifact created in step 5 or
+4; otherwise this step is a transition record only.
+
+---
+
+# Step 7 — Apply implementation
+
+Implement bounded internal feedback per the accepted plan. Required
+properties:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_PROCESSING_WINDOW_IMPLEMENTATION_PLAN.md
-```
-
-Plan must specify exact review gate before code.
-
-Potential first implementation (DESIGN ONLY):
-
-```text
-- no kernel tick.py change
-- new experimental harness under tools/ or
-  docs/campaigns/phase3_17/tmp/ (script may NOT be committed unless
-  reviewed)
-- session-level controller that:
-    - accepts one external input
-    - runs the normal external tick
-    - then runs bounded internal processing candidates generated
-      from existing ledgers / coherence summaries
-- internal events clearly marked provenance="internal_processing_window"
-- bounded max 50
-- call budget enforced
-- explicit review gate before any of the above is implemented
+- bounded deterministic feedback
+- no tick.py change
+- no real model calls by default
+- no unbounded growth
+- provenance on every internal feedback artifact
+- no raw prompt/model response
+- closed enums where appropriate
+- constructor validation, no silent clamp except where existing
+  pattern uses saturation
+- tests for N = 0, 5, 10, 50
+- tests for no non-claim language
 ```
 
 Commit message:
 
 ```text
-phase3.17 step7: processing window implementation plan
+phase3.19 step7: implement internal feedback loop
 ```
 
 Push.
 
 ---
 
-# Step 8 — Start actual controlled testing
+# Step 8 — Behavior report
 
 Create:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_PROCESSING_WINDOW_INITIAL_TEST.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_BEHAVIOR_REPORT.md
 ```
 
-Run negative-control tests first using only the existing public
-surfaces:
+Run and report:
 
 ```text
-- window 0 control: queue one external input, run STEP_TICK, report
-  inspectable state. This is the existing single-tick route.
-- window 1 control: optionally queue a second internal-looking event
-  whose target_content_id and provenance encode "internal_processing"
-  for AUDIT ONLY (no kernel change).
-- window N small (e.g. 5) via mock client: queue then promote N
-  bounded synthetic events drawn from the live Pattern Ledger /
-  Coherence summary, and run STEP_TICK each time, only when this
-  can be done WITHOUT touching the kernel.
-```
-
-If runtime support is insufficient to do anything beyond the
-window-0 control, document exactly why. Do not fake success.
-
-Allowed file scope:
-
-```text
-docs/campaigns/phase3_17/PHASE3_17_PROCESSING_WINDOW_INITIAL_TEST.md
-```
-
-Forbidden in Step 8:
-
-```text
-brain/tick.py
-brain/ui/session.py
-brain/ui/__main__.py
-INVARIANT_CATALOG.md
-tools/catalog.py
-schema files
-persistence files
+- rehearsal-only baseline
+- pattern feedback
+- coherence feedback if implemented
+- combined feedback if implemented
+- N = 0 / 5 / 10 / 50
+- deterministic repeatability
+- distinct input independence
+- saturation / cap behavior
+- cache / call count if any
+- invariant gates
+- non-claim audit
 ```
 
 Commit message:
 
 ```text
-phase3.17 step8: processing window initial test
+phase3.19 step8: internal feedback behavior report
 ```
 
 Push.
 
 ---
 
-# Step 9 — Findings / triage
+# Step 9 — Findings
 
 Create:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_FINDINGS.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_FINDINGS.md
 ```
 
 Classify:
 
 ```text
-- codex fix success / fail
-- codex model route works / partial / fail
-- processing window feasible now?
-- processing window requires runtime design?
-- what exact next implementation campaign is needed?
 - blockers
-- deferred work
+- safety/invariant findings
+- behavior successes
+- weak behavior
+- deferred enhancements
+- next research directions
 ```
 
 Commit message:
 
 ```text
-phase3.17 step9: findings
+phase3.19 step9: internal feedback findings
 ```
 
 Push.
@@ -828,21 +640,20 @@ Push.
 Create:
 
 ```text
-docs/campaigns/phase3_17/PHASE3_17_CODEX_PROCESSING_WINDOW_AUDIT.md
+docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_AUDIT.md
 ```
 
 Verdict options:
 
 ```text
-PASS                           : codex fixed AND processing-window
-                                 initial test started
-PASS WITH DEFERRED IMPLEMENTATION: codex fixed, design ready,
-                                 runtime implementation deferred
-PARTIAL                        : codex fixed but processing-window
-                                 blocked
-BLOCKED                        : codex unavailable or required
-                                 config missing
-FAIL                           : invariant / runtime regression
+PASS                          : feedback path implemented and
+                                demonstrated end-to-end
+PASS WITH DEFERRED FOLLOW-UPS : feedback path shipped; coherence
+                                feedback or combined feedback
+                                deferred
+PARTIAL                       : feedback path partial
+BLOCKED                       : feedback path blocked at design
+FAIL                          : invariant / runtime regression
 ```
 
 Validation (canonical preflight):
@@ -851,39 +662,21 @@ Validation (canonical preflight):
 python3 -m tools.claude_helpers.gate_runner --json
 ```
 
-Required content:
-
-```text
-- verdict
-- files changed across the campaign
-- gate results
-- cumulative real model call count
-- mode tested
-- explicit "no SelfModel implementation" confirmation
-- explicit "no consciousness / sentience / subjective / semantic /
-  truth / agency / self-modification claim" confirmation
-- explicit "no aggregate awareness / I-ness / growth score"
-  confirmation
-- explicit "no hidden LLM call / hidden persistence / DB schema
-  change in v1" confirmation
-- explicit "no L2 (eval_v1) semantic change" confirmation
-- explicit "no tick semantic change (brain/tick.py untouched)"
-  confirmation
-- explicit "no raw prompts / responses / cache files / secrets
-  committed" confirmation
-- explicit "OFFLINE remains default; model-backed remains explicit
-  opt-in" confirmation
-- explicit "50 ticks is an experimental default, not a runtime
-  constant in v1" confirmation
-- Stage A / Stage B / Stage C.1 bridge usage disclosure across
-  the campaign
-- next-campaign note
-```
+Required content: verdict; files changed across the campaign; gate
+results; cumulative real model call count; mode tested; explicit
+"no SelfModel implementation"; "no consciousness / sentience /
+subjective / semantic / truth / agency / self-modification claim";
+"no aggregate awareness / I-ness / growth score"; "no hidden LLM
+call / hidden persistence / DB schema change"; "no L2 semantic
+change"; "no tick semantic change"; "no raw prompts / responses /
+cache files / secrets committed"; "OFFLINE remains default;
+model-backed remains explicit opt-in"; Stage A / Stage B / Stage C.1
+bridge usage disclosure; next-campaign note.
 
 Commit message:
 
 ```text
-phase3.17 step10: final audit
+phase3.19 step10: final internal feedback audit
 ```
 
 Push.
@@ -895,23 +688,14 @@ Push.
 Open a PR to main with title:
 
 ```text
-phase3.17: codex runtime and processing window research
+phase3.19: internal feedback loop prototype
 ```
 
-PR body must include:
-
-```text
-- PR URL
-- codex issue fixed yes/no
-- codex real model route result
-- processing-window design status
-- whether 50 ticks is still recommended as initial default
-- what actual testing was started
-- validation results
-- next campaign recommendation
-- confirmation main was not pushed directly during campaign execution
-- confirmation PR is not merged
-- Stage A / Stage B / Stage C.1 bridge usage summary
-```
+PR body must include: PR URL, base/head, catalog version/counts,
+what feedback was implemented, whether pattern recurrence now feeds
+back into later processing, whether coherence feedback is included
+or deferred, whether 50-tick processing window remains recommended,
+validation, real model calls used, non-claims, next campaign
+recommendation.
 
 Do not merge.
