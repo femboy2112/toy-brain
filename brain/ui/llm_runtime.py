@@ -592,16 +592,20 @@ def _build_codex_cli_client(
     """Construct a :class:`brain.llm.client.CodexCLIClient`.
 
     Mirrors :func:`_build_claude_cli_client`. The command tuple is
-    locked to ``(<resolved-executable>, "exec")`` per the Phase 3.11
-    corrigenda Section 7. The caller is responsible for resolving
-    ``config.codex_cli_executable`` via :func:`_which` (a PATH lookup,
-    not a credential / configuration env var read) and passing the
-    absolute path as ``resolved_executable``.
+    locked to ``(<resolved-executable>, "exec", "--skip-git-repo-check")``
+    per the Phase 3.11 corrigenda Section 7 plus the Phase 3.17 Step
+    2 patch plan: ``--skip-git-repo-check`` is required for
+    codex-cli >= 0.130 because the neutral cwd=/tmp (preserved to
+    keep the nested CLI from auto-discovering this repo's CLAUDE.md
+    / hooks) is not a trusted directory. The caller is responsible
+    for resolving ``config.codex_cli_executable`` via :func:`_which`
+    (a PATH lookup, not a credential / configuration env var read)
+    and passing the absolute path as ``resolved_executable``.
     """
     from brain.llm.client import CodexCLIClient
 
     return CodexCLIClient(
-        command=(resolved_executable, "exec"),
+        command=(resolved_executable, "exec", "--skip-git-repo-check"),
         timeout_seconds=config.timeout_seconds,
     )
 
