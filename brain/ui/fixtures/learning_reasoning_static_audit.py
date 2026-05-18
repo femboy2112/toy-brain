@@ -44,6 +44,9 @@ _EXPECTED_LEARNING_EVIDENCE_KIND_VALUES = frozenset(
         "repl_correction_applied",
         "diminishing_returns_updated",
         "limitation_recorded",
+        # Phase 3.23 (I-DTRACE-10): cite the dispatch trace digest in
+        # structural learning evidence.
+        "dispatch_trace_recorded",
     }
 )
 
@@ -59,6 +62,9 @@ _EXPECTED_REASONING_STEP_KIND_VALUES = frozenset(
         "check_repl",
         "select_reply_disposition",
         "check_limitation",
+        # Phase 3.23 (I-DTRACE-09): cite the dispatch trace digest in
+        # the reasoning trace, immediately before EMIT_REPLY.
+        "check_dispatch_trace",
         "emit_reply",
     }
 )
@@ -160,6 +166,7 @@ def check_learning_reasoning_static_audit() -> None:
             "repl_correction_applied_count",
             "diminishing_returns_updated_count",
             "limitation_recorded_count",
+            "dispatch_trace_recorded_count",
             "digest_hex16",
             "summary_line",
         ),
@@ -183,6 +190,7 @@ def check_learning_reasoning_static_audit() -> None:
             "check_repl_count",
             "select_reply_disposition_count",
             "check_limitation_count",
+            "check_dispatch_trace_count",
             "emit_reply_count",
             "trace_digest_hex16",
             "summary_line",

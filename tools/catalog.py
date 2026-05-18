@@ -24,7 +24,33 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.29 expected counts — bumped by the Phase 3.21 Developmental
+# v0.32 expected counts — bumped by the Phase 3.23 Dispatch Tracer
+# Wiring catalog patch (I-DTRACE-01..12: +11 REQUIRED rows, +1
+# STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
+# Phase 3.23 adds the brain/development/dispatch_tracer.py module: a
+# pure deterministic audit-trail substrate with closed
+# DispatchTraceKind (12 values), DispatchMutationKind (14 values),
+# and DispatchTraceStatus (4 values) enums and bounded
+# DispatchTraceStep / DispatchTrace / DispatchTraceReport /
+# DispatchTraceDigest / DispatchTraceConfig records. The
+# OperatorSession.dispatch path is wired to build a bounded trace
+# inline on every dispatch and store the report on the new
+# single-slot OperatorSession.latest_dispatch_trace field; existing
+# semantics are kept bit-identical. AgentLoopResult exposes the
+# trace report; the Phase 3.22b reasoning trace gains a
+# CHECK_DISPATCH_TRACE step before EMIT_REPLY citing the digest, and
+# the Phase 3.22b learning evidence ledger gains a
+# DISPATCH_TRACE_RECORDED record kind citing the same digest. The
+# benchmark gains one new axis A10 (12 cases). Nine new fixtures
+# land in brain/ui/fixtures/ (constructor + session-stream +
+# processing-window + step-tick-error + noop + agent-loop-integration
+# + reasoning-learning-integration + benchmark-axis + static-audit).
+# brain/tick.py is not edited; no existing runtime file's behavior
+# changes; OFFLINE default preserved; zero real model calls; non-
+# claim discipline enforced via the canonical
+# _FORBIDDEN_NON_CLAIM_TERMS tuple on every produced summary string
+# and the new module source.
+# v0.29 history retained: bumped by the Phase 3.21 Developmental
 # Trajectory catalog patch (I-DEVMILE-01..11: +10 REQUIRED rows,
 # +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED
 # unchanged). Phase 3.21 adds the brain/development/milestone_harness.py
@@ -59,8 +85,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 313,
-    "STRUCTURAL": 95,
+    "REQUIRED": 324,
+    "STRUCTURAL": 96,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,

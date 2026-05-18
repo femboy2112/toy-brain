@@ -80,7 +80,9 @@ class LearningEvidenceKind(str, Enum):
     """Closed enum of evidence-record kinds.
 
     See docs/campaigns/phase3_22/PHASE3_22B_LEARNING_PROOF_SPEC.md
-    for per-kind semantics.
+    for per-kind semantics. Phase 3.23 adds
+    :data:`DISPATCH_TRACE_RECORDED` per
+    docs/campaigns/phase3_23/PHASE3_23_DISPATCH_TRACE_SPEC.md.
     """
 
     OBSERVED = "observed"
@@ -91,6 +93,11 @@ class LearningEvidenceKind(str, Enum):
     REPL_CORRECTION_APPLIED = "repl_correction_applied"
     DIMINISHING_RETURNS_UPDATED = "diminishing_returns_updated"
     LIMITATION_RECORDED = "limitation_recorded"
+    # Phase 3.23 (I-DTRACE-10): cite the dispatch trace digest that
+    # accompanies a structural learning evidence record. The cite
+    # itself is bounded printable text stored in post_facts; no raw
+    # trace is stored on the record.
+    DISPATCH_TRACE_RECORDED = "dispatch_trace_recorded"
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +289,7 @@ class LearningProofReport:
     repl_correction_applied_count: int
     diminishing_returns_updated_count: int
     limitation_recorded_count: int
+    dispatch_trace_recorded_count: int
     digest_hex16: str
     summary_line: str
 
@@ -316,6 +324,10 @@ class LearningProofReport:
                 self.diminishing_returns_updated_count,
             ),
             ("limitation_recorded_count", self.limitation_recorded_count),
+            (
+                "dispatch_trace_recorded_count",
+                self.dispatch_trace_recorded_count,
+            ),
         ):
             if not isinstance(value, int) or isinstance(value, bool):
                 raise TypeError(
@@ -436,6 +448,9 @@ def build_learning_proof_report(
         LearningEvidenceKind.DIMINISHING_RETURNS_UPDATED, 0
     )
     limitation = counts.get(LearningEvidenceKind.LIMITATION_RECORDED, 0)
+    dispatch_trace = counts.get(
+        LearningEvidenceKind.DISPATCH_TRACE_RECORDED, 0
+    )
     record_total = len(trace.records)
     digest = _compute_trace_digest(trace)
     summary = (
@@ -448,6 +463,7 @@ def build_learning_proof_report(
         f"corrections={correction} "
         f"diminishing={diminishing} "
         f"limitations={limitation} "
+        f"dispatch_trace={dispatch_trace} "
         f"digest={digest}"
     )
     if len(summary) > LEARNING_REPORT_SUMMARY_MAX_LEN:
@@ -463,6 +479,7 @@ def build_learning_proof_report(
         repl_correction_applied_count=correction,
         diminishing_returns_updated_count=diminishing,
         limitation_recorded_count=limitation,
+        dispatch_trace_recorded_count=dispatch_trace,
         digest_hex16=digest,
         summary_line=summary,
     )
@@ -659,6 +676,43 @@ def make_limitation_recorded_record(
     )
 
 
+def make_dispatch_trace_recorded_record(
+    *,
+    interaction_id: str,
+    dispatch_trace_digest_hex16: str,
+    command_kind: str,
+    mutation_kind_value: str,
+    route_path: str,
+) -> LearningEvidenceRecord:
+    """Build a DISPATCH_TRACE_RECORDED evidence record.
+
+    Drives ``I-DTRACE-10``: structural learning evidence can cite the
+    dispatch trace that produced the underlying observation. The
+    cite itself is bounded printable text; the raw trace is NOT
+    stored on the record.
+    """
+    summary = (
+        f"dispatch trace recorded: digest={dispatch_trace_digest_hex16} "
+        f"cmd={command_kind} mut={mutation_kind_value} route={route_path}"
+    )
+    return LearningEvidenceRecord(
+        kind=LearningEvidenceKind.DISPATCH_TRACE_RECORDED,
+        interaction_id=interaction_id,
+        abstract_pattern_digest="",
+        pattern_id="",
+        pre_facts=(("command_kind", _bounded_value(command_kind)),),
+        post_facts=(
+            (
+                "dispatch_digest",
+                _bounded_value(dispatch_trace_digest_hex16),
+            ),
+            ("route_path", _bounded_value(route_path)),
+            ("mutation_kind", _bounded_value(mutation_kind_value)),
+        ),
+        summary=summary,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Trace querying.
 # ---------------------------------------------------------------------------
@@ -719,6 +773,7 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     LearningEvidenceKind.REPL_CORRECTION_APPLIED.value,
     LearningEvidenceKind.DIMINISHING_RETURNS_UPDATED.value,
     LearningEvidenceKind.LIMITATION_RECORDED.value,
+    LearningEvidenceKind.DISPATCH_TRACE_RECORDED.value,
 )
 
 
@@ -746,6 +801,7 @@ __all__ = (
     "make_abstract_pattern_acquired_record",
     "make_abstract_pattern_reused_record",
     "make_diminishing_returns_record",
+    "make_dispatch_trace_recorded_record",
     "make_limitation_recorded_record",
     "make_observed_record",
     "make_recurrence_increased_record",

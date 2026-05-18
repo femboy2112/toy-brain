@@ -101,6 +101,17 @@ _PHASE_3_19_SESSION_ATTRS: frozenset[str] = frozenset({
 })
 
 
+#: Phase 3.23 (Dispatch Tracer Wiring) additions to the
+#: OperatorSession attribute surface. The single field is a single-slot
+#: post-action record (Optional[DispatchTraceReport]); the
+#: I-DTRACE-03 / I-DTRACE-12 rows assert its positive shape (no
+#: callable / handle / client / path / connection). The v0.32
+#: catalog patch authorizes it through this tier.
+_PHASE_3_23_SESSION_ATTRS: frozenset[str] = frozenset({
+    "latest_dispatch_trace",
+})
+
+
 def _assert_session_resource_free(session: OperatorSession, *, tag: str) -> None:
     """Raise if any session field exposes a forbidden resource."""
     for attr in _ALLOWED_SESSION_ATTRS:
@@ -147,6 +158,7 @@ def check_i_observe_08_session_resource_audit() -> None:
         | _PHASE_3_13_SESSION_ATTRS
         | _PHASE_3_18_SESSION_ATTRS
         | _PHASE_3_19_SESSION_ATTRS
+        | _PHASE_3_23_SESSION_ATTRS
     )
     if frozenset(_ALLOWED_SESSION_ATTRS) != allowed:
         added = set(_ALLOWED_SESSION_ATTRS) - allowed

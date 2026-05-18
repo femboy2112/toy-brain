@@ -81,6 +81,11 @@ class ReasoningStepKind(str, Enum):
     CHECK_REPL = "check_repl"
     SELECT_REPLY_DISPOSITION = "select_reply_disposition"
     CHECK_LIMITATION = "check_limitation"
+    # Phase 3.23 (I-DTRACE-09): record the dispatch trace digest that
+    # accompanies this reasoning trace. Inserted immediately before
+    # EMIT_REPLY so the reply can cite the dispatch route via the
+    # bounded dispatch trace digest.
+    CHECK_DISPATCH_TRACE = "check_dispatch_trace"
     EMIT_REPLY = "emit_reply"
 
 
@@ -226,6 +231,7 @@ class ReasoningTraceReport:
     check_repl_count: int
     select_reply_disposition_count: int
     check_limitation_count: int
+    check_dispatch_trace_count: int
     emit_reply_count: int
     trace_digest_hex16: str
     summary_line: str
@@ -247,6 +253,7 @@ class ReasoningTraceReport:
             ("check_repl_count", self.check_repl_count),
             ("select_reply_disposition_count", self.select_reply_disposition_count),
             ("check_limitation_count", self.check_limitation_count),
+            ("check_dispatch_trace_count", self.check_dispatch_trace_count),
             ("emit_reply_count", self.emit_reply_count),
         ):
             if not isinstance(value, int) or isinstance(value, bool):
@@ -409,6 +416,7 @@ def build_reasoning_trace_report(
         f"rpl={counts.get(ReasoningStepKind.CHECK_REPL, 0)} "
         f"sel={counts.get(ReasoningStepKind.SELECT_REPLY_DISPOSITION, 0)} "
         f"lim={counts.get(ReasoningStepKind.CHECK_LIMITATION, 0)} "
+        f"dtr={counts.get(ReasoningStepKind.CHECK_DISPATCH_TRACE, 0)} "
         f"emit={counts.get(ReasoningStepKind.EMIT_REPLY, 0)} "
         f"digest={digest}"
     )
@@ -439,6 +447,9 @@ def build_reasoning_trace_report(
         ),
         check_limitation_count=counts.get(
             ReasoningStepKind.CHECK_LIMITATION, 0
+        ),
+        check_dispatch_trace_count=counts.get(
+            ReasoningStepKind.CHECK_DISPATCH_TRACE, 0
         ),
         emit_reply_count=counts.get(ReasoningStepKind.EMIT_REPLY, 0),
         trace_digest_hex16=digest,
@@ -485,6 +496,7 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     ReasoningStepKind.CHECK_REPL.value,
     ReasoningStepKind.SELECT_REPLY_DISPOSITION.value,
     ReasoningStepKind.CHECK_LIMITATION.value,
+    ReasoningStepKind.CHECK_DISPATCH_TRACE.value,
     ReasoningStepKind.EMIT_REPLY.value,
 )
 

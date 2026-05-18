@@ -112,6 +112,7 @@ def check_growth_ledger_audit_tier() -> None:
         _PHASE_3_13_SESSION_ATTRS as _OBSERVE_PHASE_3_13,
         _PHASE_3_18_SESSION_ATTRS as _OBSERVE_PHASE_3_18,
         _PHASE_3_19_SESSION_ATTRS as _OBSERVE_PHASE_3_19,
+        _PHASE_3_23_SESSION_ATTRS as _OBSERVE_PHASE_3_23,
     )
     from brain.ui.fixtures.persistence_ops_resource_audit import (  # noqa: PLC0415
         _PHASE_3_9_SESSION_ATTRS as _OPS_PHASE_3_9,
@@ -120,6 +121,7 @@ def check_growth_ledger_audit_tier() -> None:
         _PHASE_3_13_SESSION_ATTRS as _OPS_PHASE_3_13,
         _PHASE_3_18_SESSION_ATTRS as _OPS_PHASE_3_18,
         _PHASE_3_19_SESSION_ATTRS as _OPS_PHASE_3_19,
+        _PHASE_3_23_SESSION_ATTRS as _OPS_PHASE_3_23,
     )
 
     assert _OBSERVE_PHASE_3_13 == frozenset({"growth_ledger"}), (
@@ -157,6 +159,17 @@ def check_growth_ledger_audit_tier() -> None:
         "_PHASE_3_19_SESSION_ATTRS drifted "
         f"(got {sorted(_OPS_PHASE_3_19)!r})"
     )
+    _PHASE_3_23_EXPECTED = frozenset({"latest_dispatch_trace"})
+    assert _OBSERVE_PHASE_3_23 == _PHASE_3_23_EXPECTED, (
+        "I-GROW-14 violated: persistence_observe_resource_audit's "
+        "_PHASE_3_23_SESSION_ATTRS drifted "
+        f"(got {sorted(_OBSERVE_PHASE_3_23)!r})"
+    )
+    assert _OPS_PHASE_3_23 == _PHASE_3_23_EXPECTED, (
+        "I-GROW-14 violated: persistence_ops_resource_audit's "
+        "_PHASE_3_23_SESSION_ATTRS drifted "
+        f"(got {sorted(_OPS_PHASE_3_23)!r})"
+    )
 
     # The folded union must equal _ALLOWED_SESSION_ATTRS exactly.
     observe_allowed = (
@@ -166,6 +179,7 @@ def check_growth_ledger_audit_tier() -> None:
         | _OBSERVE_PHASE_3_13
         | _OBSERVE_PHASE_3_18
         | _OBSERVE_PHASE_3_19
+        | _OBSERVE_PHASE_3_23
     )
     ops_allowed = (
         _OPS_PHASE_3_9
@@ -174,6 +188,7 @@ def check_growth_ledger_audit_tier() -> None:
         | _OPS_PHASE_3_13
         | _OPS_PHASE_3_18
         | _OPS_PHASE_3_19
+        | _OPS_PHASE_3_23
     )
     assert observe_allowed == frozenset(_ALLOWED_SESSION_ATTRS), (
         "I-GROW-14 violated: persistence_observe allowed union does not "

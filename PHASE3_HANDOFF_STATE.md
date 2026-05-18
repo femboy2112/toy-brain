@@ -4,9 +4,9 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.22b COMPLETE; PR #27 updated
-**Active branch:** `campaign/phase3-22-agent-communication-loop`
-**Active campaign:** none in flight; Phase 3.22b ready for review
+**Last updated:** Phase 3.23 COMPLETE; PR #28 to be opened against PR #27
+**Active branch:** `campaign/phase3-23-dispatch-tracer`
+**Active campaign:** none in flight; Phase 3.23 ready for review
 **Prior campaigns:**
   - Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25 open)
   - Phase 3.21 Developmental Trajectory — COMPLETE (PR #26 open)
@@ -20,54 +20,52 @@ a fresh session can `git status`, read this file, then keep going.
     Catalog v0.30 -> v0.31. +I-AGENTLEARN-01..11 (10 REQUIRED + 1
     STRUCTURAL). Benchmark: 53 cases, 52 PASS + 1 WARN + 0 FAIL,
     transcript digest `aa4fae94b8c9a8e4`.
+  - Phase 3.23 Dispatch Tracer Wiring — COMPLETE; pushed to a new
+    stacked branch `campaign/phase3-23-dispatch-tracer` for PR #28.
+    Catalog v0.31 -> v0.32. +I-DTRACE-01..12 (11 REQUIRED + 1
+    STRUCTURAL). Benchmark: 65 cases (53 + 12), 64 PASS + 1 WARN
+    (A3.04 carry-over) + 0 FAIL, transcript digest
+    `8cc4a4ca1845c6a4`. Adds `brain/development/dispatch_tracer.py`
+    and wires `OperatorSession.dispatch` to store a bounded
+    `DispatchTraceReport` on the new `latest_dispatch_trace` field.
 
 ---
 
 ## What is in flight
 
-The repo is now executing ONE active campaign:
-
-1. **Phase 3.22 Agent Communication Loop** — build a closed
-   deterministic operator-facing interaction loop that routes
-   operator input through the existing Phase 3.18-3.21 surfaces
-   (text stream / Pattern Ledger / Coherence Monitor / Growth Ledger
-   / Proto-BASIC REPL) and emits bounded operator-facing replies.
-   Add a closed deterministic benchmark battery exercising pattern
-   recurrence, cross-input structural transfer, coherence-status
-   variation (the Phase 3.21 W3 follow-up), REPL coherence,
-   communication, session continuity, and a blind-transcript
-   "mild-agent-like under bounded tests" criterion. New row family
-   `I-AGENTLOOP-01..11` (9 REQUIRED + 2 STRUCTURAL), catalog
-   v0.29 -> v0.30. See `CURRENT_MISSION.md`, `CURRENT_CAMPAIGN.md`,
-   and `PHASE3_22_AGENT_COMMUNICATION_LOOP_ROADMAP.md`.
+No active campaign. Phase 3.23 Dispatch Tracer Wiring is COMPLETE on
+the `campaign/phase3-23-dispatch-tracer` branch, stacked on PR #27
+(Phase 3.22 + 3.22b). PR #28 should be opened with base
+`campaign/phase3-22-agent-communication-loop` and head
+`campaign/phase3-23-dispatch-tracer`.
 
 The non-claim discipline anchored by
 `brain.development.coherence_monitor._FORBIDDEN_NON_CLAIM_TERMS`
-applies in full. "Agent communication loop" is engineering shorthand
-for "operator-input -> public-surface routing -> bounded reply",
-NOT a claim of cognitive agency, sentience, or understanding.
+applies in full. "Dispatch trace" is engineering shorthand for
+"explicit bounded audit record of public dispatch route and
+structural effects", NOT a claim of cognitive agency, sentience,
+or understanding.
 
 ---
 
 ## Current step pointer
 
 ```text
-campaign:   none in flight; Phase 3.22 + 3.22b COMPLETE
-status:     three PRs (#25 + #26 + #27) awaiting operator
-            merge decision; #27 includes both Phase 3.22 and 3.22b
-gates:      v0.31; all 5 gates PASS at Phase 3.22b close
-branch:     campaign/phase3-22-agent-communication-loop
+campaign:   none in flight; Phase 3.23 COMPLETE
+status:     four PRs (#25 + #26 + #27 + #28) awaiting operator
+            merge decision; #28 is stacked on #27 and depends on it.
+gates:      v0.32; all 5 gates PASS at Phase 3.23 close
+branch:     campaign/phase3-23-dispatch-tracer
+            (stacked on campaign/phase3-22-agent-communication-loop)
 
-queued next-campaign candidate:
-  - Phase 3.23 tracer wiring through OperatorSession.dispatch
-    (deferred since Phase 3.7); enables per-loop observability
-    without new runtime state. Recommended in
-    PHASE3_22_AGENT_COMMUNICATION_LOOP_AUDIT.md section 7.
-
-alternative next-campaign candidate:
+queued next-campaign candidates (after Phase 3.23 lands):
   - Phase 3.24 worldlet feedback bridge (deferred Phase 3.19 /
     3.20 architecture review). Bounded extension following the
     FeedbackMode precedent.
+  - Phase 3.25 coherence aggregation refinement (A3.04 follow-up).
+  - Phase 3.26 dispatch trace ring buffer.
+  - Phase 3.27 per-dispatch interaction_id serial (NOOP collision
+    deferred enhancement from Phase 3.23 F4).
 ```
 
 ---
@@ -202,6 +200,36 @@ Phase 3.22 W1 (not_applicable overall blocker) — REMAINS WARN,
 
 ---
 
+## Phase 3.23 step ledger (COMPLETE)
+
+```text
+Step 1  Mission + design + roadmap docs                    DONE   commit 3afa173 (pushed)
+Step 2  Dispatch trace substrate (dispatch_tracer.py)      DONE   commit a1be9b0 (pushed)
+Step 3  Session dispatch trace wiring (session.py)         DONE   commit e9f0320 (pushed)
+Step 4  Agent loop / reasoning / learning integration      DONE   commit f829d07 (pushed)
+Step 5  Benchmark A10 dispatch_trace axis                  DONE   commit cd0d6da (pushed)
+Step 6  Catalog v0.32 + I-DTRACE-01..12 fixtures           DONE   commit 1ac4d2f (pushed)
+Step 7  Trace proof + behavior + findings reports          DONE   commit 8ae09d6 (pushed)
+Step 8  Final audit + handoff + open PR #28                DONE   (this commit)
+```
+
+Verdict: **PASS WITH DEFERRED FOLLOW-UPS**. Catalog v0.32.
+
+Catalog patch: `I-DTRACE-01..I-DTRACE-12` (11 REQUIRED + 1 STRUCTURAL);
+all rows green in the runner. One new module
+`brain/development/dispatch_tracer.py`. Nine new fixtures. Benchmark:
+65 cases (53 from Phase 3.22 / 3.22b + 12 from Phase 3.23), 64 PASS
++ 1 documented WARN (A3.04 carry-over) + 0 FAIL, 0 real model calls,
+transcript digest `8cc4a4ca1845c6a4`. Dispatch trace proof digests
+documented in `PHASE3_23_TRACE_PROOF_REPORT.md`.
+
+Phase 3.22 W4 (dispatch trace deferral) — RESOLVED via the new
+  bounded substrate + AgentLoopResult / reasoning / learning citation.
+Phase 3.21 W3 (A3.04 NOT_APPLICABLE blocker) — REMAINS WARN (carried
+  forward; future coherence-aggregation refinement).
+
+---
+
 ## Recovery procedure (fresh Claude Code)
 
 ```bash
@@ -261,9 +289,12 @@ Then resume at the step named under **Current step pointer** above.
   Retargets to `main` once PR #24 merges.
 - PR #26 Phase 3.21 → `campaign/phase3-20-coherence-feedback-bridge`, OPEN.
   Retargets to `main` once both PR #24 and PR #25 merge.
-- PR #27 (Phase 3.22) → `campaign/phase3-21-developmental-trajectory`
+- PR #27 (Phase 3.22 + 3.22b) → `campaign/phase3-21-developmental-trajectory`
   while PR #26 is open; retargets to `main` once #24/#25/#26 merge.
-- Stack merge order (operator-controlled): PR #24 → #25 → #26 → #27.
+- PR #28 (Phase 3.23) → `campaign/phase3-22-agent-communication-loop`
+  (to be opened at Step 8). Retargets up the stack as upstream
+  PRs merge.
+- Stack merge order (operator-controlled): PR #24 → #25 → #26 → #27 → #28.
 
 ---
 
