@@ -19,6 +19,15 @@ EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({
     "I-AFF-11",
     "I-AFF-12",
     "I-AFF-13",
+    "I-AGENTLOOP-01",
+    "I-AGENTLOOP-02",
+    "I-AGENTLOOP-03",
+    "I-AGENTLOOP-04",
+    "I-AGENTLOOP-05",
+    "I-AGENTLOOP-06",
+    "I-AGENTLOOP-07",
+    "I-AGENTLOOP-08",
+    "I-AGENTLOOP-09",
     "I-AGN-01",
     "I-AGN-02",
     "I-AGN-03",
@@ -307,6 +316,8 @@ EXPECTED_REQUIRED_IDS: frozenset[str] = frozenset({
 })
 
 EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({
+    "I-AGENTLOOP-10",
+    "I-AGENTLOOP-11",
     "I-AUTOSAVE-12",
     "I-AUTOSAVE-13",
     "I-AUTOSAVE-14",

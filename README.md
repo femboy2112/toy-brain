@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.29)
+# brain — TLICA-constrained Python kernel (catalog v0.30)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 
@@ -551,8 +551,8 @@ bash tools/check_all.sh
 reports every REQUIRED row green, every STRUCTURAL row green, all
 auxiliary gates pass, and OBSERVED rows are reported without gating.
 
-For catalog v0.29, the expected count is:
-**294 REQUIRED · 92 STRUCTURAL · 14 NOT-EXERCISED · 15 DEFERRED · 16 OBSERVED**.
+For catalog v0.30, the expected count is:
+**303 REQUIRED · 94 STRUCTURAL · 14 NOT-EXERCISED · 15 DEFERRED · 16 OBSERVED**.
 
 The runner also performs the I-PCE-05 import-graph audit (`agency.py`
 never imports `pce.py`) and the I-CAT-01 catalog↔registry coverage
