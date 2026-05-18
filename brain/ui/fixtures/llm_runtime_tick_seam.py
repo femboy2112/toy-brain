@@ -26,9 +26,24 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from brain.invariants import register
-from brain.llm.client import CodexCLIClient, MockClient
+from brain.llm.client import CachedClient, CodexCLIClient, MockClient
 from brain.ui.__main__ import OfflineStandInClient, main
 from brain.ui.llm_runtime import LlmRuntimeMode
+
+
+def _unwrap_for_test(client):
+    """Return the inner transport client, unwrapping ``CachedClient``.
+
+    Phase 3.14 flips the cache default to on for explicit model-backed
+    modes, so ``main(["--llm-mode", "codex-cli", ...])`` now produces a
+    ``CachedClient`` wrapping a ``CodexCLIClient`` instead of the bare
+    ``CodexCLIClient``. The tick-seam contract is "the operator-selected
+    transport reaches ``run_curses``"; whether it is wrapped in
+    ``CachedClient`` is governed by the separate I-LLMCACHE-02 default
+    policy. Unwrap before the type assertion so this fixture's intent
+    (mode selection drives transport type) survives the cache default.
+    """
+    return client._inner if isinstance(client, CachedClient) else client
 
 
 class _FakeTerminal(io.StringIO):
@@ -82,10 +97,11 @@ def check_I_LLMTOG_09_tick_seam() -> None:
             "I-LLMTOG-09 violated: run_curses was not invoked exactly once "
             f"(got {captured['calls']})"
         )
-        assert isinstance(captured["client"], OfflineStandInClient), (
+        offline_client = _unwrap_for_test(captured["client"])
+        assert isinstance(offline_client, OfflineStandInClient), (
             "I-LLMTOG-09 violated: OFFLINE main did not pass "
             f"OfflineStandInClient to run_curses "
-            f"(got {type(captured['client']).__name__})"
+            f"(got {type(offline_client).__name__})"
         )
 
         # MOCK path: client should be a MockClient with our responses.
@@ -104,9 +120,10 @@ def check_I_LLMTOG_09_tick_seam() -> None:
             f"I-LLMTOG-09 violated: main exit code != 0 in MOCK path "
             f"(got {rc})"
         )
-        assert isinstance(captured["client"], MockClient), (
+        mock_client = _unwrap_for_test(captured["client"])
+        assert isinstance(mock_client, MockClient), (
             "I-LLMTOG-09 violated: MOCK main did not pass MockClient to "
-            f"run_curses (got {type(captured['client']).__name__})"
+            f"run_curses (got {type(mock_client).__name__})"
         )
 
         # CODEX_CLI path (Phase 3.11 extension): client should be a
@@ -128,10 +145,11 @@ def check_I_LLMTOG_09_tick_seam() -> None:
             f"I-LLMTOG-09 violated: main exit code != 0 in CODEX_CLI "
             f"path (got {rc})"
         )
-        assert isinstance(captured["client"], CodexCLIClient), (
+        codex_client = _unwrap_for_test(captured["client"])
+        assert isinstance(codex_client, CodexCLIClient), (
             "I-LLMTOG-09 violated: CODEX_CLI main did not pass "
             f"CodexCLIClient to run_curses "
-            f"(got {type(captured['client']).__name__})"
+            f"(got {type(codex_client).__name__})"
         )
     finally:
         _tui_mod.run_curses = saved_run_curses  # type: ignore[assignment]

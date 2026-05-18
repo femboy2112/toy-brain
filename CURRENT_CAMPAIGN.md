@@ -118,12 +118,12 @@ Then read whichever files the next campaign step names. Do not rely on chat memo
 Expected current state:
 
 ```text
-Catalog: v0.23
+Catalog: v0.24
 Counts:
-  REQUIRED:        259
-  STRUCTURAL:       86
-  NOT-EXERCISED:    12
-  DEFERRED:         15
+  REQUIRED:        277
+  STRUCTURAL:       87
+  NOT-EXERCISED:    14
+  DEFERRED:         16
   OBSERVED:         16
 Latest completed campaign:  Phase 3.13 Growth Ledger
 Latest merged PRs:          PR #14 (Phase 3.13 Growth Ledger),

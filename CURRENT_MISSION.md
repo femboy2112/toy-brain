@@ -73,12 +73,12 @@ never merge the PR without explicit user approval
 Expected current baseline (must match before any step runs):
 
 ```text
-Catalog: v0.23
+Catalog: v0.24
 Counts:
-  REQUIRED:        259
-  STRUCTURAL:       86
-  NOT-EXERCISED:    12
-  DEFERRED:         15
+  REQUIRED:        277
+  STRUCTURAL:       87
+  NOT-EXERCISED:    14
+  DEFERRED:         16
   OBSERVED:         16
 Latest completed campaign:    Phase 3.13 Growth Ledger (PR #14)
 Latest bridge merge:          Stage B Claude → Codex CLI → ChatGPT

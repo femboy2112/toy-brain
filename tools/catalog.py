@@ -24,21 +24,25 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.23 expected counts — bumped by the Phase 3.13 Growth Ledger
-# catalog patch (I-GROW-01..22: +19 REQUIRED rows, +1 STRUCTURAL row,
-# +1 NOT-EXERCISED row, +1 DEFERRED row; OBSERVED unchanged). The
-# Phase 3.13 Growth Ledger is a bounded session-local developmental
-# record of accepted, constructor-validated growth events; no UI, no
-# observed dry run, no DB open, no persistence schema bump, no
-# autosave extension in v1. The single new OperatorSession.growth_ledger
-# field is authorized by the Phase 3.13 audit-tier addition
-# _PHASE_3_13_SESSION_ATTRS in both persistence resource-audit
-# fixtures.
+# v0.24 expected counts — bumped by the Phase 3.14 LLM Cache Discipline
+# catalog patch (I-LLMCACHE-01..22: +18 REQUIRED rows, +1 STRUCTURAL
+# row, +1 DEFERRED row, +2 NOT-EXERCISED rows; OBSERVED unchanged).
+# Phase 3.14 makes L1 transport cache default-on after explicit
+# model-backed mode selection (new --llm-disable-cache opt-out flag),
+# adds an L2 canonical semantic evaluation cache inside
+# brain/llm/ptcns_backed.py (keyed by cache_schema_version /
+# prompt_template_version / parse_schema_version / backend_family /
+# model_identity / existing_msi_context / new_text; evaluated new_id
+# is excluded from the key but retained in the rendered prompt for
+# diagnostics), bounds L2 at 1024 entries, and keeps brain/tick.py
+# untouched. L1 bounding remains DEFERRED (I-LLMCACHE-20); the real
+# external model-backed cache smoke (I-LLMCACHE-21) and the end-to-end
+# behavior-report row (I-LLMCACHE-22) are NOT-EXERCISED in v1.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 259,
-    "STRUCTURAL": 86,
-    "NOT-EXERCISED": 12,
-    "DEFERRED": 15,
+    "REQUIRED": 277,
+    "STRUCTURAL": 87,
+    "NOT-EXERCISED": 14,
+    "DEFERRED": 16,
     "OBSERVED": 16,
 }
 

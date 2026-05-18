@@ -10,6 +10,14 @@ from __future__ import annotations
 from brain.tlica.ptcns import ConsistencyEval
 
 
+# Bump rule (Phase 3.14 LOCK D / LOCK M): any change to the parse
+# grammar, the ``ConsistencyEval`` enum membership, or the parse-failure
+# classification requires bumping this version string. Bumping
+# invalidates older L2 semantic cache entries by key namespace
+# separation; no migration / silent reuse.
+PARSE_SCHEMA_VERSION = "consistency-eval-v1"
+
+
 class ParseError(ValueError):
     """Raised when a raw LLM response cannot be coerced into a
     ``ConsistencyEval``. Caught by ``LLMBackedPtCns`` to trigger retry.
