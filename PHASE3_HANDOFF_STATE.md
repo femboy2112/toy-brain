@@ -4,10 +4,11 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.20 Step 2 commit `a797753` (pushed)
-**Active branch:** `campaign/phase3-20-coherence-feedback-bridge`
-**Active campaign:** Phase 3.20 Coherence Feedback Bridge (in flight)
-**Follow-on campaign:** Phase 3.21 Developmental Trajectory (queued)
+**Last updated:** Phase 3.20 PR #25 opened; Phase 3.21 about to start
+**Active branch (about to switch):** `campaign/phase3-21-developmental-trajectory`
+                                     (branches off `campaign/phase3-20-coherence-feedback-bridge` HEAD `1ecb810`)
+**Active campaign:** Phase 3.21 Developmental Trajectory (starting Step 1)
+**Prior campaign:** Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25)
 
 ---
 
@@ -43,32 +44,35 @@ recurrence accounting, not a consciousness claim.
 ## Current step pointer
 
 ```text
-campaign:   Phase 3.20 Coherence Feedback Bridge
-step:       Step 3 — Coherence Feedback Probe Matrix
-status:     IN PROGRESS (writing the doc next)
-file:       docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_PROBE_MATRIX.md
-gates:      v0.27 baseline; all 5 gates PASS after Steps 1-2 commits
-branch:     campaign/phase3-20-coherence-feedback-bridge
-remote:     origin/campaign/phase3-20-coherence-feedback-bridge (in sync)
+campaign:   Phase 3.21 Developmental Trajectory
+step:       Step 1 — Mission sync + roadmap
+status:     STARTING (about to branch off Phase 3.20 HEAD)
+file:       PHASE3_21_DEVELOPMENTAL_TRAJECTORY_ROADMAP.md (to write)
+gates:      v0.28 baseline; all 5 gates PASS at Phase 3.20 audit
+branch:     campaign/phase3-21-developmental-trajectory (NEW)
+                branches from campaign/phase3-20-coherence-feedback-bridge HEAD 1ecb810
+remote:     not yet pushed
 ```
 
 ---
 
-## Phase 3.20 step ledger
+## Phase 3.20 step ledger (COMPLETE)
 
 ```text
 Step 1   Mission sync + roadmap                        DONE   commit 80ae05e (pushed)
 Step 2   Coherence feedback synthesis                  DONE   commit a797753 (pushed)
-Step 3   Coherence feedback probe matrix               NEXT
-Step 4   Corrigenda / design locks                     pending
-Step 5   Catalog patch plan                            pending
-Step 6   Review Gate A                                 pending
-Step 7   Apply implementation                          pending
-Step 8   Behavior report                               pending
-Step 9   Findings / triage                             pending
-Step 10  Final audit                                   pending
-Step 11  PR preparation                                pending
+Step 3   Coherence feedback probe matrix               DONE   commit eca1a6a (pushed)
+Step 4   Corrigenda / design locks                     DONE   commit e012ca7 (pushed)
+Step 5   Catalog patch plan                            DONE   commit 946ab72 (pushed)
+Step 6   Review Gate A                                 DONE   (in Step 7 commit preamble)
+Step 7   Apply implementation                          DONE   commit 6c6eda8 (pushed)
+Step 8   Behavior report                               DONE   commit 7e46c9f (pushed)
+Step 9   Findings / triage                             DONE   commit ed1ad72 (pushed)
+Step 10  Final audit                                   DONE   commit 1ecb810 (pushed)
+Step 11  PR preparation                                DONE   PR #25 opened (base=Phase 3.19 branch)
 ```
+
+Verdict: **PASS WITH DEFERRED FOLLOW-UPS**. Catalog v0.28.
 
 ---
 
@@ -164,13 +168,9 @@ Then resume at the step named under **Current step pointer** above.
 
 ## Bridge / PR map
 
-- PR #24 Phase 3.19 → `main`, OPEN, MERGEABLE at session start.
-- Phase 3.20 branch is stacked on PR #24 HEAD; final PR targets
-  `campaign/phase3-19-internal-feedback-loop` while PR #24 is
-  open; retargets to `main` once PR #24 merges.
-- Phase 3.21 branch will be stacked on Phase 3.20 HEAD; final PR
-  targets the Phase 3.20 branch while it is open; retargets to
-  `main` once Phase 3.20 merges.
+- PR #24 Phase 3.19 → `main`, OPEN, MERGEABLE.
+- PR #25 Phase 3.20 → `campaign/phase3-19-internal-feedback-loop`, OPEN, MERGEABLE, CLEAN. Retargets to `main` once PR #24 merges.
+- Phase 3.21 branch stacks on Phase 3.20 HEAD; final PR targets `campaign/phase3-20-coherence-feedback-bridge` while PR #25 is open; retargets to `main` once both PR #24 and PR #25 merge.
 
 ---
 
