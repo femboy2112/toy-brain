@@ -200,6 +200,8 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.processing_window_integration",
     "brain.ui.fixtures.internal_feedback_static_audit",
     "brain.ui.fixtures.internal_feedback_integration",
+    "brain.ui.fixtures.coherence_feedback_static_audit",
+    "brain.ui.fixtures.coherence_feedback_integration",
     "brain.ui.fixtures.llm_cache_runtime_policy",
     "brain.ui.fixtures.llm_cache_transport",
     "brain.ui.fixtures.llm_cache_semantic_key",

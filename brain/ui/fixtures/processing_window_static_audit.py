@@ -314,11 +314,14 @@ def check_processing_window_static_audit() -> None:
     # 8. build_rehearsal_provenance over the v1-emitted source set
     # produces strings that contain no forbidden non-claim term.
     # Phase 3.19 widened the v1-emitted set to include
-    # ``InternalEventSource.PLEDGER_SUMMARY`` (LOCK F keeps
-    # ``COHMON_SUMMARY`` reserved).
+    # ``InternalEventSource.PLEDGER_SUMMARY``; Phase 3.20 further
+    # widens it to include ``InternalEventSource.COHMON_SUMMARY``
+    # (the previously reserved member). All three members must
+    # produce non-claim-clean bounded provenances.
     for source in (
         InternalEventSource.REHEARSAL,
         InternalEventSource.PLEDGER_SUMMARY,
+        InternalEventSource.COHMON_SUMMARY,
     ):
         for k in (1, 2, 3, 42, 255):
             provenance = build_rehearsal_provenance(tick_index=k, source=source)
@@ -358,20 +361,10 @@ def check_processing_window_static_audit() -> None:
             "subprocess handle"
         )
 
-    # 10. Reserved enum members raise when passed to
-    # build_rehearsal_provenance — they MUST NOT be emitted by v1.
-    # Phase 3.19 LOCK F keeps ``COHMON_SUMMARY`` reserved; the
-    # previously reserved ``PLEDGER_SUMMARY`` is now v1-emitted
-    # (see step 8 above) and is no longer in this rejection set.
-    for reserved in (
-        InternalEventSource.COHMON_SUMMARY,
-    ):
-        raised = False
-        try:
-            build_rehearsal_provenance(tick_index=1, source=reserved)
-        except ValueError:
-            raised = True
-        assert raised, (
-            "I-PWND-02 violated: build_rehearsal_provenance accepted "
-            f"reserved source {reserved.value!r}"
-        )
+    # 10. Reserved-source set is empty at v0.28: Phase 3.20 widened
+    # the v1-emitted set to {REHEARSAL, PLEDGER_SUMMARY,
+    # COHMON_SUMMARY}; every InternalEventSource member is now
+    # accepted by build_rehearsal_provenance. (The historical
+    # Phase 3.18 / 3.19 rejection assertions are intentionally
+    # absent; step 8 above is the positive assertion that covers
+    # all three sources.)

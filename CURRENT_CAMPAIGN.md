@@ -148,17 +148,18 @@ Then read whichever files the next campaign step names.
 Expected current state at campaign start (pre-Step-7):
 
 ```text
-Catalog: v0.27
+Catalog: v0.28
 Counts:
-  REQUIRED:        283
-  STRUCTURAL:       90
+  REQUIRED:        284
+  STRUCTURAL:       91
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
 Latest completed campaign:    Phase 3.19 Internal Feedback Loop
                               Prototype (PR #24 open against main)
 Current campaign:             Phase 3.20 Coherence Feedback Bridge
-Next eligible step:           Step 1 mission sync (in flight)
+                              (Step 7 implementation landed)
+Next eligible step:           Step 8 behavior report
 Canonical design seed:        PHASE3_20_COHERENCE_FEEDBACK_BRIDGE_ROADMAP.md
 ```
 
