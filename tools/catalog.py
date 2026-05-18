@@ -59,8 +59,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 294,
-    "STRUCTURAL": 92,
+    "REQUIRED": 313,
+    "STRUCTURAL": 95,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,

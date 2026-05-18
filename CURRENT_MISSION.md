@@ -1,4 +1,14 @@
-# CURRENT_MISSION.md — Phase 3.21 Developmental Trajectory
+# CURRENT_MISSION.md — Phase 3.22b Learning Evidence + Reasoning Trace (COMPLETE)
+
+> Phase 3.22b extends Phase 3.22 with documented operational proof of
+> structural learning and structural reasoning trace. Both campaigns
+> are now COMPLETE on the `campaign/phase3-22-agent-communication-loop`
+> branch and pushed to PR #27. The original Phase 3.22 mission text
+> follows.
+
+---
+
+# CURRENT_MISSION.md — Phase 3.22 Agent Communication Loop
 
 ## One-line instruction
 
@@ -12,119 +22,119 @@ stop.
 
 ## Current mission
 
-Execute the **Phase 3.21 Developmental Trajectory Campaign** in:
+Execute the **Phase 3.22 Agent Communication Loop + Behavioral
+Indistinguishability Harness** campaign in:
 
 ```text
 CURRENT_CAMPAIGN.md
 ```
 
-Phase 3.21 follows the completed Phase 3.20 Coherence Feedback Bridge
-campaign (PR #25, open against `campaign/phase3-19-internal-feedback-loop`
-at campaign start; stacked on PR #24). Phase 3.20 shipped:
+Phase 3.22 follows the completed Phase 3.21 Developmental Trajectory
+campaign (PR #26 open against `campaign/phase3-20-coherence-feedback-bridge`
+at campaign start; stacked on PR #24 / #25). Phase 3.21 shipped:
 
-- `FeedbackMode.COHERENCE` and `FeedbackMode.PATTERN_AND_COHERENCE`;
-- a pure deterministic `build_cohmon_summary_text(...)` helper;
-- widened `_V1_EMITTED_SOURCES` to include `COHMON_SUMMARY`;
-- `OperatorSession._run_cohmon_feedback_step` with deferred-import
-  of `build_full_coherence_report`;
-- catalog v0.27 → v0.28 with `I-CFBK-01` and `I-CFBK-02`;
+- `brain/development/milestone_harness.py` (closed harness over
+  Phase 3.18-3.20 surfaces),
+- `DevelopmentalMilestone` / `MilestoneStatus` / `MilestoneResult`
+  closed enums + record,
+- ten deterministic per-milestone helpers plus `run_all_milestones()`,
+- catalog v0.28 -> v0.29 with `I-DEVMILE-01..11`,
 - zero real model calls; `brain/tick.py` untouched.
 
-Phase 3.21 takes the next bounded operational question:
+Phase 3.22 takes the next bounded operational question:
 
-> Can ToyI's runtime exhibit a recognizable **structural
-> developmental trajectory** — a deterministic sequence of bounded
-> behaviors that approximate, in operational terms only, ten
-> distinct human-development analogues — using only the surfaces
-> Phases 3.0 through 3.20 have built, without touching
+> Can ToyI's runtime exhibit a coherent, deterministic, operator-
+> facing **agent communication loop** -- where operator input routes
+> through the existing stream / pattern / coherence / growth / REPL
+> substrates and emits bounded operator-facing replies that, under a
+> closed deterministic benchmark battery, satisfy a "mild-agent-like
+> at the bounded behavior level" criterion -- WITHOUT touching
 > `brain/tick.py`, the LLM, the parser, the cache, the schema, or
-> any consciousness-adjacent boundary?
+> any consciousness-adjacent boundary, and WITHOUT claiming actual
+> consciousness, sentience, agency, or understanding?
 
-Phase 3.21 takes ToyI from:
+Phase 3.22 takes ToyI from:
 
 ```text
-single-dispatch deterministic recurrence + feedback (Phases 3.0-3.20)
+ten-milestone deterministic developmental trajectory (Phases 3.0-3.21)
 ```
 
 toward:
 
 ```text
-sequential ten-milestone trajectory:
-  reflexive baseline ->
-    habituation ->
-      recognition ->
-        rehearsal ->
-          pattern self-feedback ->
-            structural self-monitoring approximation ->
-              multi-modal integration ->
-                saturation + novelty discrimination ->
-                  cross-input differentiation under feedback ->
-                    sustained complex behavior
+operator-facing agent communication loop:
+  operator input ->
+    STREAM_APPEND / Pattern Ledger / Coherence Monitor /
+      Growth Ledger / Proto-BASIC REPL routing ->
+        bounded operator-facing reply (deterministic, non-claim-clean)
 ```
-
-This is an **operational architecture campaign**: ToyI's runtime
-is shown to support a deterministic sequence of bounded structural
-behaviors that mirror well-studied human-development analogues at
-the level of *structural marker* only — never at the level of
-phenomenology, semantic content, agency, or self-awareness.
 
 Allowed claim shape:
 
 ```text
-"ToyI's runtime supports a bounded deterministic ten-step
-developmental trajectory where each step has a clear structural
-marker (chunk count formula, Pattern Ledger entry shape,
-recurrence-count climb, saturation-state transition, or
-second-order entry emergence) that can be deterministically
-demonstrated against the public surfaces of brain/development/,
-brain/ui/session.py, and brain/development/processing_window.py
-without invoking the LLM, the kernel tick path, the cache, or
-the persistence layer."
+"ToyI's runtime supports a bounded deterministic agent communication
+loop: operator input routes through the existing public surfaces and
+emits bounded operator-facing replies that carry pattern observation,
+REPL result, coherence status, limitation disclosure, and next-action
+suggestion. Under the Phase 3.22 closed deterministic benchmark
+battery the loop is 'mild-agent-like at the bounded behavior level'
+(deterministic, pattern-recognizing, near-miss-correcting,
+session-continuity-preserving, consciousness-claim-refusing). This is
+a behavioral property of the substrate -- never a claim of actual
+cognition, semantic understanding, agency, or selfhood."
 ```
 
 Forbidden claim shape:
 
 ```text
-"ToyI is conscious / sentient / understands / has a self / has
-agency / desires / introspects / develops in any psychological
-sense / experiences / matures / grows up."
+"ToyI is conscious / sentient / aware / understands / has a self /
+has agency / has desires / has intent / introspects / has metacognition
+/ has subjective experience / has qualia / experiences / matures /
+adjudicates truth."
 ```
 
-The word "develops" is used throughout this campaign in the
-**operational** sense ("the runtime *develops a deterministic
-trajectory across the ten milestones*") never in the
-**psychological / subjective** sense.
+The word "agent" is used throughout in the **engineering** sense
+("operator-facing agent loop", "bounded agent reply") -- never in
+the cognitive-agent or moral-agent sense. If asked "are you
+conscious / sentient / aware?", the runtime's deterministic reply
+must DENY actual consciousness and describe itself as a bounded
+structural runtime.
 
 Campaign target:
 
 ```text
-Phase 3.21 Step 1   Mission sync + roadmap
-Phase 3.21 Step 2   Human-development synthesis
-Phase 3.21 Step 3   Ten-milestone definition + corrigenda
-Phase 3.21 Step 4   Catalog patch plan
-Phase 3.21 Step 5   Review Gate B
-Phase 3.21 Step 6   Implement milestone harness + fixtures
-Phase 3.21 Step 7   Run all 10 milestones; record outcomes
-Phase 3.21 Step 8   Behavior + findings report
-Phase 3.21 Step 9   Final audit
-Phase 3.21 Step 10  PR preparation
+Phase 3.22 Step 1   Mission sync + roadmap + handoff state
+Phase 3.22 Step 2   Benchmark spec + design locks
+Phase 3.22 Step 3   REPL bridge pure helpers
+Phase 3.22 Step 4   Agent loop / communication module
+Phase 3.22 Step 5   Pattern recognition benchmark battery
+Phase 3.22 Step 6   Coherence variation probe (Phase 3.21 W3 follow-up)
+Phase 3.22 Step 7   Benchmark runner + transcript generator
+Phase 3.22 Step 8   Run + iterate until PASS or documented blocker
+Phase 3.22 Step 9   Catalog reconciliation + canonical gates
+Phase 3.22 Step 10  Behavior report + findings + final audit
+Phase 3.22 Step 11  PR preparation
 ```
 
 Intended result:
 
 ```text
-A small, reviewed runtime helper module
-brain/development/milestone_harness.py that defines a closed-enum
-DevelopmentalMilestone enumeration over ten distinct milestones,
-provides one pure deterministic helper per milestone that takes a
-fresh OperatorSession and asserts the milestone's bounded
-structural marker(s), and exposes a single run_milestone(...)
-entry point. A new catalog row family I-DEVMILE-01..I-DEVMILE-11
-(ten milestone rows + one static audit row) lands at catalog
-v0.28 -> v0.29. Eleven new fixtures (or one fixture per
-milestone, plus one static audit fixture) drive the row family.
-brain/tick.py untouched; LLM unused; cache untouched; OFFLINE
-default preserved; no consciousness-adjacent claim.
+A small reviewed runtime addition:
+  - brain/development/agent_repl_bridge.py (pure REPL-bridge helpers
+    over brain/development/repl.py; no UI command added)
+  - brain/development/agent_loop.py (closed bounded agent-input ->
+    agent-reply integration over existing public surfaces; no LLM
+    import; no tick import beyond BrainState / initial_state /
+    assert_state_invariants)
+  - brain/development/agent_benchmark.py (closed deterministic
+    benchmark battery + runner module)
+A new catalog row family I-AGENTLOOP-01..11 (9 REQUIRED + 2
+STRUCTURAL) at catalog v0.29 -> v0.30. Eleven new fixtures driving
+the row family. brain/tick.py untouched; LLM unused; cache untouched;
+OFFLINE default preserved; no consciousness-adjacent claim. The
+deterministic benchmark passes every axis OR documents the exact safe
+subset and blocker for the coherence-status-variation axis (Phase 3.21
+W3 follow-up).
 ```
 
 ---
@@ -134,14 +144,14 @@ default preserved; no consciousness-adjacent claim.
 Preferred branch:
 
 ```text
-campaign/phase3-21-developmental-trajectory
+campaign/phase3-22-agent-communication-loop
 ```
 
-If Phase 3.20 PR #25 has not yet merged at campaign start, the
-Phase 3.21 branch is **stacked** on the current Phase 3.20 HEAD and
-the final PR targets `campaign/phase3-20-coherence-feedback-bridge`.
-If PR #24 + PR #25 both merge during the campaign, the final PR
-retargets to `main` before final PR preparation.
+If Phase 3.21 PR #26 has not yet merged at campaign start, the
+Phase 3.22 branch is **stacked** on the current Phase 3.21 HEAD and
+the final PR targets `campaign/phase3-21-developmental-trajectory`.
+If PR #24 + PR #25 + PR #26 all merge during the campaign, the final
+PR retargets to `main` before final PR preparation.
 
 Rules:
 
@@ -151,7 +161,8 @@ commit every successful step that changes files
 push every successful step commit to the campaign branch
 open a PR into the correct base at campaign completion
 never merge the PR without explicit user approval
-never edit brain/tick.py in Phase 3.21
+never edit brain/tick.py in Phase 3.22
+never edit brain/llm/** in Phase 3.22
 ```
 
 ---
@@ -168,10 +179,10 @@ Counts:
   NOT-EXERCISED:    14
   DEFERRED:         15
   OBSERVED:         16
-Latest completed campaign:    Phase 3.20 Coherence Feedback Bridge
-                              (PR #25 open against Phase 3.19 branch)
-Current mission:              Phase 3.21 Developmental Trajectory
-Next eligible step:           Step 2 human-development synthesis
+Latest completed campaign:    Phase 3.21 Developmental Trajectory
+                              (PR #26 open against Phase 3.20 branch)
+Current mission:              Phase 3.22 Agent Communication Loop
+Next eligible step:           Step 2 benchmark spec + design locks
                               (after Step 1 commits/pushes)
 ```
 
@@ -190,49 +201,47 @@ README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
-PHASE3_21_DEVELOPMENTAL_TRAJECTORY_ROADMAP.md
+PHASE3_22_AGENT_COMMUNICATION_LOOP_ROADMAP.md
 PHASE3_HANDOFF_STATE.md
-docs/campaigns/phase3_18/PHASE3_18_HUMAN_DEVELOPMENT_SYNTHESIS.md
-docs/campaigns/phase3_18/PHASE3_18_PATTERN_RECOGNITION_DEMO.md
-docs/campaigns/phase3_18/PHASE3_18_AUDIT.md
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_SYNTHESIS.md
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_AUDIT.md
-docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_SYNTHESIS.md
-docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_BEHAVIOR_REPORT.md
-docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_FINDINGS.md
-docs/campaigns/phase3_20/PHASE3_20_COHERENCE_FEEDBACK_AUDIT.md
+docs/campaigns/phase3_21/PHASE3_21_DEVELOPMENTAL_TRAJECTORY_AUDIT.md
+docs/campaigns/phase3_21/PHASE3_21_DEVELOPMENTAL_TRAJECTORY_FINDINGS.md
+docs/campaigns/phase3_21/PHASE3_21_MILESTONE_LOG.md
+docs/campaigns/phase3_21/PHASE3_21_DEVELOPMENTAL_TRAJECTORY_BEHAVIOR_REPORT.md
+brain/development/milestone_harness.py
 brain/development/processing_window.py
 brain/development/pattern_ledger.py
 brain/development/coherence_monitor.py
 brain/development/growth_ledger.py
 brain/development/text_stream.py
+brain/development/repl.py
 brain/ui/session.py
+brain/ui/commands.py
 brain/tick.py
 brain/llm/client.py
 brain/llm/ptcns_backed.py
+tools/claude_helpers/gate_runner.py
+tools/catalog.py
+tools/check_all.sh
 lean_reference/TLICA.lean
 lean_reference/TLICA/
-tools/claude_helpers/campaign_state.py
-tools/claude_helpers/gate_runner.py
-tools/check_all.sh
 ```
 
 Then read whichever files the next campaign step names.
 
 ---
 
-## Phase 3.21 architectural guardrails
+## Phase 3.22 architectural guardrails
 
-Preserve these constraints throughout Phase 3.21:
+Preserve these constraints throughout Phase 3.22:
 
 ```text
 no consciousness / sentience / subjective / semantic / truth /
   agency / self-modification / introspection / metacognition /
   desire / will / belief / understanding claim
-no claim that ToyI "develops" or "matures" in the psychological
-  sense (operational use only — never psychological)
+no claim that ToyI is an "agent" in the cognitive / moral sense
+  (operational use only -- "agent loop" is engineering shorthand)
 no aggregate consciousness / sentience / awareness / I-ness /
-  growth / maturity / capability score
+  growth / maturity / capability / mild-agent / score
 no SelfModel implementation
 no Growth Ledger semantic change
 no Pattern Ledger semantic change
@@ -249,26 +258,30 @@ no L1 cache semantic change
 no L2 (eval_v1) semantic change
 no parser change
 no prompt change
-no UI verb addition unless explicitly review-gated
+no UI verb addition; no OperatorCommand member added; no
+  ACTIVE_VIEWS member added
 no /save-session / /load-session / autosave extension
 no raw prompts / responses / cache files / secrets committed
 no Stage C.1 broad repo edits
 no unbounded loops; no unbounded state growth
-50 internal ticks remains the recommended high-window default;
-  the runtime bound stays at PROCESSING_WINDOW_SIZE_MAX = 255
+no new GrowthEventType or GrowthEventSource
+the deterministic agent benchmark consumes 0 real model calls
+the agent communication module must NOT import brain.llm.*
+the agent communication module must NOT import or call
+  brain.tick.tick (only BrainState / initial_state /
+  assert_state_invariants are allowed)
 PASS / WARN / FAIL / NOT_APPLICABLE remain structural statuses
 the TLICA Lean spec in lean_reference/ remains authoritative;
-  any new catalog row must either bind to a Lean theorem or be
-  marked as Engineering hypothesis, and must not contradict
-  any existing REQUIRED row
+  any new catalog row is Engineering hypothesis and must not
+  contradict any existing REQUIRED row
 ```
 
 Real model-call budget for the entire campaign:
 
 ```text
 Max 20 real external model-backed calls total.
-Phase 3.21 expects to consume ZERO real model calls because every
-  milestone uses STREAM_APPEND only.
+Phase 3.22 expects to consume ZERO real model calls because every
+  benchmark case uses STREAM_APPEND + pure REPL helpers only.
 Stop before exceeding 20.
 ```
 
@@ -276,22 +289,31 @@ Stop before exceeding 20.
 
 ## ChatGPT/Codex consultation (Stage A, Stage B, and Stage C.1)
 
-Same as Phase 3.20:
+Same as Phase 3.21:
 
 - Stage A (PR #13) read-only, advisory.
 - Stage B (PR #15) limited-write, allowlist-based, sequential.
 - Stage C.1 (PR #19) dynamic-flow, allowlist-based, max two active
   Codex nodes, no automatic retry, hard cap 8 nodes.
-  **For Phase 3.21, max total Stage C.1 real Codex nodes = 5
+  **For Phase 3.22, max total Stage C.1 real Codex nodes = 5
   unless operator approves more.**
 
-Same allowed-at / forbidden-at lists as Phase 3.20.
+Good candidates for parallel shards (when efficiency clearly wins):
+
+```text
+- agent_repl_bridge.py + its fixture
+- agent_benchmark.py runner + transcript report
+- docs synthesis + benchmark spec
+```
+
+Keep write sets disjoint. Parent Claude owns design, integration,
+validation, commits, pushes, PR.
 
 ---
 
 ## Workflow tools
 
-Same as Phase 3.20.
+Same as Phase 3.21.
 
 ---
 
@@ -304,5 +326,4 @@ LLM scenario commands unless the user explicitly asks.
 
 ## Final report format (per step)
 
-Same as Phase 3.20 (see Phase 3.19's CURRENT_MISSION.md for the
-template; preserved unchanged).
+Same as Phase 3.21 (preserved unchanged).
