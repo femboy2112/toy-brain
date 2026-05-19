@@ -24,7 +24,21 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.37 expected counts — bumped by the Phase 3.31 Caregiver-
+# v0.38 expected counts — bumped by the Phase 3.32 Mainline
+# Reconciliation + ProbeReport Protocol catalog patch
+# (I-PROBE-01: +0 REQUIRED rows, +1 STRUCTURAL row; NOT-
+# EXERCISED / DEFERRED / OBSERVED unchanged). Phase 3.32 adds the
+# new header-only module brain/development/probe_report_protocol
+# .py: a @runtime_checkable typing.Protocol named ProbeReport
+# declaring the four documented attributes digest_hex16: str,
+# false_positive_count: int, false_negative_count: int,
+# module_name: str, plus a deterministic collect_probe_reports()
+# adapter. Each existing probe report dataclass gains one
+# ClassVar[str] module_name constant (excluded from __slots__,
+# not in any digest input, no runtime behavior change). Benchmark
+# A1..A15 digests are bit-identical to the v0.37 baseline; proto-
+# speech live-test remains 10/10 PASS with digest f6a83b9caef0ac17.
+# v0.37 history retained: bumped by the Phase 3.31 Caregiver-
 # Scaffolded Proto-Speech Acquisition catalog patch
 # (I-PSPEECH-01..19: +18 REQUIRED rows, +1 STRUCTURAL row; NOT-
 # EXERCISED / DEFERRED / OBSERVED unchanged). Phase 3.31 adds the
@@ -228,7 +242,7 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
     "REQUIRED": 392,
-    "STRUCTURAL": 101,
+    "STRUCTURAL": 102,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,
