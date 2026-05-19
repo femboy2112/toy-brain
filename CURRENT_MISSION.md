@@ -1,4 +1,4 @@
-# CURRENT_MISSION.md — Phase 3.32 Mainline Reconciliation
+# CURRENT_MISSION.md — Phase 3.32 Mainline Reconciliation + ProbeReport Protocol
 
 ## One-line instruction
 
@@ -11,62 +11,87 @@ exactly where the campaign says to stop.
 
 ## Current mission
 
-Execute the **Phase 3.32 Mainline Reconciliation** campaign in:
+Execute the **Phase 3.32 Mainline Reconciliation + ProbeReport Protocol**
+campaign per the canonical roadmap:
 
 ```text
+PHASE3_32_MAINLINE_RECONCILIATION_ROADMAP.md
 CURRENT_CAMPAIGN.md
 ```
 
-Phase 3.32 takes the repo from:
+Phase 3.32 has two halves:
 
 ```text
-main is stale at Phase 3.19 / catalog v0.27, while the completed
-campaign stack (Phases 3.20 .. 3.31) has landed via stacked PRs
-that merged into prior campaign branches instead of into main.
-The latest stack tip is campaign/phase3-30-curriculum-consolidation
-which, after PR #33 was merged on 2026-05-19, contains the full
-Phase 3.31 caregiver-scaffolded proto-speech work and catalog
-v0.37.
+A. Reconciliation half (Steps 1-3, ALREADY LANDED)
+   PRs #24..#33 merged into main; a reconciliation branch
+   `campaign/phase3-32-mainline-reconciliation` was cut from
+   main and has the campaign stack through Phase 3.31 merged
+   into it. Commits `phase3.32: merge campaign stack...` and
+   `phase3.32: reconcile campaign stack into main` are present
+   on HEAD.
+
+B. ProbeReport protocol half (Steps 4-9, REMAINING)
+   Land `brain/development/probe_report_protocol.py` — a thin
+   header-only `typing.Protocol` plus a deterministic
+   `collect_probe_reports()` adapter. Add `module_name`
+   `ClassVar[str]` to each existing probe report dataclass
+   (the only allowed modification to existing probe modules;
+   constant string, no behavior change, not in any digest).
+   Land the static-audit fixture
+   `probe_report_protocol_static_audit.py`. Add catalog row
+   `I-PROBE-01` (STRUCTURAL) and bump catalog v0.37 -> v0.38.
+   Verify all gates green. Open PR; do NOT merge.
+```
+
+Phase 3.32 (full) takes the repo from:
+
+```text
+Main contains Phase 3.31 / catalog v0.37; the reconciliation
+branch `campaign/phase3-32-mainline-reconciliation` has the
+campaign stack merged but the ProbeReport protocol module does
+not yet exist.
 ```
 
 toward:
 
 ```text
-main contains everything through Phase 3.31 / catalog v0.37, via
-a single reconciliation PR opened from
-campaign/phase3-32-mainline-reconciliation. The reconciliation
-branch is cut from main and merges
-origin/campaign/phase3-30-curriculum-consolidation. All canonical
-gates pass; benchmark is 137 total / 136 PASS / 1 WARN (A3.04
-carry-over) / 0 FAIL; proto-speech live-test is 10/10 PASS;
-invariants are fully green; gate_runner reports 5/5 PASS; real
-model calls are 0; cache writes are 0; forbidden-term hits are 0.
-README / INVARIANT_CATALOG / tools/catalog.py / brain/_catalog_ids.py
-align on v0.37; PHASE3_HANDOFF_STATE.md and the current mission /
-campaign docs no longer point future work at stale branch
-assumptions.
+The reconciliation branch contains, additionally,
+brain/development/probe_report_protocol.py with a
+@runtime_checkable ProbeReport Protocol and the
+collect_probe_reports() adapter; every existing probe report
+dataclass has been given a ClassVar[str] module_name and is
+runtime_checkable as a ProbeReport; the static-audit fixture
+verifies the protocol holds; catalog is v0.38 with new
+STRUCTURAL row I-PROBE-01; benchmark A1..A15 totals and
+digests are unchanged from v0.37; proto-speech live-test
+remains 10/10 PASS with report_digest f6a83b9caef0ac17; all
+canonical gates pass; PR is opened against main and not merged.
 ```
 
 Allowed claim shape:
 
 ```text
-"Phase 3.32 is a reconciliation / stabilization campaign. It
-brings main current with the completed campaign stack through
-Phase 3.31. It introduces no new runtime features, no new
-catalog rows, no new fixtures, and no theory-semantics changes.
-Non-claim discipline is preserved: every prior cognitive-claim
-guardrail (no consciousness, sentience, awareness, subjective
-experience, language understanding, inner speech, private
-thought, agency, will, desire, belief, intent, introspection,
-metacognition, curiosity, or deliberation claims) carries forward
-unchanged."
+"Phase 3.32 is a reconciliation + protocol-declaration campaign.
+It brings main current with the Phase 3.31 campaign stack and
+adds a single header-only typing.Protocol (ProbeReport) that
+every existing probe report dataclass already satisfies by
+name. No probe runner behavior changes. The protocol is the
+clean interface the Phase 3.34 developmental progression
+profile projector will consume. Non-claim discipline is
+preserved: every prior cognitive-claim guardrail (no
+consciousness, sentience, awareness, subjective experience,
+language understanding, inner speech, private thought, agency,
+will, desire, belief, intent, introspection, metacognition,
+curiosity, or deliberation claims) carries forward unchanged."
 ```
 
 Forbidden claim shape:
 
 ```text
-"Phase 3.32 starts new behavioral feature work / modifies theory
-semantics / weakens any cognitive-claim guardrail / merges the
+"Phase 3.32 modifies probe runner behavior / changes any probe
+report's existing fields / introduces a new benchmark axis /
+adds new OperatorCommand / LearningEvidenceKind / etc. members /
+weakens any cognitive-claim guardrail / merges the
 reconciliation PR automatically."
 ```
 
@@ -78,19 +103,38 @@ Phase 3.31.
 
 ---
 
+## Locked decisions (do NOT relitigate; see ADR-001 for full text)
+
+```text
+D1  Phase 3.33 is diagnostic-only. (Not 3.32; carried for context.)
+D2  Bands B00..B07 are GENERIC structural labels, shared across axes.
+D3  Strict counter pattern is project-wide discipline (applies in 3.33).
+D4  Phase 3.32 lands the ProbeReport protocol.  <-- THIS PHASE
+D5  Regression gate uses TARGET_AXES / NON_TARGET_AXES scoping.
+D6  Predicate monotonicity is a checked structural invariant (in 3.34).
+D7  NextProgressionTarget is a structured roadmap stub (in 3.34).
+D8  Benchmark axis A16 lands with Phase 3.34.
+```
+
+---
+
 ## Required-read section
 
 ```text
 PHASE3_HANDOFF_STATE.md
 CURRENT_CAMPAIGN.md
+PHASE3_32_MAINLINE_RECONCILIATION_ROADMAP.md
+ADR-001-locked-decisions-D1-D8.md
+docs/campaigns/phase3_32/PHASE3_32_PR_STACK_AUDIT.md
+docs/campaigns/phase3_32/PHASE3_32_PROBE_REPORT_PROTOCOL.md
 README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
-PHASE3_31_CAREGIVER_PROTO_SPEECH_ROADMAP.md
-docs/campaigns/phase3_31/PHASE3_31_PROTO_SPEECH_PROOF_REPORT.md
-docs/campaigns/phase3_31/PHASE3_31_AUDIT.md
 brain/development/proto_speech_acquisition.py
+brain/development/curriculum_consolidation_probe.py
+brain/development/active_hypothesis_probe.py
+brain/development/osmotic_learning_probe.py
 brain/_catalog_ids.py
 tools/catalog.py
 tools/check_all.sh
@@ -109,21 +153,26 @@ scenario commands unless the user explicitly asks.
 
 Stop and report if:
 
-- worktree is dirty before changes;
-- main does not exist or cannot be fast-forwarded;
-- the campaign source branch
-  `campaign/phase3-30-curriculum-consolidation` does not contain
-  Phase 3.31 artifacts (proto_speech_acquisition.py,
-  docs/campaigns/phase3_31/, catalog v0.37);
-- merge produces conflicts the campaign rules do not authorize
-  resolving;
-- baseline gates fail;
-- baseline benchmark has FAIL cases;
-- catalog counts do not match v0.37 expectations;
-- any new behavioral feature would be required to make a gate pass.
+- worktree is dirty in a way that conflicts with the next step;
+- catalog version banner / row count / generated id file drift cannot
+  be resolved by `python3 -m tools.catalog generate-ids` alone;
+- any probe report dataclass cannot be given a `ClassVar[str]
+  module_name` without changing layout or constructor signature;
+- `isinstance(report, ProbeReport)` returns False for any existing
+  probe report after the protocol lands;
+- the static-audit fixture would require modifying probe runner
+  behavior to pass;
+- benchmark A1..A15 totals or digests change vs the v0.37 baseline
+  (would indicate an accidental probe behavior change);
+- proto-speech live-test no longer reports 10/10 PASS or its
+  report_digest changes from `f6a83b9caef0ac17`;
+- any gate command fails or reports unexpected verdicts;
+- any new behavioral feature, runtime module beyond the protocol
+  file, fixture beyond the static-audit, catalog row beyond
+  I-PROBE-01, or benchmark axis is required.
 
 Stop at Phase 3.32 acceptance (every criterion in
-`CURRENT_CAMPAIGN.md` is satisfied), open the reconciliation PR
-(head `campaign/phase3-32-mainline-reconciliation`, base `main`),
-update `PHASE3_HANDOFF_STATE.md`, and wait for the operator to
-merge the PR manually.
+`CURRENT_CAMPAIGN.md` and the roadmap is satisfied), open the
+PR (head `campaign/phase3-32-mainline-reconciliation`, base
+`main`), update `PHASE3_HANDOFF_STATE.md`, and wait for the
+operator to merge the PR manually.

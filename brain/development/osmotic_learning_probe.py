@@ -46,7 +46,7 @@ import hashlib
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import ClassVar, Optional
 
 from brain.development.abstract_pattern import (
     AbstractPatternSignature,
@@ -451,6 +451,8 @@ class OsmoticProbeResult:
 @dataclass(frozen=True, slots=True)
 class OsmoticLiveTestReport:
     """Bounded aggregate report over a live-test run (I-OSMO-12)."""
+
+    module_name: ClassVar[str] = "osmotic_learning_probe"
 
     battery_version: str
     trials: tuple[OsmoticProbeResult, ...]

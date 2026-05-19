@@ -50,7 +50,7 @@ import hashlib
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import ClassVar, Optional
 
 from brain.development.abstract_pattern import (
     derive_abstract_pattern_signature,
@@ -720,6 +720,8 @@ class ActiveHypothesisResult:
 @dataclass(frozen=True, slots=True)
 class ActiveHypothesisLiveTestReport:
     """Bounded aggregate report over a live-test run (I-AHYP-12)."""
+
+    module_name: ClassVar[str] = "active_hypothesis_probe"
 
     battery_version: str
     trials: tuple[ActiveHypothesisResult, ...]

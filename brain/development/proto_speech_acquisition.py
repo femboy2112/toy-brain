@@ -68,7 +68,7 @@ import hashlib
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import ClassVar, Optional
 
 from brain.development.abstract_pattern import (
     derive_abstract_pattern_signature,
@@ -2954,6 +2954,8 @@ def build_proto_speech_battery() -> tuple[
 @dataclass(frozen=True, slots=True)
 class ProtoSpeechAcquisitionReport:
     """Final bounded live-test report (Phase 3.31)."""
+
+    module_name: ClassVar[str] = "proto_speech_acquisition"
 
     battery_version: str
     turns: tuple[ProtoSpeechTurn, ...]

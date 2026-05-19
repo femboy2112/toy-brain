@@ -129,59 +129,137 @@ targeting `main`; operator merges manually.
 
 ## What is in flight
 
-No active campaign. Phase 3.31 Caregiver-Scaffolded Proto-Speech
-Acquisition is COMPLETE on the
-`campaign/phase3-31-caregiver-proto-speech` branch. A new PR
-opens against the active base branch identified at recovery time
-(`campaign/phase3-30-curriculum-consolidation` while PR #32 was
-open; the operator should retarget the PR up the stack as
-upstream PRs merge).
+Phase 3.32 **Mainline Reconciliation + ProbeReport Protocol** is in
+flight on `campaign/phase3-32-mainline-reconciliation`. The
+reconciliation half (PR-stack merge and campaign-stack merge into
+the reconciliation branch) is already landed; the protocol half
+(brain/development/probe_report_protocol.py + ClassVar adds +
+static-audit fixture + catalog v0.37 -> v0.38 with I-PROBE-01)
+has been authored, fully verified, and committed across four
+per-step commits. Step 9 (open PR, paused for human review)
+is the next action.
+
+This phase is part of a four-campaign developmental progression
+track scaffolded by ADR-001..006 and ADR-001's locked decisions
+D1..D8. The track sequence:
+
+```text
+Phase 3.32  Mainline Reconciliation + ProbeReport protocol     IN FLIGHT
+Phase 3.33  Proto-Speech Strict Combination Corrigendum        QUEUED
+            + Probe Strictness Audit
+Phase 3.34  Developmental Progression Profile + Ladder         QUEUED
+Phase 3.35  First Targeted Consolidation (parameterized)       QUEUED
+```
+
+Per ADR-001 D4 the ProbeReport protocol is the clean interface
+the Phase 3.34 developmental progression profile projector will
+consume. The protocol is header-only structural typing
+(`@runtime_checkable typing.Protocol`); no probe runner behavior
+changes in Phase 3.32. Per D3 the strict-counter pattern is added
+in Phase 3.33 (additive; existing graceful counters stay). Per D1
+Phase 3.33 is diagnostic-only — the proto-speech
+TWO_TOKEN_COMBINATION graceful-pass gap (`stable_combination_count
+= 0` while passing 10/10) is surfaced but NOT closed until Phase
+3.35+ targeted consolidation on the already-honest baseline.
 
 The non-claim discipline anchored by
 `brain.development.coherence_monitor._FORBIDDEN_NON_CLAIM_TERMS`
-applies in full. "Active hypothesis" / "self-directed probe" is a
-controlled technical metaphor for *bounded structural candidate
-enumeration + falsification + caching at the substrate level*; it
-is engineering shorthand and does NOT claim psychological
-hypothesis formation, inquiry, deliberation, decision-making,
-planning, introspection, metacognition, intuition, awareness,
-consciousness, sentience, agency, will, desire, belief, intent, or
-any cognitive process. "Self-directed" means the probe text is
-derived from the input by a closed deterministic rule; it does
-NOT mean the runtime has a goal, plan, or wish.
+applies in full. "ProbeReport protocol" is engineering shorthand
+for *header-only structural typing over the four already-existing
+probe report dataclasses*; it is not a runtime behavior change and
+not a cognitive claim. "Developmental progression" (used in the
+track-naming sense) is operational-structural only, never
+psychological.
 
 ---
 
 ## Current step pointer
 
 ```text
-campaign:   none in flight; Phase 3.31 COMPLETE
-status:     nine PRs (#25 + #26 + #27 + #28 + #29 + #30 + #31 +
-            #32 + #33) awaiting operator merge decision; #33 is
-            stacked on #32 and depends on it.
-gates:      v0.37; all 5 gates PASS at Phase 3.31 close
-branch:     campaign/phase3-31-caregiver-proto-speech
-            (stacked on campaign/phase3-30-curriculum-consolidation)
+campaign:   Phase 3.32 Mainline Reconciliation + ProbeReport Protocol
+status:     Steps 0-8 COMPLETE on local HEAD; Step 9 (open PR;
+            update handoff) in flight; PAUSED before
+            `gh pr create` for human review per the user's
+            explicit instruction.
+gates:      v0.38; all 5 gates PASS at Phase 3.32 close
+            (catalog_counts, citations_verify, import_audit,
+            invariants_run, check_all -- 5/5 PASS).
+branch:     campaign/phase3-32-mainline-reconciliation
+            (cut from main; reconciliation merge of the campaign
+             stack through Phase 3.31 is already on HEAD).
 
-queued next-campaign candidates (after Phase 3.26 lands):
-  - Phase 3.27 worldlet UI construction (operator command + payload
-    to populate worldlet_history; Phase 3.24 W2 follow-up).
-  - Phase 3.28 coherence aggregation refinement (A3.04 follow-up).
-  - Phase 3.29 dispatch trace ring buffer.
-  - Phase 3.30 osmotic live-test multi-session retention (future
-    extension if substrate ever supports cross-session
-    persistence).
-  - Phase 3.31 active-hypothesis cross-session reuse cache (future
-    extension if substrate ever supports cross-session
-    persistence; would require a persistence schema field, an
-    autosave trigger, and corresponding non-claim guardrails).
-  - Phase 3.32 active-hypothesis adaptive candidate generation
-    (bounded learning loop where candidate sets depend on prior
-    outcomes; explicit designer choice required).
-  - Phase 3.33 active-hypothesis tie-breaker rule for multi-survivor
-    trials (explicit designer choice required; v1 deliberately
-    preserves multiplicity).
+queued next-campaign candidates (developmental progression track):
+  - Phase 3.33 Proto-Speech Strict Combination Corrigendum +
+    Probe Strictness Audit (diagnostic-only per ADR-001 D1: adds
+    `_strict` counter pattern project-wide; surfaces the proto-
+    speech `stable_combination_count = 0 while passing 10/10`
+    gap WITHOUT closing it).
+  - Phase 3.34 Developmental Progression Profile + Ladder (per
+    ADR-001 D2/D6/D7/D8: 10 axes with generic structural bands
+    B00..B07, per-axis certification + falsification predicates
+    with monotonicity invariants, prerequisite DAG, structured
+    NextProgressionTarget stub, benchmark axis A16).
+  - Phase 3.35 First Targeted Consolidation (template; the
+    actual roadmap is parameterized from the
+    NextProgressionTarget that `propose_next_campaign.py`
+    emits after Phase 3.34 lands).
 ```
+
+---
+
+## Phase 3.32 step ledger (Steps 0-8 COMPLETE; Step 9 PAUSED at PR open)
+
+```text
+Step 0   Bundle ingestion (ADRs D1-D8 + tooling + workflow +     DONE   commit (this branch)
+         Phase 3.32 docs)
+Steps 1-3 Reconciliation merge (PR-stack merge into main; cut    DONE   commits 18daf05 + 3614f4a
+          reconciliation branch; campaign stack through Phase
+          3.31 merged into reconciliation branch)                       (already on HEAD pre-Step 0)
+Step 4   probe_report_protocol.py + ProbeReport @runtime_         DONE   commit (this branch)
+         checkable Protocol + module_name ClassVar on the
+         four probe report dataclasses + collect_probe_reports
+         adapter
+Step 5   collect_probe_reports() adapter + tests                  DONE   (combined with Step 4 commit)
+Step 6   probe_report_protocol_static_audit.py fixture            DONE   commit (this branch)
+         (I-PROBE-01 STRUCTURAL) + brain.invariants registry
+Step 7   Catalog v0.37 -> v0.38 + I-PROBE-01 row + fixture        DONE   commit (this branch)
+         index entry + summary counts (STRUCTURAL 101 -> 102)
+         + README banner + tools/catalog.py EXPECTED_COUNTS
+         + brain/_catalog_ids.py regeneration
+Step 8   Full verification: proto_speech 10/10 PASS digest        DONE   (no new artifacts)
+         f6a83b9caef0ac17; agent_benchmark 137 / 136 PASS /
+         1 WARN (A3.04 carry-over) / 0 FAIL; A1..A15 case
+         totals bit-identical to v0.37 baseline; brain.invariants
+         run 502 rows / 0 red / 393 REQUIRED green / 102
+         STRUCTURAL green; gate_runner 5/5 PASS; 0 real model
+         calls; 0 cache writes; 0 forbidden-term hits; 0
+         determinism failures; transcript_digest_hex16
+         d4ea811b3a1ea27f
+Step 9   Update handoff state + push branch +                     IN FLIGHT
+         `gh pr create --base main --head
+         campaign/phase3-32-mainline-reconciliation`
+         (PAUSED here for human review before opening the PR)
+```
+
+Verdict at Phase 3.32 close (Steps 0-8): **PASS WITH NO PHASE-3.32-
+INTRODUCED FOLLOW-UPS** (A3.04 carry-over noted but is a Phase 3.21
+W3 blocker, not new in Phase 3.32). Catalog v0.38.
+
+Catalog patch: `I-PROBE-01` (0 REQUIRED + 1 STRUCTURAL); the row
+is green in the runner. One new fixture
+(`brain/development/fixtures/probe_report_protocol_static_audit.py`).
+One new header-only module (`brain/development/probe_report_protocol.py`).
+Four existing probe report dataclasses each gained one
+`ClassVar[str] module_name` constant (excluded from `__slots__`, not
+in any digest input).
+
+Benchmark verdict: 137 cases / 136 PASS / 1 WARN (A3.04 carry-over)
+/ 0 FAIL — identical to v0.37 baseline. Proto-speech report digest
+remains `f6a83b9caef0ac17`. Two collects of `collect_probe_reports()`
+produce equal digests per probe; `isinstance(report, ProbeReport)`
+is True for all four constructed report dataclasses.
+
+Phase 3.21 W3 (A3.04 NOT_APPLICABLE blocker) — REMAINS WARN.
 
 ---
 
@@ -320,21 +398,19 @@ Then resume at the step named under **Current step pointer** above.
 
 ## Bridge / PR map
 
-- PR #24 Phase 3.19 → `main`, OPEN, MERGEABLE.
-- PR #25 Phase 3.20 → `campaign/phase3-19-internal-feedback-loop`, OPEN, MERGEABLE.
-- PR #26 Phase 3.21 → `campaign/phase3-20-coherence-feedback-bridge`, OPEN.
-- PR #27 (Phase 3.22 + 3.22b) → `campaign/phase3-21-developmental-trajectory`.
-- PR #28 (Phase 3.23) → `campaign/phase3-22-agent-communication-loop`.
-- PR #29 (Phase 3.24) → `campaign/phase3-23-dispatch-tracer`.
-- PR #30 (Phase 3.25) → `campaign/phase3-24-worldlet-feedback-bridge`.
-- PR #31 (Phase 3.26) → `campaign/phase3-25-osmotic-learning-live-test`
-  while PR #30 is open; retargets up the stack as upstream PRs merge.
-- PR #32 (Phase 3.30) → `campaign/phase3-26-active-hypothesis-probe`
-  while PR #31 is open; retargets up the stack as upstream PRs merge.
-- PR #33 (Phase 3.31) → `campaign/phase3-30-curriculum-consolidation`
-  while PR #32 is open; retargets up the stack as upstream PRs merge.
-- Stack merge order (operator-controlled):
-  PR #24 → #25 → #26 → #27 → #28 → #29 → #30 → #31 → #32 → #33.
+- PRs #24..#33 (Phases 3.19..3.31): all MERGED into `main` as of
+  the Phase 3.32 reconciliation. `main` is at Phase 3.31 / catalog
+  v0.37 at the time the reconciliation branch was cut.
+- PR for Phase 3.32 (Mainline Reconciliation + ProbeReport
+  Protocol): to be opened from
+  `campaign/phase3-32-mainline-reconciliation` against `main`
+  (Step 9, paused for human review before the
+  `gh pr create` call). The PR body lists catalog v0.38,
+  benchmark 137 / 136 PASS / 1 WARN / 0 FAIL, proto-speech
+  10/10 PASS digest f6a83b9caef0ac17, invariants green,
+  5/5 gates PASS, 0 real model calls, and an explicit
+  "Merge with merge commit only after operator approval"
+  instruction.
 
 ---
 

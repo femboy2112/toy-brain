@@ -462,6 +462,7 @@ EXPECTED_STRUCTURAL_IDS: frozenset[str] = frozenset({
     "I-PMAP-01",
     "I-PMAP-03",
     "I-PRES-05",
+    "I-PROBE-01",
     "I-PSPEECH-19",
     "I-PWND-02",
     "I-REF-09",
