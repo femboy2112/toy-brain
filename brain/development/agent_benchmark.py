@@ -88,7 +88,7 @@ from brain.ui.session import OperatorSession
 # Bounded constants.
 # ---------------------------------------------------------------------------
 
-BATTERY_VERSION: str = "phase3.26.v1"
+BATTERY_VERSION: str = "phase3.30.v1"
 TRANSCRIPT_DIGEST_HEX_LEN: int = 16
 BENCHMARK_CASE_SUMMARY_MAX_LEN: int = 240
 BENCHMARK_CASE_NOTES_MAX_LEN: int = 320
@@ -118,6 +118,8 @@ class BenchmarkAxis(str, Enum):
     OSMOTIC_LEARNING = "osmotic_learning"
     # Phase 3.26 (I-AHYP-13): the active hypothesis battery axis.
     ACTIVE_HYPOTHESIS = "active_hypothesis"
+    # Phase 3.30 (I-CURR-13): the curriculum consolidation battery axis.
+    CURRICULUM_CONSOLIDATION = "curriculum_consolidation"
 
 
 class BenchmarkCaseStatus(str, Enum):
@@ -2935,8 +2937,9 @@ def run_full_battery() -> BenchmarkRun:
     a11 = run_axis_a11_worldlet_feedback()
     a12 = run_axis_a12_osmotic_learning()
     a13 = run_axis_a13_active_hypothesis()
+    a14 = run_axis_a14_curriculum_consolidation()
     return _assemble_battery_run(
-        earlier + (a7, a8, a9, a10, a11, a12, a13)
+        earlier + (a7, a8, a9, a10, a11, a12, a13, a14)
     )
 
 
@@ -3949,6 +3952,464 @@ def run_partial_battery_phase3_26() -> BenchmarkRun:
     return _assemble_battery_run(axes)
 
 
+def run_axis_a14_curriculum_consolidation() -> AxisResult:
+    """Run the Phase 3.30 A14 curriculum_consolidation battery axis.
+
+    Fourteen cases A14.01..A14.14 exercising the curriculum-
+    consolidation live-test runner end-to-end. Drives ``I-CURR-13``.
+    """
+    import inspect as _inspect
+    from brain.development import (
+        curriculum_consolidation_probe as _curr_module,
+    )
+    from brain.development.curriculum_consolidation_probe import (
+        CURRICULUM_BATTERY_VERSION,
+        CURRICULUM_SLATE_MAX_ENTRIES,
+        AdmissionOutcome,
+        AuditDisposition,
+        CurriculumCondition,
+        TrialVerdict,
+        build_curriculum_trials,
+        run_curriculum_consolidation_live_test,
+    )
+
+    cases: list[BenchmarkCaseResult] = []
+
+    report = run_curriculum_consolidation_live_test()
+
+    def _result_by_id(tid: str):
+        for r in report.trials:
+            if r.trial_id == tid:
+                return r
+        raise AssertionError(f"trial result {tid!r} not found in report")
+
+    # A14.01 -- SINGLE_STRUCTURE printable trial admits exactly one.
+    r01 = _result_by_id("T01_single_printable")
+    a14_01_ok = (
+        r01.verdict is TrialVerdict.PASS
+        and r01.condition is CurriculumCondition.SINGLE_STRUCTURE
+        and r01.survived_count == 1
+        and r01.decayed_count == 0
+        and r01.rejected_count == 0
+        and r01.reuse_observed is False
+        and len(r01.audit_records) == 1
+        and r01.audit_records[0].disposition is AuditDisposition.SURVIVED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.01",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_01_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"single printable: survived={r01.survived_count} "
+                f"decayed={r01.decayed_count} rejected={r01.rejected_count}"
+            ),
+            primary_metric=int(a14_01_ok),
+            secondary_metric=r01.survived_count,
+        )
+    )
+
+    # A14.02 -- SINGLE_STRUCTURE singleton input rejects on classification.
+    r02 = _result_by_id("T02_single_singleton")
+    a14_02_ok = (
+        r02.verdict is TrialVerdict.PASS
+        and r02.condition is CurriculumCondition.SINGLE_STRUCTURE
+        and r02.survived_count == 0
+        and r02.rejected_count == 1
+        and len(r02.audit_records) == 1
+        and r02.audit_records[0].disposition is AuditDisposition.REJECTED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.02",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_02_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"single singleton: rejected={r02.rejected_count} "
+                f"survived={r02.survived_count}"
+            ),
+            primary_metric=int(a14_02_ok),
+            secondary_metric=r02.rejected_count,
+        )
+    )
+
+    # A14.03 -- SEQUENTIAL_NONINTERFERING admits two distinct shapes.
+    r03 = _result_by_id("T03_seq_distinct_2")
+    a14_03_ok = (
+        r03.verdict is TrialVerdict.PASS
+        and r03.condition is CurriculumCondition.SEQUENTIAL_NONINTERFERING
+        and r03.survived_count == 2
+        and r03.decayed_count == 0
+        and r03.rejected_count == 0
+        and all(
+            rec.disposition is AuditDisposition.SURVIVED
+            for rec in r03.audit_records
+        )
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.03",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_03_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"noninterfering 2: survived={r03.survived_count}"
+            ),
+            primary_metric=int(a14_03_ok),
+            secondary_metric=r03.survived_count,
+        )
+    )
+
+    # A14.04 -- SEQUENTIAL_NONINTERFERING admits three distinct shapes.
+    r04 = _result_by_id("T04_seq_distinct_3")
+    a14_04_ok = (
+        r04.verdict is TrialVerdict.PASS
+        and r04.survived_count == 3
+        and r04.decayed_count == 0
+        and r04.rejected_count == 0
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.04",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_04_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"noninterfering 3: survived={r04.survived_count}"
+            ),
+            primary_metric=int(a14_04_ok),
+            secondary_metric=r04.survived_count,
+        )
+    )
+
+    # A14.05 -- SEQUENTIAL_INTERFERING rejects on digest collision pair.
+    r05 = _result_by_id("T05_collision_pair")
+    a14_05_ok = (
+        r05.verdict is TrialVerdict.PASS
+        and r05.condition is CurriculumCondition.SEQUENTIAL_INTERFERING
+        and r05.survived_count == 1
+        and r05.rejected_count == 1
+        and r05.audit_records[0].disposition is AuditDisposition.SURVIVED
+        and r05.audit_records[1].disposition is AuditDisposition.REJECTED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.05",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_05_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"collision pair: survived={r05.survived_count} "
+                f"rejected={r05.rejected_count}"
+            ),
+            primary_metric=int(a14_05_ok),
+            secondary_metric=r05.rejected_count,
+        )
+    )
+
+    # A14.06 -- SEQUENTIAL_INTERFERING handles collision within a triple.
+    r06 = _result_by_id("T06_collision_in_3")
+    a14_06_ok = (
+        r06.verdict is TrialVerdict.PASS
+        and r06.survived_count == 2
+        and r06.rejected_count == 1
+        and r06.audit_records[2].disposition is AuditDisposition.REJECTED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.06",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_06_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"collision in 3: survived={r06.survived_count} "
+                f"rejected={r06.rejected_count}"
+            ),
+            primary_metric=int(a14_06_ok),
+            secondary_metric=r06.survived_count,
+        )
+    )
+
+    # A14.07 -- DECAY_ON_DISUSE 5 exposures -> 4 survived + 1 decayed.
+    r07 = _result_by_id("T07_decay_overflow_5")
+    a14_07_ok = (
+        r07.verdict is TrialVerdict.PASS
+        and r07.condition is CurriculumCondition.DECAY_ON_DISUSE
+        and r07.survived_count == CURRICULUM_SLATE_MAX_ENTRIES
+        and r07.decayed_count == 1
+        and r07.audit_records[0].disposition is AuditDisposition.DECAYED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.07",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_07_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"decay 5: survived={r07.survived_count} "
+                f"decayed={r07.decayed_count} "
+                f"first_disp={r07.audit_records[0].disposition.value}"
+            ),
+            primary_metric=int(a14_07_ok),
+            secondary_metric=r07.decayed_count,
+        )
+    )
+
+    # A14.08 -- DECAY_ON_DISUSE 6 exposures -> 4 survived + 2 decayed.
+    r08 = _result_by_id("T08_decay_overflow_6")
+    a14_08_ok = (
+        r08.verdict is TrialVerdict.PASS
+        and r08.survived_count == CURRICULUM_SLATE_MAX_ENTRIES
+        and r08.decayed_count == 2
+        and r08.audit_records[0].disposition is AuditDisposition.DECAYED
+        and r08.audit_records[1].disposition is AuditDisposition.DECAYED
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.08",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_08_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"decay 6: survived={r08.survived_count} "
+                f"decayed={r08.decayed_count}"
+            ),
+            primary_metric=int(a14_08_ok),
+            secondary_metric=r08.decayed_count,
+        )
+    )
+
+    # A14.09 -- REUSE_AFTER_NEWER probe matches first exposure.
+    r09 = _result_by_id("T09_reuse_oldest")
+    probe09 = r09.probe_step
+    a14_09_ok = (
+        r09.verdict is TrialVerdict.PASS
+        and r09.condition is CurriculumCondition.REUSE_AFTER_NEWER
+        and r09.reuse_observed is True
+        and r09.survived_count == 3
+        and r09.false_positive is False
+        and r09.false_negative is False
+        and probe09 is not None
+        and probe09.reuse_observed is True
+        and probe09.probe_reused_structure_id != ""
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.09",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_09_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"reuse oldest: reuse={r09.reuse_observed} "
+                f"survived={r09.survived_count}"
+            ),
+            primary_metric=int(a14_09_ok),
+            secondary_metric=int(r09.reuse_observed),
+        )
+    )
+
+    # A14.10 -- REUSE_AFTER_NEWER probe with novel digest -> no reuse.
+    r10 = _result_by_id("T10_reuse_negative")
+    probe10 = r10.probe_step
+    a14_10_ok = (
+        r10.verdict is TrialVerdict.PASS
+        and r10.reuse_observed is False
+        and r10.false_positive is False
+        and probe10 is not None
+        and probe10.reuse_observed is False
+        and probe10.probe_reused_structure_id == ""
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.10",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_10_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"reuse novel: reuse={r10.reuse_observed} "
+                f"reused_id="
+                f"{repr(probe10.probe_reused_structure_id) if probe10 else 'None'}"
+            ),
+            primary_metric=int(a14_10_ok),
+            secondary_metric=int(not r10.reuse_observed),
+        )
+    )
+
+    # A14.11 -- aggregate false-positive / false-negative counts are zero.
+    a14_11_ok = (
+        report.false_positive_count == 0
+        and report.false_negative_count == 0
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.11",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_11_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"aggregate fp/fn zero: fp={report.false_positive_count} "
+                f"fn={report.false_negative_count}"
+            ),
+            primary_metric=int(a14_11_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A14.12 -- live-test report digest stable across two fresh runs.
+    report_b = run_curriculum_consolidation_live_test()
+    a14_12_ok = (
+        report.digest_hex16 == report_b.digest_hex16
+        and report.trials == report_b.trials
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.12",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_12_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"report digest stable: digest={report.digest_hex16} "
+                f"match={a14_12_ok}"
+            ),
+            primary_metric=int(a14_12_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A14.13 -- module source non-claim-clean (zero forbidden hits).
+    src = _inspect.getsource(_curr_module)
+    hit_term = _text_has_forbidden_term(src)
+    a14_13_ok = hit_term is None
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.13",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_13_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"curriculum_consolidation_probe source non-claim-clean: "
+                f"hit={hit_term!r}"
+            ),
+            primary_metric=int(a14_13_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A14.14 -- adding A14 is additive: A1..A13 case totals match
+    # the documented pre-A14 expected counts.
+    a1 = run_axis_a1_pattern_recognition()
+    a2 = run_axis_a2_cross_input_structural()
+    a3 = run_axis_a3_coherence_variation()
+    a4 = run_axis_a4_repl_coherence()
+    a5 = run_axis_a5_communication()
+    a6 = run_axis_a6_session_continuity()
+    earlier = (a1, a2, a3, a4, a5, a6)
+    a7 = run_axis_a7_blind_transcript(earlier)
+    a8 = run_axis_a8_learning_evidence()
+    a9 = run_axis_a9_reasoning_trace()
+    a10 = run_axis_a10_dispatch_trace()
+    a11 = run_axis_a11_worldlet_feedback()
+    a12 = run_axis_a12_osmotic_learning()
+    a13 = run_axis_a13_active_hypothesis()
+    pre_a14_case_counts = (
+        len(a1.cases),
+        len(a2.cases),
+        len(a3.cases),
+        len(a4.cases),
+        len(a5.cases),
+        len(a6.cases),
+        len(a7.cases),
+        len(a8.cases),
+        len(a9.cases),
+        len(a10.cases),
+        len(a11.cases),
+        len(a12.cases),
+        len(a13.cases),
+    )
+    expected = (9, 5, 4, 5, 9, 3, 4, 7, 7, 12, 12, 14, 14)
+    a14_14_ok = pre_a14_case_counts == expected
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A14.14",
+            axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a14_14_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"A1..A13 case counts retained: "
+                f"got={pre_a14_case_counts!r} expected={expected!r}"
+            ),
+            primary_metric=int(a14_14_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # Reference the unused imports so the linter doesn't complain.
+    _ = CURRICULUM_BATTERY_VERSION
+    _ = AdmissionOutcome
+    _ = build_curriculum_trials
+
+    return AxisResult(
+        axis=BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+def run_partial_battery_phase3_30() -> BenchmarkRun:
+    """Run the A14 curriculum_consolidation axis only; assemble a BenchmarkRun.
+
+    Phase 3.30 entry point — exercises only the curriculum-
+    consolidation axis without re-running the (already-covered)
+    A1..A13 axes.
+    """
+    axes = (run_axis_a14_curriculum_consolidation(),)
+    return _assemble_battery_run(axes)
+
+
 # ---------------------------------------------------------------------------
 # Module-produced strings (audited).
 # ---------------------------------------------------------------------------
@@ -4065,6 +4526,7 @@ __all__ = (
     "run_axis_a11_worldlet_feedback",
     "run_axis_a12_osmotic_learning",
     "run_axis_a13_active_hypothesis",
+    "run_axis_a14_curriculum_consolidation",
     "run_full_battery",
     "run_partial_battery_pattern_axes",
     "run_partial_battery_phase3_22b",
@@ -4072,6 +4534,7 @@ __all__ = (
     "run_partial_battery_phase3_24",
     "run_partial_battery_phase3_25",
     "run_partial_battery_phase3_26",
+    "run_partial_battery_phase3_30",
     "run_partial_battery_with_coherence",
 )
 
