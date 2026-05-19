@@ -78,8 +78,9 @@ a fresh session can `git status`, read this file, then keep going.
 No active campaign. Phase 3.30 Curriculum Consolidation Live Test
 is COMPLETE on the
 `campaign/phase3-30-curriculum-consolidation` branch, stacked on
-PR #31 (Phase 3.26). PR #32 is open (URL written on commit close)
-with base `campaign/phase3-26-active-hypothesis-probe` and head
+PR #31 (Phase 3.26). PR #32 is open at
+https://github.com/femboy2112/toy-brain/pull/32 with base
+`campaign/phase3-26-active-hypothesis-probe` and head
 `campaign/phase3-30-curriculum-consolidation`.
 
 The non-claim discipline anchored by
