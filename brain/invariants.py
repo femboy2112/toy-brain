@@ -295,6 +295,7 @@ FIXTURE_MODULES: list[str] = [
     "brain.ui.fixtures.proto_speech_drive_stream",
     "brain.ui.fixtures.proto_speech_benchmark_axis",
     "brain.ui.fixtures.proto_speech_static_audit",
+    "brain.development.fixtures.probe_report_protocol_static_audit",
     "brain.ui.fixtures.llm_cache_runtime_policy",
     "brain.ui.fixtures.llm_cache_transport",
     "brain.ui.fixtures.llm_cache_semantic_key",
