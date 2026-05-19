@@ -4,7 +4,7 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.26 COMPLETE; PR #31 to be opened against PR #30
+**Last updated:** Phase 3.26 COMPLETE; PR #31 open against PR #30
 **Active branch:** `campaign/phase3-26-active-hypothesis-probe`
 **Active campaign:** none in flight; Phase 3.26 ready for review
 **Prior campaigns:**
@@ -66,7 +66,8 @@ a fresh session can `git status`, read this file, then keep going.
 No active campaign. Phase 3.26 Active Hypothesis + Self-Directed
 Probe Loop is COMPLETE on the
 `campaign/phase3-26-active-hypothesis-probe` branch, stacked on PR
-#30 (Phase 3.25). PR #31 should be opened with base
+#30 (Phase 3.25). PR #31 is open at
+https://github.com/femboy2112/toy-brain/pull/31 with base
 `campaign/phase3-25-osmotic-learning-live-test` and head
 `campaign/phase3-26-active-hypothesis-probe`.
 
