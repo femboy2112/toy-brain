@@ -1804,6 +1804,544 @@ def transfer_proto_speech_evidence(
 
 
 # ---------------------------------------------------------------------------
+# Babble selection from drive stream + per-turn runner.
+# ---------------------------------------------------------------------------
+
+
+def _suppressed_tokens_for_context(
+    table: ProtoSpeechEvidenceTable,
+    *,
+    context_signature: str,
+) -> tuple[ProtoVocalToken, ...]:
+    """Return the canonical-ordered tuple of suppressed single tokens."""
+    suppressed_digests: set[str] = set()
+    for e in table.entries:
+        if e.context_signature != context_signature:
+            continue
+        if e.disposition is ProtoUtteranceDisposition.SUPPRESSED:
+            suppressed_digests.add(e.utterance_digest)
+    if not suppressed_digests:
+        return ()
+    out: list[ProtoVocalToken] = []
+    for tok in _PROTO_VOCAL_TOKEN_ORDER:
+        u = build_proto_utterance((tok,))
+        if u.digest_hex16 in suppressed_digests:
+            out.append(tok)
+    return tuple(out)
+
+
+def _stable_single_tokens_for_context(
+    table: ProtoSpeechEvidenceTable,
+    *,
+    context_signature: str,
+) -> tuple[ProtoVocalToken, ...]:
+    """Return the canonical-ordered tuple of STABLE_SINGLE tokens."""
+    stable_digests: set[str] = set()
+    for e in table.entries:
+        if e.context_signature != context_signature:
+            continue
+        if e.disposition is ProtoUtteranceDisposition.STABLE_SINGLE:
+            stable_digests.add(e.utterance_digest)
+    if not stable_digests:
+        return ()
+    out: list[ProtoVocalToken] = []
+    for tok in _PROTO_VOCAL_TOKEN_ORDER:
+        u = build_proto_utterance((tok,))
+        if u.digest_hex16 in stable_digests:
+            out.append(tok)
+    return tuple(out)
+
+
+def select_babble_from_drive_stream(
+    *,
+    drive_stream: ProtoSpeechDriveStream,
+    evidence_table: ProtoSpeechEvidenceTable,
+    context: ProtoSpeechContext,
+    turn_index: int,
+) -> ProtoUtterance:
+    """Deterministically select a ``ProtoUtterance`` from the drive stream.
+
+    The selection rule is the closed function documented in
+    ``PHASE3_31_PROTO_SPEECH_DRIVE_STREAM_SPEC.md``.
+    """
+    if not isinstance(drive_stream, ProtoSpeechDriveStream):
+        raise TypeError(
+            "I-PSPEECH-15 violated: drive_stream must be a "
+            "ProtoSpeechDriveStream"
+        )
+    if not isinstance(evidence_table, ProtoSpeechEvidenceTable):
+        raise TypeError(
+            "I-PSPEECH-15 violated: evidence_table must be a "
+            "ProtoSpeechEvidenceTable"
+        )
+    if not isinstance(context, ProtoSpeechContext):
+        raise TypeError(
+            "I-PSPEECH-15 violated: context must be a ProtoSpeechContext"
+        )
+    if not isinstance(turn_index, int) or isinstance(turn_index, bool):
+        raise TypeError(
+            "I-PSPEECH-15 violated: turn_index must be int"
+        )
+
+    # 1. Refusal guard short-circuits selection.
+    for f in drive_stream.frames:
+        if f.drive_kind is ProtoSpeechDriveKind.REFUSAL_GUARD:
+            return REFUSAL_SENTINEL
+
+    suppressed = set(
+        _suppressed_tokens_for_context(
+            evidence_table,
+            context_signature=context.context_signature,
+        )
+    )
+
+    # 2. COMBINATION_PRESSURE takes precedence over single selection
+    # when its suggested set has two distinct unsuppressed tokens.
+    for f in drive_stream.frames:
+        if f.drive_kind is not ProtoSpeechDriveKind.COMBINATION_PRESSURE:
+            continue
+        eligible = [
+            t for t in f.suggested_token_set if t not in suppressed
+        ]
+        if len(eligible) >= 2:
+            pair = tuple(
+                sorted(eligible[:2], key=_proto_vocal_token_rank)
+            )
+            if pair[0] is not pair[1]:
+                return build_proto_utterance(pair)
+
+    # 3. CAREGIVER_FEEDBACK_PRIME has highest single priority.
+    for f in drive_stream.frames:
+        if f.drive_kind is ProtoSpeechDriveKind.CAREGIVER_FEEDBACK_PRIME:
+            for tok in f.suggested_token_set:
+                if tok not in suppressed:
+                    if len(f.suggested_token_set) == 2:
+                        if (
+                            f.suggested_token_set[0]
+                            not in suppressed
+                            and f.suggested_token_set[1]
+                            not in suppressed
+                        ):
+                            return build_proto_utterance(
+                                tuple(f.suggested_token_set)
+                            )
+                    return build_proto_utterance((tok,))
+
+    # 4. TRANSFER_PRESSURE preferred next.
+    for f in drive_stream.frames:
+        if f.drive_kind is ProtoSpeechDriveKind.TRANSFER_PRESSURE:
+            for tok in f.suggested_token_set:
+                if tok not in suppressed:
+                    return build_proto_utterance((tok,))
+
+    # 5. CAREGIVER_AMBIENT_PRIME.
+    for f in drive_stream.frames:
+        if f.drive_kind is ProtoSpeechDriveKind.CAREGIVER_AMBIENT_PRIME:
+            for tok in f.suggested_token_set:
+                if tok not in suppressed:
+                    return build_proto_utterance((tok,))
+
+    # 6. Highest-weight-hint frame whose suggestion is not
+    # SUPPRESSION_PRESSURE / REFUSAL_GUARD; tie-break by frame
+    # order. For the LOW_EVIDENCE exploratory frame specifically,
+    # use ``turn_index modulo len(suggested)`` so consecutive
+    # baseline turns vary deterministically; non-LOW_EVIDENCE
+    # frames take the first eligible token in declared order.
+    ranked = sorted(
+        (
+            (f.weight_hint, idx, f)
+            for idx, f in enumerate(drive_stream.frames)
+            if f.drive_kind
+            not in (
+                ProtoSpeechDriveKind.SUPPRESSION_PRESSURE,
+                ProtoSpeechDriveKind.REFUSAL_GUARD,
+                ProtoSpeechDriveKind.COMBINATION_PRESSURE,
+                ProtoSpeechDriveKind.CAREGIVER_FEEDBACK_PRIME,
+                ProtoSpeechDriveKind.TRANSFER_PRESSURE,
+                ProtoSpeechDriveKind.CAREGIVER_AMBIENT_PRIME,
+            )
+            and f.suggested_token_set
+        ),
+        key=lambda triple: (-triple[0], triple[1]),
+    )
+    for _, _, f in ranked:
+        if f.drive_kind is ProtoSpeechDriveKind.LOW_EVIDENCE:
+            eligible = [
+                t for t in f.suggested_token_set if t not in suppressed
+            ]
+            if eligible:
+                chosen = eligible[turn_index % len(eligible)]
+                return build_proto_utterance((chosen,))
+            continue
+        for tok in f.suggested_token_set:
+            if tok not in suppressed:
+                return build_proto_utterance((tok,))
+
+    # 7. Final fallback: bounded `(turn_index modulo 3)` selection
+    # over `(BA, MA, DA)` minus suppressed.
+    fallback_pool = (
+        ProtoVocalToken.BA,
+        ProtoVocalToken.MA,
+        ProtoVocalToken.DA,
+    )
+    eligible = [t for t in fallback_pool if t not in suppressed]
+    if not eligible:
+        # As a last resort, walk the closed enum order to find any
+        # unsuppressed token.
+        for tok in _PROTO_VOCAL_TOKEN_ORDER:
+            if tok not in suppressed:
+                eligible = [tok]
+                break
+    if not eligible:
+        # Every token suppressed: emit the refusal sentinel so the
+        # runner records a no-utterance turn rather than violating
+        # the inventory.
+        return REFUSAL_SENTINEL
+    chosen = eligible[turn_index % len(eligible)]
+    return build_proto_utterance((chosen,))
+
+
+def select_proto_utterance(
+    *,
+    drive_stream: ProtoSpeechDriveStream,
+    evidence_table: ProtoSpeechEvidenceTable,
+    context: ProtoSpeechContext,
+    turn_index: int,
+) -> ProtoUtterance:
+    """Alias mirroring ``select_babble_from_drive_stream``.
+
+    Kept distinct in the public surface so future campaigns can
+    differentiate between pure-babble selection and selection that
+    consults additional structural surfaces; v1 behavior is
+    identical.
+    """
+    return select_babble_from_drive_stream(
+        drive_stream=drive_stream,
+        evidence_table=evidence_table,
+        context=context,
+        turn_index=turn_index,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Per-turn record + runner.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoSpeechTurn:
+    """One bounded turn (context -> drive stream -> utterance -> feedback ->
+    evidence update). Drives proof-report tables."""
+
+    turn_id: str
+    condition: ProtoSpeechCondition
+    context: ProtoSpeechContext
+    drive_stream: ProtoSpeechDriveStream
+    caregiver_ambient: Optional[ProtoUtterance]
+    selected_utterance: ProtoUtterance
+    selected_disposition_before: ProtoUtteranceDisposition
+    feedback: CaregiverFeedback
+    evidence_records_added: tuple[ProtoSpeechEvidenceRecord, ...]
+    learning_evidence_digest: Optional[str]
+    reasoning_trace_digest: Optional[str]
+    dispatch_trace_digest: Optional[str]
+    refusal_taken: bool
+    transfer_taken: bool
+    summary_line: str
+
+    def __post_init__(self) -> None:
+        _validate_bounded_printable(
+            self.turn_id,
+            field="ProtoSpeechTurn.turn_id",
+            max_len=PROTO_SPEECH_TURN_ID_MAX_LEN,
+        )
+        if not isinstance(self.condition, ProtoSpeechCondition):
+            raise TypeError(
+                "I-PSPEECH-12 violated: condition must be a "
+                "ProtoSpeechCondition"
+            )
+        if not isinstance(self.context, ProtoSpeechContext):
+            raise TypeError(
+                "I-PSPEECH-12 violated: context must be a ProtoSpeechContext"
+            )
+        if not isinstance(self.drive_stream, ProtoSpeechDriveStream):
+            raise TypeError(
+                "I-PSPEECH-12 violated: drive_stream must be a "
+                "ProtoSpeechDriveStream"
+            )
+        if self.caregiver_ambient is not None and not isinstance(
+            self.caregiver_ambient, ProtoUtterance
+        ):
+            raise TypeError(
+                "I-PSPEECH-12 violated: caregiver_ambient must be a "
+                "ProtoUtterance or None"
+            )
+        if not isinstance(self.selected_utterance, ProtoUtterance):
+            raise TypeError(
+                "I-PSPEECH-12 violated: selected_utterance must be a "
+                "ProtoUtterance"
+            )
+        if not isinstance(
+            self.selected_disposition_before, ProtoUtteranceDisposition
+        ):
+            raise TypeError(
+                "I-PSPEECH-12 violated: selected_disposition_before must be "
+                "a ProtoUtteranceDisposition"
+            )
+        if not isinstance(self.feedback, CaregiverFeedback):
+            raise TypeError(
+                "I-PSPEECH-12 violated: feedback must be a CaregiverFeedback"
+            )
+        if not isinstance(self.evidence_records_added, tuple):
+            raise TypeError(
+                "I-PSPEECH-12 violated: evidence_records_added must be a "
+                "tuple"
+            )
+        for rec in self.evidence_records_added:
+            if not isinstance(rec, ProtoSpeechEvidenceRecord):
+                raise TypeError(
+                    "I-PSPEECH-12 violated: evidence_records_added entries "
+                    "must be ProtoSpeechEvidenceRecord"
+                )
+        for name, val in (
+            ("learning_evidence_digest", self.learning_evidence_digest),
+            ("reasoning_trace_digest", self.reasoning_trace_digest),
+            ("dispatch_trace_digest", self.dispatch_trace_digest),
+        ):
+            if val is None:
+                continue
+            _validate_digest_hex(val, field=f"ProtoSpeechTurn.{name}")
+        if not isinstance(self.refusal_taken, bool):
+            raise TypeError(
+                "I-PSPEECH-12 violated: refusal_taken must be bool"
+            )
+        if not isinstance(self.transfer_taken, bool):
+            raise TypeError(
+                "I-PSPEECH-12 violated: transfer_taken must be bool"
+            )
+        _validate_bounded_printable(
+            self.summary_line,
+            field="ProtoSpeechTurn.summary_line",
+            max_len=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+            forbid_empty=True,
+            audit_non_claim=True,
+        )
+
+
+@dataclass
+class _RuntimeRunState:
+    """Internal session-local state threaded across turns.
+
+    NOT exposed; the runner constructs a fresh state per condition.
+    """
+
+    agent_state: AgentLoopState
+    table: ProtoSpeechEvidenceTable
+    seen_context_signatures: set[str]
+
+
+def _make_runtime_state() -> _RuntimeRunState:
+    return _RuntimeRunState(
+        agent_state=make_initial_agent_loop_state(),
+        table=empty_evidence_table(),
+        seen_context_signatures=set(),
+    )
+
+
+def _learning_evidence_digest(trace: LearningEvidenceTrace) -> str:
+    payload = b""
+    for r in trace.records:
+        payload += (
+            f"{r.kind.value}|{r.interaction_id}|"
+            f"{r.abstract_pattern_digest}|{r.pattern_id}"
+        ).encode("utf-8")
+        payload += b"\n"
+    return hashlib.sha256(payload).hexdigest()[
+        :PROTO_SPEECH_DIGEST_HEX_LEN
+    ]
+
+
+def _step_agent_loop(
+    state: _RuntimeRunState,
+    *,
+    text: str,
+) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Run one agent-loop step against the runtime state.
+
+    Returns ``(dispatch_digest, reasoning_digest, learning_digest)``.
+    The runtime path NEVER passes the trial's expected predicates.
+    """
+    if not text:
+        return None, None, None
+    new_state, r = run_agent_interaction_step(state.agent_state, text)
+    state.agent_state = new_state
+    dispatch_digest = (
+        r.latest_dispatch_trace.trace_digest_hex16
+        if r.latest_dispatch_trace is not None
+        else None
+    )
+    reasoning_digest = (
+        build_reasoning_trace_report(r.reasoning_trace).trace_digest_hex16
+        if r.reasoning_trace is not None
+        else None
+    )
+    learning_digest = _learning_evidence_digest(
+        state.agent_state.learning_trace
+    )
+    return dispatch_digest, reasoning_digest, learning_digest
+
+
+@dataclass(frozen=True, slots=True)
+class _TurnSpec:
+    """Bounded per-turn input record consumed by ``run_proto_speech_turn``."""
+
+    turn_id: str
+    condition: ProtoSpeechCondition
+    context: ProtoSpeechContext
+    operator_input_text: str
+    caregiver_ambient: Optional[ProtoUtterance]
+    feedback: CaregiverFeedback
+    has_active_hypothesis_unresolved: bool = False
+    refusal_guard: bool = False
+    combination_pressure: bool = False
+    transfer_pressure_token: Optional[ProtoVocalToken] = None
+
+
+def run_proto_speech_turn(
+    state: _RuntimeRunState,
+    spec: _TurnSpec,
+    *,
+    turn_index: int,
+) -> ProtoSpeechTurn:
+    """Run a single bounded proto-speech turn against the runtime state.
+
+    Closed turn order:
+
+    1. Run the operator input through the existing agent loop (or
+       skip when ``operator_input_text`` is empty).
+    2. Build a ``ProtoSpeechDriveStream`` from the active context +
+       the new agent-loop digests + the caregiver ambient + feedback
+       primes.
+    3. Select a ``ProtoUtterance`` deterministically from the stream
+       and the current evidence table.
+    4. Update the drive stream with the post-feedback prime.
+    5. Apply the closed evidence-update rule to the table.
+    6. Build a bounded ``ProtoSpeechTurn`` record and mutate the
+       runtime state to thread the updated table.
+    """
+    if not isinstance(state, _RuntimeRunState):
+        raise TypeError(
+            "I-PSPEECH-12 violated: state must be a _RuntimeRunState"
+        )
+    if not isinstance(spec, _TurnSpec):
+        raise TypeError(
+            "I-PSPEECH-12 violated: spec must be a _TurnSpec"
+        )
+
+    dispatch_digest, reasoning_digest, learning_digest = _step_agent_loop(
+        state, text=spec.operator_input_text
+    )
+
+    suppressed = _suppressed_tokens_for_context(
+        state.table, context_signature=spec.context.context_signature
+    )
+    stable_singles = _stable_single_tokens_for_context(
+        state.table, context_signature=spec.context.context_signature
+    )
+    has_seen_before = (
+        spec.context.context_signature in state.seen_context_signatures
+    )
+    state.seen_context_signatures.add(spec.context.context_signature)
+
+    drive_stream = build_proto_speech_drive_stream(
+        context=spec.context,
+        learning_trace=state.agent_state.learning_trace,
+        reasoning_trace_digest=reasoning_digest,
+        dispatch_trace_digest=dispatch_digest,
+        caregiver_ambient=spec.caregiver_ambient,
+        caregiver_feedback=spec.feedback,
+        evidence_table_digest=state.table.digest_hex16,
+        suppressed_tokens=suppressed,
+        stable_single_tokens=stable_singles,
+        has_active_hypothesis_unresolved=(
+            spec.has_active_hypothesis_unresolved
+        ),
+        has_seen_context_before=has_seen_before,
+        input_text=spec.operator_input_text,
+        refusal_guard=spec.refusal_guard,
+        combination_pressure=spec.combination_pressure,
+        transfer_pressure_token=spec.transfer_pressure_token,
+    )
+
+    selected = select_babble_from_drive_stream(
+        drive_stream=drive_stream,
+        evidence_table=state.table,
+        context=spec.context,
+        turn_index=turn_index,
+    )
+
+    prior_record = state.table.select(
+        context_signature=spec.context.context_signature,
+        utterance_digest=selected.digest_hex16,
+    )
+    disposition_before = (
+        prior_record.disposition
+        if prior_record
+        else ProtoUtteranceDisposition.BABBLE
+    )
+
+    refusal_taken = selected.token_count == 0
+
+    # If refusal was taken, do NOT update evidence; preserve the
+    # refusal path. The feedback record is still attached to the
+    # turn for audit.
+    if refusal_taken:
+        records: tuple[ProtoSpeechEvidenceRecord, ...] = ()
+    else:
+        new_stream = update_drive_stream_after_feedback(
+            drive_stream, feedback=spec.feedback
+        )
+        # Use the updated stream digest for evidence citation.
+        new_table, records = update_proto_speech_evidence(
+            state.table,
+            context=spec.context,
+            attempted=selected,
+            feedback=spec.feedback,
+            drive_stream_digest=new_stream.digest_hex16,
+        )
+        state.table = new_table
+        drive_stream = new_stream
+
+    summary_line = _bounded_excerpt(
+        (
+            f"turn id={spec.turn_id} cond={spec.condition.value} "
+            f"selected={selected.text or '<refusal>'} "
+            f"feedback={spec.feedback.kind.value} "
+            f"records={len(records)}"
+        ),
+        limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+    )
+
+    return ProtoSpeechTurn(
+        turn_id=spec.turn_id,
+        condition=spec.condition,
+        context=spec.context,
+        drive_stream=drive_stream,
+        caregiver_ambient=spec.caregiver_ambient,
+        selected_utterance=selected,
+        selected_disposition_before=disposition_before,
+        feedback=spec.feedback,
+        evidence_records_added=records,
+        learning_evidence_digest=learning_digest,
+        reasoning_trace_digest=reasoning_digest,
+        dispatch_trace_digest=dispatch_digest,
+        refusal_taken=refusal_taken,
+        transfer_taken=False,
+        summary_line=summary_line,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Module-produced strings (audited by the static-audit fixture).
 # ---------------------------------------------------------------------------
 
@@ -1848,6 +2386,7 @@ __all__ = (
     "ProtoSpeechEvidenceRecord",
     "ProtoSpeechEvidenceTable",
     "ProtoSpeechStatus",
+    "ProtoSpeechTurn",
     "ProtoUtterance",
     "ProtoUtteranceDisposition",
     "ProtoVocalToken",
@@ -1855,6 +2394,8 @@ __all__ = (
     "build_proto_speech_drive_stream",
     "build_proto_utterance",
     "empty_evidence_table",
+    "select_babble_from_drive_stream",
+    "select_proto_utterance",
     "transfer_proto_speech_evidence",
     "update_drive_stream_after_feedback",
     "update_proto_speech_evidence",
