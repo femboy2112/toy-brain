@@ -4,9 +4,9 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.26 COMPLETE; PR #31 open against PR #30
-**Active branch:** `campaign/phase3-26-active-hypothesis-probe`
-**Active campaign:** none in flight; Phase 3.26 ready for review
+**Last updated:** Phase 3.30 COMPLETE; PR #32 open against PR #31
+**Active branch:** `campaign/phase3-30-curriculum-consolidation`
+**Active campaign:** none in flight; Phase 3.30 ready for review
 **Prior campaigns:**
   - Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25 open)
   - Phase 3.21 Developmental Trajectory — COMPLETE (PR #26 open)
@@ -43,33 +43,45 @@ a fresh session can `git status`, read this file, then keep going.
     carry-over) + 0 FAIL, transcript digest `0169f117497dba08`.
     Live-test runner: 10/10 PASS, false_positive=0,
     false_negative=0, winner_selected=3, no_hypothesis_survives=3,
-    cache_reuse=2, digest `86b67d97daeb251d`. Adds
-    `brain/development/active_hypothesis_probe.py`: a pure
+    cache_reuse=2, digest `86b67d97daeb251d`.
+  - Phase 3.30 Curriculum Consolidation Live Test — COMPLETE;
+    pushed to a new stacked branch
+    `campaign/phase3-30-curriculum-consolidation` for PR #32
+    (base = `campaign/phase3-26-active-hypothesis-probe`,
+    head = `campaign/phase3-30-curriculum-consolidation`). Catalog
+    v0.35 -> v0.36. +I-CURR-01..14 (13 REQUIRED + 1 STRUCTURAL).
+    Benchmark: 119 cases (105 + 14), 118 PASS + 1 WARN (A3.04
+    carry-over) + 0 FAIL. Live-test runner: 10/10 PASS,
+    false_positive=0, false_negative=0, total_survived=23,
+    total_decayed=3, total_rejected=3, reuse_observed=1,
+    digest `9412acec1163b978`. Adds
+    `brain/development/curriculum_consolidation_probe.py`: a pure
     deterministic OFFLINE live-test runner that probes the
-    operational analogue of *active hypothesis + self-directed
-    probe* under five conditions (CONTROL_NO_AMBIGUITY /
-    SINGLE_HYPOTHESIS_CONVERGES / MULTI_HYPOTHESIS_NARROWS /
-    NO_HYPOTHESIS_SURVIVES / REUSE_CACHED_HYPOTHESIS) with bounded
-    structural candidate enumeration + falsification + caching at
-    the substrate level. No new `OperatorCommand` member; no new
-    `LOCAL_COMMAND_VERBS` entry; no new `ACTIVE_VIEWS` value; no
-    new `GrowthEventType` / `GrowthEventSource`; no new
-    `LearningEvidenceKind` / `ReasoningStepKind` member; no DB
-    schema change; no autosave-policy change; no `brain.llm`
-    import; no `brain.tick.tick` call outside the existing
-    `STEP_TICK` route.
+    operational analogue of *curriculum consolidation* under five
+    conditions (SINGLE_STRUCTURE / SEQUENTIAL_NONINTERFERING /
+    SEQUENTIAL_INTERFERING / DECAY_ON_DISUSE / REUSE_AFTER_NEWER)
+    with a bounded session-local slate (size 4), closed admission
+    rule (classification gate + digest-collision gate), LRU
+    eviction on overflow, probe-time reuse via digest match, and
+    a tri-disposition audit trail (SURVIVED / DECAYED / REJECTED).
+    No new `OperatorCommand` member; no new `LOCAL_COMMAND_VERBS`
+    entry; no new `ACTIVE_VIEWS` value; no new `GrowthEventType`
+    / `GrowthEventSource`; no new `LearningEvidenceKind` /
+    `ReasoningStepKind` member; no DB schema change; no autosave-
+    policy change; no `brain.llm` import; no `brain.tick.tick`
+    call outside the existing `STEP_TICK` route.
 
 ---
 
 ## What is in flight
 
-No active campaign. Phase 3.26 Active Hypothesis + Self-Directed
-Probe Loop is COMPLETE on the
-`campaign/phase3-26-active-hypothesis-probe` branch, stacked on PR
-#30 (Phase 3.25). PR #31 is open at
-https://github.com/femboy2112/toy-brain/pull/31 with base
-`campaign/phase3-25-osmotic-learning-live-test` and head
-`campaign/phase3-26-active-hypothesis-probe`.
+No active campaign. Phase 3.30 Curriculum Consolidation Live Test
+is COMPLETE on the
+`campaign/phase3-30-curriculum-consolidation` branch, stacked on
+PR #31 (Phase 3.26). PR #32 is open at
+https://github.com/femboy2112/toy-brain/pull/32 with base
+`campaign/phase3-26-active-hypothesis-probe` and head
+`campaign/phase3-30-curriculum-consolidation`.
 
 The non-claim discipline anchored by
 `brain.development.coherence_monitor._FORBIDDEN_NON_CLAIM_TERMS`
@@ -89,13 +101,13 @@ NOT mean the runtime has a goal, plan, or wish.
 ## Current step pointer
 
 ```text
-campaign:   none in flight; Phase 3.26 COMPLETE
-status:     seven PRs (#25 + #26 + #27 + #28 + #29 + #30 + #31)
-            awaiting operator merge decision; #31 is stacked on
-            #30 and depends on it.
-gates:      v0.35; all 5 gates PASS at Phase 3.26 close
-branch:     campaign/phase3-26-active-hypothesis-probe
-            (stacked on campaign/phase3-25-osmotic-learning-live-test)
+campaign:   none in flight; Phase 3.30 COMPLETE
+status:     eight PRs (#25 + #26 + #27 + #28 + #29 + #30 + #31 +
+            #32) awaiting operator merge decision; #32 is stacked
+            on #31 and depends on it.
+gates:      v0.36; all 5 gates PASS at Phase 3.30 close
+branch:     campaign/phase3-30-curriculum-consolidation
+            (stacked on campaign/phase3-26-active-hypothesis-probe)
 
 queued next-campaign candidates (after Phase 3.26 lands):
   - Phase 3.27 worldlet UI construction (operator command + payload
@@ -119,31 +131,42 @@ queued next-campaign candidates (after Phase 3.26 lands):
 
 ---
 
-## Phase 3.26 step ledger (COMPLETE)
+## Phase 3.30 step ledger (COMPLETE)
 
 ```text
-Step 1  Mission + design + roadmap docs                       DONE   commit f901a36 (pushed)
-Step 2..5  Active hypothesis probe substrate + trials + integration  DONE   commit 6157305 (pushed)
-Step 6  Benchmark A13 active_hypothesis axis                  DONE   commit 5a11d21 (pushed)
-Step 7  Catalog v0.35 + I-AHYP-01..14 fixtures                DONE   commit 1e98f1f (pushed)
+Step 1  Mission + design + roadmap docs                       DONE   commit f8d3e6f (pushed)
+Step 2..5  Curriculum consolidation runner substrate + trials + audit  DONE   commit aaeeb71 (pushed)
+Step 6  Benchmark A14 curriculum_consolidation axis           DONE   commit ab4a461 (pushed)
+Step 7  Catalog v0.36 + I-CURR-01..14 fixtures                DONE   commit 98c120b (pushed)
 Step 8  Live test proof + transcripts + spec + synthesis +
-        behavior + findings + audit                           DONE   commit ba68b8c (pushed)
-Step 9  Final audit + handoff + open PR #31                   DONE   (this commit)
+        behavior + findings + audit                           DONE   commit 84dd619 (pushed)
+Step 9  Final audit + handoff + open PR #32                   DONE   (this commit)
 ```
 
-Verdict: **PASS WITH DEFERRED FOLLOW-UPS**. Catalog v0.35.
+Verdict: **PASS WITH NO PHASE-3.30-INTRODUCED FOLLOW-UPS** (A3.04
+carry-over noted but is a Phase 3.21 W3 blocker, not new in
+Phase 3.30). Catalog v0.36.
 
-Catalog patch: `I-AHYP-01..I-AHYP-14` (13 REQUIRED + 1 STRUCTURAL);
-all rows green in the runner. Eleven new fixtures. Benchmark: 105
-cases (91 from Phase 3.22 / 3.22b / 3.23 / 3.24 / 3.25 + 14 from
-Phase 3.26), 104 PASS + 1 documented WARN (A3.04 carry-over) + 0
-FAIL, 0 real model calls, transcript digest `0169f117497dba08`.
+Catalog patch: `I-CURR-01..I-CURR-14` (13 REQUIRED + 1 STRUCTURAL);
+all rows green in the runner. Eleven new fixtures. Benchmark: 119
+cases (105 from Phase 3.22 / 3.22b / 3.23 / 3.24 / 3.25 / 3.26 +
+14 from Phase 3.30), 118 PASS + 1 documented WARN (A3.04 carry-
+over) + 0 FAIL, 0 real model calls.
 
 Live-test verdict: 10/10 PASS, false_positive=0, false_negative=0,
-winner_selected=3, no_hypothesis_survives=3, cache_reuse=2, digest
-`86b67d97daeb251d`.
+total_survived=23, total_decayed=3, total_rejected=3,
+reuse_observed=1, digest `9412acec1163b978`.
 
 Phase 3.21 W3 (A3.04 NOT_APPLICABLE blocker) — REMAINS WARN.
+
+## Phase 3.26 step ledger (COMPLETE — historical)
+
+```text
+Step 1..9   active hypothesis substrate + benchmark A13 +
+            catalog v0.34->v0.35 + reports + handoff           DONE
+Catalog patch: I-AHYP-01..14 (13 REQUIRED + 1 STRUCTURAL).
+Live-test digest: 86b67d97daeb251d.
+```
 
 ---
 
@@ -218,8 +241,10 @@ Then resume at the step named under **Current step pointer** above.
 - PR #30 (Phase 3.25) → `campaign/phase3-24-worldlet-feedback-bridge`.
 - PR #31 (Phase 3.26) → `campaign/phase3-25-osmotic-learning-live-test`
   while PR #30 is open; retargets up the stack as upstream PRs merge.
+- PR #32 (Phase 3.30) → `campaign/phase3-26-active-hypothesis-probe`
+  while PR #31 is open; retargets up the stack as upstream PRs merge.
 - Stack merge order (operator-controlled):
-  PR #24 → #25 → #26 → #27 → #28 → #29 → #30 → #31.
+  PR #24 → #25 → #26 → #27 → #28 → #29 → #30 → #31 → #32.
 
 ---
 
@@ -231,8 +256,9 @@ Stage B limited-write collaboration: not used in this session
 Stage C.1 flow orchestration:        not used in this session
 brain-catalog-lint:                  not used in this session
 brain-campaign-state:                not used in this session
-brain-explorer:                      used (1x at Step 1 setup for
-                                     read-only substrate inventory)
+brain-explorer:                      not used in this session
+brain-campaign-state (Phase 3.30):   used (1x at session start for
+                                     pre-flight diagnostic)
 brain-runner-debugger:               not used in this session
 brain-row-implementer:               not used in this session
 brain-spec-refresher:                not used in this session

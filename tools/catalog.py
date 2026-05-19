@@ -24,10 +24,45 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.35 expected counts — bumped by the Phase 3.26 Active Hypothesis +
-# Self-Directed Probe Loop catalog patch (I-AHYP-01..14: +13 REQUIRED
+# v0.36 expected counts — bumped by the Phase 3.30 Curriculum
+# Consolidation Live Test catalog patch (I-CURR-01..14: +13 REQUIRED
 # rows, +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED
-# unchanged). Phase 3.26 adds the new module
+# unchanged). Phase 3.30 adds the new module
+# brain/development/curriculum_consolidation_probe.py: a pure
+# bounded deterministic OFFLINE live-test runner with closed
+# CurriculumCondition (5 values), AuditDisposition (3 values),
+# AdmissionOutcome (3 values), TrialVerdict (4 values) enums and
+# the bounded CurriculumExposure, CurriculumStructureRecord,
+# CurriculumProbeStep, CurriculumTrial, CurriculumTrialResult,
+# CurriculumConsolidationReport records. The runner probes whether
+# the existing substrate realizes the operational analogue of
+# *curriculum consolidation*: bounded ordered structural exposure
+# + closed admission rule + LRU decay + session-local cache reuse
+# + tri-disposition audit at the substrate level. The v1
+# ten-trial battery covers shapes A B / A A / A B C / A A B /
+# A B A / A B B / collision pairs / five- and six-shape overflow /
+# reuse positive and negative under five conditions
+# (SINGLE_STRUCTURE, SEQUENTIAL_NONINTERFERING,
+# SEQUENTIAL_INTERFERING, DECAY_ON_DISUSE, REUSE_AFTER_NEWER).
+# Eleven new fixtures land in brain/ui/fixtures/. The benchmark
+# battery adds one axis: A14 curriculum_consolidation (14 cases
+# A14.01..A14.14). Total benchmark cases: 119 (105 + 14); 118 PASS
+# + 1 WARN (A3.04 carry-over) + 0 FAIL. brain/tick.py is not
+# edited; no existing runtime file's behavior changes; OFFLINE
+# default preserved; zero real model calls; non-claim discipline
+# enforced via the canonical _FORBIDDEN_NON_CLAIM_TERMS tuple on
+# every produced summary string and the new module source.
+# "Curriculum consolidation" is engineering shorthand for bounded
+# ordered structural exposure + closed admission rule + LRU decay
+# + session-local cache reuse + tri-disposition audit at the
+# substrate level; the runtime is not claimed to have learning,
+# memory, forgetting, consolidation, interference, deliberation,
+# attention, working memory, episodic memory, or any cognitive
+# process.
+# v0.35 history retained: bumped by the Phase 3.26 Active
+# Hypothesis + Self-Directed Probe Loop catalog patch
+# (I-AHYP-01..14: +13 REQUIRED rows, +1 STRUCTURAL row;
+# NOT-EXERCISED / DEFERRED / OBSERVED unchanged). Phase 3.26 adds the new module
 # brain/development/active_hypothesis_probe.py: a pure bounded
 # deterministic OFFLINE live-test runner with closed AmbiguityCondition
 # (5 values), ActiveHypothesisStatus (4 values), ProbeConstructionRule
@@ -160,8 +195,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 361,
-    "STRUCTURAL": 99,
+    "REQUIRED": 374,
+    "STRUCTURAL": 100,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,

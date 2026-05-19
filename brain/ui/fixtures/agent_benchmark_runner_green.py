@@ -44,6 +44,8 @@ _EXPECTED_AXES = (
     BenchmarkAxis.OSMOTIC_LEARNING,
     # Phase 3.26 (I-AHYP-13) active hypothesis axis.
     BenchmarkAxis.ACTIVE_HYPOTHESIS,
+    # Phase 3.30 (I-CURR-13) curriculum consolidation axis.
+    BenchmarkAxis.CURRICULUM_CONSOLIDATION,
 )
 
 
