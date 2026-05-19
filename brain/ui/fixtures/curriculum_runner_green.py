@@ -19,7 +19,7 @@ from brain.invariants import register
 @register("I-CURR-13", status="REQUIRED")
 def check_curriculum_benchmark_green() -> None:
     """A14 axis green; BATTERY_VERSION bumped; full battery extended."""
-    assert BATTERY_VERSION == "phase3.30.v1"
+    assert BATTERY_VERSION == "phase3.31.v1"
 
     # Axis-only run.
     a14 = run_axis_a14_curriculum_consolidation()
@@ -47,13 +47,16 @@ def check_curriculum_benchmark_green() -> None:
     assert partial.determinism_failures == 0
     assert partial.invariant_failures == 0
 
-    # Full battery: fourteen axes ending with CURRICULUM_CONSOLIDATION.
+    # Full battery: fifteen axes ending with PROTO_SPEECH_ACQUISITION.
+    # CURRICULUM_CONSOLIDATION is still present but is no longer the
+    # last axis (Phase 3.31 widens the battery).
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
-    assert len(axes_seen) == 14
-    assert axes_seen[-1] is BenchmarkAxis.CURRICULUM_CONSOLIDATION
-    assert run.case_total == 119
+    assert len(axes_seen) == 15
+    assert BenchmarkAxis.CURRICULUM_CONSOLIDATION in axes_seen
+    assert axes_seen[-1] is BenchmarkAxis.PROTO_SPEECH_ACQUISITION
+    assert run.case_total == 137
     assert run.case_warned == 1  # documented A3.04
     assert run.case_failed == 0
     assert run.real_model_calls == 0

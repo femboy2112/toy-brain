@@ -46,6 +46,8 @@ _EXPECTED_AXES = (
     BenchmarkAxis.ACTIVE_HYPOTHESIS,
     # Phase 3.30 (I-CURR-13) curriculum consolidation axis.
     BenchmarkAxis.CURRICULUM_CONSOLIDATION,
+    # Phase 3.31 (I-PSPEECH-18) proto-speech acquisition axis.
+    BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
 )
 
 
@@ -162,6 +164,14 @@ def check_agent_benchmark_runner_green() -> None:
     )
     assert (
         status_by_axis[BenchmarkAxis.ACTIVE_HYPOTHESIS]
+        is BenchmarkCaseStatus.PASS
+    )
+    assert (
+        status_by_axis[BenchmarkAxis.CURRICULUM_CONSOLIDATION]
+        is BenchmarkCaseStatus.PASS
+    )
+    assert (
+        status_by_axis[BenchmarkAxis.PROTO_SPEECH_ACQUISITION]
         is BenchmarkCaseStatus.PASS
     )
 
