@@ -24,7 +24,39 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.34 expected counts — bumped by the Phase 3.25 Osmotic Learning
+# v0.35 expected counts — bumped by the Phase 3.26 Active Hypothesis +
+# Self-Directed Probe Loop catalog patch (I-AHYP-01..14: +13 REQUIRED
+# rows, +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED
+# unchanged). Phase 3.26 adds the new module
+# brain/development/active_hypothesis_probe.py: a pure bounded
+# deterministic OFFLINE live-test runner with closed AmbiguityCondition
+# (5 values), ActiveHypothesisStatus (4 values), ProbeConstructionRule
+# (6 values), TrialVerdict (4 values), ProbeOutcome (2 values) enums
+# and the bounded ActiveHypothesisCandidate, ActiveProbeStep,
+# ActiveHypothesisTrial, ActiveHypothesisResult,
+# ActiveHypothesisLiveTestReport records. The runner probes whether
+# the existing substrate realizes the operational analogue of
+# *active hypothesis + self-directed probe*: bounded structural
+# candidate enumeration + falsification + caching at the substrate
+# level. The v1 ten-trial battery covers shapes A B A, A B B,
+# A B C, A B A B, A A, A A B under five conditions
+# (CONTROL_NO_AMBIGUITY, SINGLE_HYPOTHESIS_CONVERGES,
+# MULTI_HYPOTHESIS_NARROWS, NO_HYPOTHESIS_SURVIVES,
+# REUSE_CACHED_HYPOTHESIS). Eleven new fixtures land in
+# brain/ui/fixtures/. The benchmark battery adds one axis: A13
+# active_hypothesis (14 cases A13.01..A13.14). Total benchmark
+# cases: 105 (91 + 14); 104 PASS + 1 WARN (A3.04 carry-over) + 0
+# FAIL. brain/tick.py is not edited; no existing runtime file's
+# behavior changes; OFFLINE default preserved; zero real model
+# calls; non-claim discipline enforced via the canonical
+# _FORBIDDEN_NON_CLAIM_TERMS tuple on every produced summary
+# string and the new module source. "Active hypothesis" /
+# "self-directed probe" is engineering shorthand for bounded
+# structural candidate enumeration + falsification + caching at
+# the substrate level; the runtime is not claimed to have
+# inquiry, curiosity, deliberation, planning, decision-making,
+# introspection, or any cognitive property.
+# v0.34 history retained: bumped by the Phase 3.25 Osmotic Learning
 # Live Test catalog patch (I-OSMO-01..14: +13 REQUIRED rows, +1
 # STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
 # Phase 3.25 adds the new module
@@ -128,8 +160,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 348,
-    "STRUCTURAL": 98,
+    "REQUIRED": 361,
+    "STRUCTURAL": 99,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,

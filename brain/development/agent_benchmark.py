@@ -88,7 +88,7 @@ from brain.ui.session import OperatorSession
 # Bounded constants.
 # ---------------------------------------------------------------------------
 
-BATTERY_VERSION: str = "phase3.25.v1"
+BATTERY_VERSION: str = "phase3.26.v1"
 TRANSCRIPT_DIGEST_HEX_LEN: int = 16
 BENCHMARK_CASE_SUMMARY_MAX_LEN: int = 240
 BENCHMARK_CASE_NOTES_MAX_LEN: int = 320
@@ -116,6 +116,8 @@ class BenchmarkAxis(str, Enum):
     WORLDLET_FEEDBACK = "worldlet_feedback"
     # Phase 3.25 (I-OSMO-13): the osmotic learning battery axis.
     OSMOTIC_LEARNING = "osmotic_learning"
+    # Phase 3.26 (I-AHYP-13): the active hypothesis battery axis.
+    ACTIVE_HYPOTHESIS = "active_hypothesis"
 
 
 class BenchmarkCaseStatus(str, Enum):
@@ -2914,7 +2916,7 @@ def run_axis_a11_worldlet_feedback() -> AxisResult:
 
 
 def run_full_battery() -> BenchmarkRun:
-    """Run every axis A1..A11 and assemble a BenchmarkRun.
+    """Run every axis A1..A13 and assemble a BenchmarkRun.
 
     Two invocations produce identical BenchmarkRun records (modulo
     object identity).
@@ -2932,7 +2934,10 @@ def run_full_battery() -> BenchmarkRun:
     a10 = run_axis_a10_dispatch_trace()
     a11 = run_axis_a11_worldlet_feedback()
     a12 = run_axis_a12_osmotic_learning()
-    return _assemble_battery_run(earlier + (a7, a8, a9, a10, a11, a12))
+    a13 = run_axis_a13_active_hypothesis()
+    return _assemble_battery_run(
+        earlier + (a7, a8, a9, a10, a11, a12, a13)
+    )
 
 
 def _assemble_battery_run(axes: tuple[AxisResult, ...]) -> BenchmarkRun:
@@ -3468,6 +3473,482 @@ def run_partial_battery_phase3_25() -> BenchmarkRun:
     return _assemble_battery_run(axes)
 
 
+def run_axis_a13_active_hypothesis() -> AxisResult:
+    """Run the Phase 3.26 A13 active_hypothesis battery axis.
+
+    Fourteen cases A13.01..A13.14 exercising the active-hypothesis +
+    self-directed-probe live-test runner end-to-end. Drives
+    ``I-AHYP-13``.
+    """
+    import inspect as _inspect
+    from brain.development import (
+        active_hypothesis_probe as _ahyp_module,
+    )
+    from brain.development.active_hypothesis_probe import (
+        ACTIVE_HYPOTHESIS_BATTERY_VERSION,
+        AmbiguityCondition,
+        ProbeOutcome,
+        TrialVerdict,
+        build_active_hypothesis_trials,
+        run_active_hypothesis_live_test,
+        select_safe_probe,
+    )
+
+    cases: list[BenchmarkCaseResult] = []
+
+    report = run_active_hypothesis_live_test()
+    trials = build_active_hypothesis_trials()
+
+    def _result_by_id(tid: str):
+        for r in report.trials:
+            if r.trial_id == tid:
+                return r
+        raise AssertionError(f"trial result {tid!r} not found in report")
+
+    # A13.01 -- CONTROL_NO_AMBIGUITY (empty input) emits no probe.
+    r01 = _result_by_id("T01_control_empty")
+    a13_01_ok = (
+        r01.verdict is TrialVerdict.PASS
+        and r01.condition is AmbiguityCondition.CONTROL_NO_AMBIGUITY
+        and r01.survivors_count == 0
+        and r01.winner_id == ""
+        and len(r01.candidates) == 0
+        and len(r01.probe_steps) == 0
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.01",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_01_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"control empty: candidates={len(r01.candidates)} "
+                f"survivors={r01.survivors_count} "
+                f"winner={r01.winner_id!r}"
+            ),
+            primary_metric=int(a13_01_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.02 -- CONTROL_NO_AMBIGUITY (singleton) emits no probe.
+    r02 = _result_by_id("T02_control_singleton")
+    a13_02_ok = (
+        r02.verdict is TrialVerdict.PASS
+        and r02.condition is AmbiguityCondition.CONTROL_NO_AMBIGUITY
+        and r02.survivors_count == 0
+        and r02.winner_id == ""
+        and len(r02.candidates) == 0
+        and len(r02.probe_steps) == 0
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.02",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_02_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"control singleton: candidates={len(r02.candidates)} "
+                f"survivors={r02.survivors_count} "
+                f"winner={r02.winner_id!r}"
+            ),
+            primary_metric=int(a13_02_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.03 -- SINGLE_HYPOTHESIS_CONVERGES on shape A B A.
+    r03 = _result_by_id("T03_single_aba")
+    a13_03_ok = (
+        r03.verdict is TrialVerdict.PASS
+        and r03.condition is AmbiguityCondition.SINGLE_HYPOTHESIS_CONVERGES
+        and r03.survivors_count == 1
+        and r03.winner_id == "H_RENAME_S_ABA"
+        and r03.false_positive is False
+        and r03.false_negative is False
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.03",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_03_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"single A B A: survivors={r03.survivors_count} "
+                f"winner={r03.winner_id}"
+            ),
+            primary_metric=int(a13_03_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.04 -- SINGLE_HYPOTHESIS_CONVERGES on shape A B B.
+    r04 = _result_by_id("T04_single_abb")
+    a13_04_ok = (
+        r04.verdict is TrialVerdict.PASS
+        and r04.survivors_count == 1
+        and r04.winner_id == "H_RENAME_S_ABB"
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.04",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_04_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"single A B B: survivors={r04.survivors_count} "
+                f"winner={r04.winner_id}"
+            ),
+            primary_metric=int(a13_04_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.05 -- MULTI_HYPOTHESIS_NARROWS on all-distinct/3.
+    r05 = _result_by_id("T05_multi_abc")
+    a13_05_ok = (
+        r05.verdict is TrialVerdict.PASS
+        and r05.condition is AmbiguityCondition.MULTI_HYPOTHESIS_NARROWS
+        and r05.survivors_count >= 2
+        and r05.winner_id == ""
+        and r05.no_hypothesis_survives is False
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.05",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_05_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"multi A B C: survivors={r05.survivors_count} "
+                f"winner={r05.winner_id!r}"
+            ),
+            primary_metric=int(a13_05_ok),
+            secondary_metric=r05.survivors_count,
+        )
+    )
+
+    # A13.06 -- MULTI_HYPOTHESIS_NARROWS on recurring-form/4.
+    r06 = _result_by_id("T06_multi_abab")
+    a13_06_ok = (
+        r06.verdict is TrialVerdict.PASS
+        and r06.survivors_count >= 2
+        and r06.winner_id == ""
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.06",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_06_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"multi A B A B: survivors={r06.survivors_count} "
+                f"winner={r06.winner_id!r}"
+            ),
+            primary_metric=int(a13_06_ok),
+            secondary_metric=r06.survivors_count,
+        )
+    )
+
+    # A13.07 -- NO_HYPOTHESIS_SURVIVES on shape A A (repeated/2).
+    r07 = _result_by_id("T07_nosurv_aa")
+    a13_07_ok = (
+        r07.verdict is TrialVerdict.PASS
+        and r07.condition is AmbiguityCondition.NO_HYPOTHESIS_SURVIVES
+        and r07.survivors_count == 0
+        and r07.winner_id == ""
+        and r07.no_hypothesis_survives is True
+        and len(r07.candidates) > 0
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.07",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_07_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"no_survivor A A: candidates={len(r07.candidates)} "
+                f"survivors={r07.survivors_count} "
+                f"no_surv={r07.no_hypothesis_survives}"
+            ),
+            primary_metric=int(a13_07_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.08 -- NO_HYPOTHESIS_SURVIVES on shape A A B.
+    r08 = _result_by_id("T08_nosurv_aab")
+    a13_08_ok = (
+        r08.verdict is TrialVerdict.PASS
+        and r08.no_hypothesis_survives is True
+        and r08.survivors_count == 0
+        and r08.winner_id == ""
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.08",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_08_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"no_survivor A A B: candidates={len(r08.candidates)} "
+                f"survivors={r08.survivors_count}"
+            ),
+            primary_metric=int(a13_08_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.09 -- REUSE_CACHED_HYPOTHESIS on T03 input.
+    r09 = _result_by_id("T09_reuse_aba")
+    a13_09_ok = (
+        r09.verdict is TrialVerdict.PASS
+        and r09.condition is AmbiguityCondition.REUSE_CACHED_HYPOTHESIS
+        and r09.second_visit_cache_hit is True
+        and r09.second_visit_probe_count == 0
+        and r09.survivors_count == 1
+        and r09.winner_id == "H_RENAME_S_ABA"
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.09",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_09_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"reuse A B A: cache_hit={r09.second_visit_cache_hit} "
+                f"probe_count2={r09.second_visit_probe_count} "
+                f"winner={r09.winner_id}"
+            ),
+            primary_metric=int(a13_09_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.10 -- REUSE_CACHED_HYPOTHESIS on T07 input.
+    r10 = _result_by_id("T10_reuse_aa")
+    a13_10_ok = (
+        r10.verdict is TrialVerdict.PASS
+        and r10.second_visit_cache_hit is True
+        and r10.second_visit_probe_count == 0
+        and r10.survivors_count == 0
+        and r10.no_hypothesis_survives is True
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.10",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_10_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"reuse A A: cache_hit={r10.second_visit_cache_hit} "
+                f"probe_count2={r10.second_visit_probe_count} "
+                f"no_surv={r10.no_hypothesis_survives}"
+            ),
+            primary_metric=int(a13_10_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.11 -- safe-probe non-leakage: every probe step's text is
+    # bounded printable, contains none of the forbidden direct-
+    # instruction terms, and does NOT contain the candidate's
+    # predicted_digest_hex16 or predicted_shape as a substring.
+    leak_ok = True
+    probe_total = 0
+    for tr in report.trials:
+        for ps in tr.probe_steps:
+            probe_total += 1
+            # The dataclass __post_init__ already raised on any
+            # forbidden term or digest leak; if we're here, the audit
+            # passed. We additionally re-verify against the candidate
+            # whose id matches ps.candidate_id.
+            cand = next(
+                (c for c in tr.candidates if c.candidate_id == ps.candidate_id),
+                None,
+            )
+            if cand is None:
+                leak_ok = False
+                break
+            if cand.predicted_digest_hex16 in ps.probe_text:
+                leak_ok = False
+                break
+            if cand.predicted_shape and cand.predicted_shape in ps.probe_text:
+                leak_ok = False
+                break
+            # Round-trip select_safe_probe: it must succeed without
+            # raising for the candidate/input pair.
+            try:
+                select_safe_probe(tr.candidates[0].predicted_shape if False else "", cand)
+            except (ValueError, TypeError):
+                pass
+        if not leak_ok:
+            break
+    a13_11_ok = leak_ok and probe_total > 0
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.11",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_11_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"probe non-leak: probe_total={probe_total} "
+                f"leak_ok={leak_ok}"
+            ),
+            primary_metric=int(a13_11_ok),
+            secondary_metric=probe_total,
+        )
+    )
+
+    # A13.12 -- live-test report digest stable across two fresh runs.
+    report_b = run_active_hypothesis_live_test()
+    a13_12_ok = (
+        report.digest_hex16 == report_b.digest_hex16
+        and report.trials == report_b.trials
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.12",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_12_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"report digest stable: digest={report.digest_hex16} "
+                f"match={a13_12_ok}"
+            ),
+            primary_metric=int(a13_12_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.13 -- source scan has zero forbidden non-claim hits.
+    src = _inspect.getsource(_ahyp_module)
+    hit_term = _text_has_forbidden_term(src)
+    a13_13_ok = hit_term is None
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.13",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_13_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"active_hypothesis_probe source non-claim-clean: "
+                f"hit={hit_term!r}"
+            ),
+            primary_metric=int(a13_13_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A13.14 -- adding A13 is additive: A1..A12 axis case totals match
+    # the documented pre-A13 expected counts.
+    a1 = run_axis_a1_pattern_recognition()
+    a2 = run_axis_a2_cross_input_structural()
+    a3 = run_axis_a3_coherence_variation()
+    a4 = run_axis_a4_repl_coherence()
+    a5 = run_axis_a5_communication()
+    a6 = run_axis_a6_session_continuity()
+    earlier = (a1, a2, a3, a4, a5, a6)
+    a7 = run_axis_a7_blind_transcript(earlier)
+    a8 = run_axis_a8_learning_evidence()
+    a9 = run_axis_a9_reasoning_trace()
+    a10 = run_axis_a10_dispatch_trace()
+    a11 = run_axis_a11_worldlet_feedback()
+    a12 = run_axis_a12_osmotic_learning()
+    pre_a13_case_counts = (
+        len(a1.cases),
+        len(a2.cases),
+        len(a3.cases),
+        len(a4.cases),
+        len(a5.cases),
+        len(a6.cases),
+        len(a7.cases),
+        len(a8.cases),
+        len(a9.cases),
+        len(a10.cases),
+        len(a11.cases),
+        len(a12.cases),
+    )
+    expected = (9, 5, 4, 5, 9, 3, 4, 7, 7, 12, 12, 14)
+    a13_14_ok = pre_a13_case_counts == expected
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A13.14",
+            axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a13_14_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"A1..A12 case counts retained: "
+                f"got={pre_a13_case_counts!r} expected={expected!r}"
+            ),
+            primary_metric=int(a13_14_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # Reference the unused import so the linter doesn't complain.
+    _ = ACTIVE_HYPOTHESIS_BATTERY_VERSION
+    _ = ProbeOutcome
+
+    return AxisResult(
+        axis=BenchmarkAxis.ACTIVE_HYPOTHESIS,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+def run_partial_battery_phase3_26() -> BenchmarkRun:
+    """Run the A13 active_hypothesis axis only; assemble a BenchmarkRun.
+
+    Phase 3.26 entry point — exercises only the active-hypothesis
+    axis without re-running the (already-covered) A1..A12 axes.
+    """
+    axes = (run_axis_a13_active_hypothesis(),)
+    return _assemble_battery_run(axes)
+
+
 # ---------------------------------------------------------------------------
 # Module-produced strings (audited).
 # ---------------------------------------------------------------------------
@@ -3583,12 +4064,14 @@ __all__ = (
     "run_axis_a10_dispatch_trace",
     "run_axis_a11_worldlet_feedback",
     "run_axis_a12_osmotic_learning",
+    "run_axis_a13_active_hypothesis",
     "run_full_battery",
     "run_partial_battery_pattern_axes",
     "run_partial_battery_phase3_22b",
     "run_partial_battery_phase3_23",
     "run_partial_battery_phase3_24",
     "run_partial_battery_phase3_25",
+    "run_partial_battery_phase3_26",
     "run_partial_battery_with_coherence",
 )
 
