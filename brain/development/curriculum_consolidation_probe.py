@@ -58,7 +58,7 @@ import hashlib
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import ClassVar, Optional
 
 from brain.development.abstract_pattern import (
     derive_abstract_pattern_signature,
@@ -699,6 +699,8 @@ class CurriculumTrialResult:
 @dataclass(frozen=True, slots=True)
 class CurriculumConsolidationReport:
     """One bounded live-test report (I-CURR-02)."""
+
+    module_name: ClassVar[str] = "curriculum_consolidation_probe"
 
     battery_version: str
     trials: tuple[CurriculumTrialResult, ...]
