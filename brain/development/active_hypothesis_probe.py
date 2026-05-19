@@ -19,15 +19,14 @@ given a bounded ambiguous structural input, the runtime
 * on a second invocation against the same session-local cache,
   reuses the prior surviving record without re-probing.
 
-The bounded operational claim is **substrate-level**. It is NOT a
-claim of consciousness, sentience, awareness, subjective experience,
-human-like understanding, real agency, will, desire, belief, intent,
-introspection, metacognition, intuition, embodiment, real hypothesis
-formation, real inquiry, real curiosity, real deliberation, real
-planning, or real decision-making. "Self-directed" means the probe
-is derived from the input text alone by a closed deterministic rule;
-it does NOT mean the runtime "wants," "chooses," "deliberates," or
-"is curious."
+"Active hypothesis + self-directed probe in ToyI is a bounded
+operational enumeration + falsification + caching effect over
+structural records, not a psychological or phenomenological claim."
+
+"Self-directed" means the probe text is derived from the input by a
+closed deterministic rule. It does NOT mean the runtime has a goal,
+plan, will, or any cognitive process. The runtime is a bounded
+structural state machine.
 
 The module is deliberately closed:
 

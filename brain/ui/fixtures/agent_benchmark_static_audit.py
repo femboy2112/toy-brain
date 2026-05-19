@@ -47,6 +47,8 @@ _EXPECTED_AXIS_VALUES = frozenset(
         "worldlet_feedback",
         # Phase 3.25 (I-OSMO-13): osmotic learning battery axis.
         "osmotic_learning",
+        # Phase 3.26 (I-AHYP-13): active hypothesis battery axis.
+        "active_hypothesis",
     }
 )
 

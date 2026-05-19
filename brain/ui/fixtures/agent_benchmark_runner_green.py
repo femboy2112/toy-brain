@@ -42,6 +42,8 @@ _EXPECTED_AXES = (
     BenchmarkAxis.WORLDLET_FEEDBACK,
     # Phase 3.25 (I-OSMO-13) osmotic learning axis.
     BenchmarkAxis.OSMOTIC_LEARNING,
+    # Phase 3.26 (I-AHYP-13) active hypothesis axis.
+    BenchmarkAxis.ACTIVE_HYPOTHESIS,
 )
 
 
@@ -154,6 +156,10 @@ def check_agent_benchmark_runner_green() -> None:
     )
     assert (
         status_by_axis[BenchmarkAxis.OSMOTIC_LEARNING]
+        is BenchmarkCaseStatus.PASS
+    )
+    assert (
+        status_by_axis[BenchmarkAxis.ACTIVE_HYPOTHESIS]
         is BenchmarkCaseStatus.PASS
     )
 
