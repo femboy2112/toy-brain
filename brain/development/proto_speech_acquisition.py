@@ -1351,6 +1351,459 @@ def update_drive_stream_after_feedback(
 
 
 # ---------------------------------------------------------------------------
+# Evidence records + table + closed update rules.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoSpeechEvidenceRecord:
+    """One bounded utterance-context evidence record (Phase 3.31)."""
+
+    context_signature: str
+    utterance_digest: str
+    utterance_text: str
+    feedback_kind: Optional[CaregiverFeedbackKind]
+    weight_before: int
+    weight_after: int
+    disposition: ProtoUtteranceDisposition
+    update_reason: str
+    drive_stream_digest_hex16: Optional[str]
+    digest_hex16: str
+
+    def __post_init__(self) -> None:
+        _validate_digest_hex(
+            self.context_signature,
+            field="ProtoSpeechEvidenceRecord.context_signature",
+        )
+        _validate_digest_hex(
+            self.utterance_digest,
+            field="ProtoSpeechEvidenceRecord.utterance_digest",
+        )
+        _validate_bounded_printable(
+            self.utterance_text,
+            field="ProtoSpeechEvidenceRecord.utterance_text",
+            max_len=PROTO_SPEECH_TEXT_MAX_LEN,
+            forbid_empty=False,
+            audit_non_claim=True,
+        )
+        if self.feedback_kind is not None and not isinstance(
+            self.feedback_kind, CaregiverFeedbackKind
+        ):
+            raise TypeError(
+                "I-PSPEECH-04 violated: feedback_kind must be a "
+                "CaregiverFeedbackKind or None"
+            )
+        for name, val in (
+            ("weight_before", self.weight_before),
+            ("weight_after", self.weight_after),
+        ):
+            if not isinstance(val, int) or isinstance(val, bool):
+                raise TypeError(
+                    f"I-PSPEECH-04 violated: {name} must be int"
+                )
+            if val < PROTO_SPEECH_WEIGHT_MIN or val > PROTO_SPEECH_WEIGHT_MAX:
+                raise ValueError(
+                    f"I-PSPEECH-04 violated: {name} out of bound "
+                    f"[{PROTO_SPEECH_WEIGHT_MIN}, {PROTO_SPEECH_WEIGHT_MAX}]"
+                )
+        if not isinstance(self.disposition, ProtoUtteranceDisposition):
+            raise TypeError(
+                "I-PSPEECH-04 violated: disposition must be a "
+                "ProtoUtteranceDisposition"
+            )
+        _validate_bounded_printable(
+            self.update_reason,
+            field="ProtoSpeechEvidenceRecord.update_reason",
+            max_len=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+            forbid_empty=True,
+            audit_non_claim=True,
+        )
+        if self.drive_stream_digest_hex16 is not None:
+            _validate_digest_hex(
+                self.drive_stream_digest_hex16,
+                field="ProtoSpeechEvidenceRecord.drive_stream_digest_hex16",
+            )
+        _validate_digest_hex(
+            self.digest_hex16,
+            field="ProtoSpeechEvidenceRecord.digest_hex16",
+        )
+
+
+def _evidence_record_digest(
+    *,
+    context_signature: str,
+    utterance_digest: str,
+    weight_before: int,
+    weight_after: int,
+    disposition: ProtoUtteranceDisposition,
+    feedback_kind: Optional[CaregiverFeedbackKind],
+) -> str:
+    payload = "|".join([
+        context_signature,
+        utterance_digest,
+        str(weight_before),
+        str(weight_after),
+        disposition.value,
+        feedback_kind.value if feedback_kind is not None else "",
+    ]).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[
+        :PROTO_SPEECH_DIGEST_HEX_LEN
+    ]
+
+
+def _classify_disposition(
+    *,
+    weight_after: int,
+    token_count: int,
+    prior_disposition: ProtoUtteranceDisposition,
+    transferred: bool = False,
+) -> ProtoUtteranceDisposition:
+    if transferred:
+        return ProtoUtteranceDisposition.TRANSFERRED
+    if weight_after <= SUPPRESS_THRESHOLD:
+        return ProtoUtteranceDisposition.SUPPRESSED
+    if token_count == 2 and weight_after >= STABLE_COMBINATION_THRESHOLD:
+        return ProtoUtteranceDisposition.STABLE_COMBINATION
+    if token_count == 1 and weight_after >= STABLE_SINGLE_THRESHOLD:
+        return ProtoUtteranceDisposition.STABLE_SINGLE
+    if (
+        prior_disposition is ProtoUtteranceDisposition.CANDIDATE
+        and weight_after > 0
+    ):
+        return ProtoUtteranceDisposition.REINFORCED
+    if (
+        prior_disposition is ProtoUtteranceDisposition.REINFORCED
+        and weight_after > 0
+    ):
+        return ProtoUtteranceDisposition.REINFORCED
+    if prior_disposition is ProtoUtteranceDisposition.BABBLE:
+        return ProtoUtteranceDisposition.CANDIDATE
+    return prior_disposition
+
+
+# Closed evidence-update integer rule set. Returns
+# (attempted_delta, offered_delta).
+def _feedback_deltas(
+    kind: CaregiverFeedbackKind,
+) -> tuple[int, int]:
+    if kind is CaregiverFeedbackKind.ACCEPTED:
+        return 3, 0
+    if kind is CaregiverFeedbackKind.ECHO:
+        return 3, 0
+    if kind is CaregiverFeedbackKind.EXPANDED:
+        return 1, 4
+    if kind is CaregiverFeedbackKind.CORRECTED:
+        return -2, 3
+    if kind is CaregiverFeedbackKind.IGNORED:
+        return -1, 0
+    if kind is CaregiverFeedbackKind.AMBIENT_ONLY:
+        return 0, 1
+    raise ValueError(
+        f"I-PSPEECH-04 violated: unknown CaregiverFeedbackKind {kind!r}"
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoSpeechEvidenceTable:
+    """A bounded immutable session-local evidence table (Phase 3.31).
+
+    Keyed by ``(context_signature, utterance_digest)``. The
+    immutable record carries the bounded current entries and a
+    deterministic 16-hex digest. Updates produce a new table; the
+    runner threads tables across turns and never mutates in place.
+    """
+
+    entries: tuple[ProtoSpeechEvidenceRecord, ...]
+    max_records: int
+    digest_hex16: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.entries, tuple):
+            raise TypeError(
+                "I-PSPEECH-04 violated: entries must be a tuple"
+            )
+        if len(self.entries) > PROTO_SPEECH_EVIDENCE_TABLE_MAX:
+            raise ValueError(
+                "I-PSPEECH-04 violated: entries length "
+                f"{len(self.entries)} > "
+                f"{PROTO_SPEECH_EVIDENCE_TABLE_MAX}"
+            )
+        for e in self.entries:
+            if not isinstance(e, ProtoSpeechEvidenceRecord):
+                raise TypeError(
+                    "I-PSPEECH-04 violated: every entries record must be a "
+                    "ProtoSpeechEvidenceRecord"
+                )
+        if (
+            not isinstance(self.max_records, int)
+            or self.max_records != PROTO_SPEECH_EVIDENCE_TABLE_MAX
+        ):
+            raise ValueError(
+                "I-PSPEECH-04 violated: max_records must equal "
+                f"{PROTO_SPEECH_EVIDENCE_TABLE_MAX}"
+            )
+        _validate_digest_hex(
+            self.digest_hex16,
+            field="ProtoSpeechEvidenceTable.digest_hex16",
+        )
+
+    def select(
+        self,
+        *,
+        context_signature: str,
+        utterance_digest: str,
+    ) -> Optional[ProtoSpeechEvidenceRecord]:
+        """Return the most-recent entry for ``(context, utterance)`` or None."""
+        for e in reversed(self.entries):
+            if (
+                e.context_signature == context_signature
+                and e.utterance_digest == utterance_digest
+            ):
+                return e
+        return None
+
+    def context_entries(
+        self,
+        *,
+        context_signature: str,
+    ) -> tuple[ProtoSpeechEvidenceRecord, ...]:
+        """Return the most-recent entry per utterance in the context."""
+        seen: dict[str, ProtoSpeechEvidenceRecord] = {}
+        for e in self.entries:
+            if e.context_signature != context_signature:
+                continue
+            seen[e.utterance_digest] = e
+        return tuple(seen.values())
+
+
+def _table_digest(
+    entries: tuple[ProtoSpeechEvidenceRecord, ...],
+) -> str:
+    payload = "\n".join(e.digest_hex16 for e in entries).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[
+        :PROTO_SPEECH_DIGEST_HEX_LEN
+    ]
+
+
+def empty_evidence_table() -> ProtoSpeechEvidenceTable:
+    """Return a fresh empty evidence table."""
+    return ProtoSpeechEvidenceTable(
+        entries=(),
+        max_records=PROTO_SPEECH_EVIDENCE_TABLE_MAX,
+        digest_hex16=_table_digest(()),
+    )
+
+
+def _clip_weight(w: int) -> int:
+    if w < PROTO_SPEECH_WEIGHT_MIN:
+        return PROTO_SPEECH_WEIGHT_MIN
+    if w > PROTO_SPEECH_WEIGHT_MAX:
+        return PROTO_SPEECH_WEIGHT_MAX
+    return w
+
+
+def _append_evidence_record(
+    table: ProtoSpeechEvidenceTable,
+    *,
+    context_signature: str,
+    utterance: ProtoUtterance,
+    feedback_kind: Optional[CaregiverFeedbackKind],
+    weight_delta: int,
+    update_reason: str,
+    drive_stream_digest: Optional[str],
+    prior_override: Optional[ProtoUtteranceDisposition] = None,
+    transferred: bool = False,
+) -> tuple[ProtoSpeechEvidenceTable, ProtoSpeechEvidenceRecord]:
+    prior_record = table.select(
+        context_signature=context_signature,
+        utterance_digest=utterance.digest_hex16,
+    )
+    weight_before = prior_record.weight_after if prior_record else 0
+    weight_after = _clip_weight(weight_before + weight_delta)
+    prior_disposition = (
+        prior_record.disposition
+        if prior_record
+        else ProtoUtteranceDisposition.BABBLE
+    )
+    if prior_override is not None:
+        prior_disposition = prior_override
+    disposition = _classify_disposition(
+        weight_after=weight_after,
+        token_count=utterance.token_count,
+        prior_disposition=prior_disposition,
+        transferred=transferred,
+    )
+    rec_digest = _evidence_record_digest(
+        context_signature=context_signature,
+        utterance_digest=utterance.digest_hex16,
+        weight_before=weight_before,
+        weight_after=weight_after,
+        disposition=disposition,
+        feedback_kind=feedback_kind,
+    )
+    record = ProtoSpeechEvidenceRecord(
+        context_signature=context_signature,
+        utterance_digest=utterance.digest_hex16,
+        utterance_text=utterance.text,
+        feedback_kind=feedback_kind,
+        weight_before=weight_before,
+        weight_after=weight_after,
+        disposition=disposition,
+        update_reason=_bounded_excerpt(
+            update_reason, limit=PROTO_SPEECH_EXPLAIN_MAX_LEN
+        ),
+        drive_stream_digest_hex16=drive_stream_digest,
+        digest_hex16=rec_digest,
+    )
+    new_entries = table.entries + (record,)
+    if len(new_entries) > PROTO_SPEECH_EVIDENCE_TABLE_MAX:
+        # Drop the oldest entry to respect the bound. Closed rule:
+        # LRU-by-append-order eviction.
+        new_entries = new_entries[1:]
+    new_table = ProtoSpeechEvidenceTable(
+        entries=new_entries,
+        max_records=PROTO_SPEECH_EVIDENCE_TABLE_MAX,
+        digest_hex16=_table_digest(new_entries),
+    )
+    return new_table, record
+
+
+def update_proto_speech_evidence(
+    table: ProtoSpeechEvidenceTable,
+    *,
+    context: ProtoSpeechContext,
+    attempted: ProtoUtterance,
+    feedback: CaregiverFeedback,
+    drive_stream_digest: Optional[str] = None,
+) -> tuple[ProtoSpeechEvidenceTable, tuple[ProtoSpeechEvidenceRecord, ...]]:
+    """Apply the closed feedback rule to the evidence table.
+
+    Returns ``(new_table, records_added)``. The records tuple may
+    have one or two entries: one for the attempted utterance, plus
+    a second for the offered / ambient utterance when the feedback
+    kind produces a non-zero offered-delta.
+    """
+    if not isinstance(table, ProtoSpeechEvidenceTable):
+        raise TypeError(
+            "I-PSPEECH-04 violated: table must be a ProtoSpeechEvidenceTable"
+        )
+    if not isinstance(context, ProtoSpeechContext):
+        raise TypeError(
+            "I-PSPEECH-04 violated: context must be a ProtoSpeechContext"
+        )
+    if not isinstance(attempted, ProtoUtterance):
+        raise TypeError(
+            "I-PSPEECH-04 violated: attempted must be a ProtoUtterance"
+        )
+    if not isinstance(feedback, CaregiverFeedback):
+        raise TypeError(
+            "I-PSPEECH-04 violated: feedback must be a CaregiverFeedback"
+        )
+    attempted_delta, offered_delta = _feedback_deltas(feedback.kind)
+    added: list[ProtoSpeechEvidenceRecord] = []
+    current = table
+    # Attempted-utterance update (only when the attempted utterance
+    # has at least one token; the REFUSAL_SENTINEL never enters the
+    # update path).
+    if attempted.token_count > 0 and attempted_delta != 0:
+        reason = (
+            f"feedback={feedback.kind.value} attempted_delta="
+            f"{attempted_delta:+d} ctx_label={feedback.context_label}"
+        )
+        current, rec = _append_evidence_record(
+            current,
+            context_signature=context.context_signature,
+            utterance=attempted,
+            feedback_kind=feedback.kind,
+            weight_delta=attempted_delta,
+            update_reason=reason,
+            drive_stream_digest=drive_stream_digest,
+        )
+        added.append(rec)
+    # Offered-utterance update (for EXPANDED / CORRECTED / AMBIENT_ONLY).
+    target = (
+        feedback.ambient_utterance
+        if feedback.kind is CaregiverFeedbackKind.AMBIENT_ONLY
+        else feedback.offered_utterance
+    )
+    if (
+        target is not None
+        and target.token_count > 0
+        and offered_delta != 0
+    ):
+        reason = (
+            f"feedback={feedback.kind.value} offered_delta="
+            f"{offered_delta:+d} ctx_label={feedback.context_label}"
+        )
+        current, rec = _append_evidence_record(
+            current,
+            context_signature=context.context_signature,
+            utterance=target,
+            feedback_kind=feedback.kind,
+            weight_delta=offered_delta,
+            update_reason=reason,
+            drive_stream_digest=drive_stream_digest,
+        )
+        added.append(rec)
+    return current, tuple(added)
+
+
+def transfer_proto_speech_evidence(
+    table: ProtoSpeechEvidenceTable,
+    *,
+    source_context: ProtoSpeechContext,
+    target_context: ProtoSpeechContext,
+    utterance: ProtoUtterance,
+    drive_stream_digest: Optional[str] = None,
+) -> tuple[ProtoSpeechEvidenceTable, Optional[ProtoSpeechEvidenceRecord]]:
+    """Transfer a stable single from one context to another (same shape only).
+
+    Closed rule: transfer only when the source context's
+    ``abstract_pattern_digest`` equals the target context's
+    ``abstract_pattern_digest`` AND a STABLE_SINGLE record for the
+    utterance exists in the source context. The transferred record
+    is appended to the table with disposition TRANSFERRED.
+    """
+    if not isinstance(table, ProtoSpeechEvidenceTable):
+        raise TypeError(
+            "I-PSPEECH-10 violated: table must be a ProtoSpeechEvidenceTable"
+        )
+    if (
+        source_context.abstract_pattern_digest is None
+        or target_context.abstract_pattern_digest is None
+        or source_context.abstract_pattern_digest
+        != target_context.abstract_pattern_digest
+    ):
+        return table, None
+    source = table.select(
+        context_signature=source_context.context_signature,
+        utterance_digest=utterance.digest_hex16,
+    )
+    if source is None or source.disposition is not (
+        ProtoUtteranceDisposition.STABLE_SINGLE
+    ):
+        return table, None
+    # Use the source's weight_after as the transfer-base weight.
+    reason = (
+        f"transfer: same-shape stable single from src "
+        f"sig={source_context.context_signature[:8]} weight="
+        f"{source.weight_after}"
+    )
+    new_table, rec = _append_evidence_record(
+        table,
+        context_signature=target_context.context_signature,
+        utterance=utterance,
+        feedback_kind=None,
+        weight_delta=source.weight_after,
+        update_reason=reason,
+        drive_stream_digest=drive_stream_digest,
+        prior_override=ProtoUtteranceDisposition.STABLE_SINGLE,
+        transferred=True,
+    )
+    return new_table, rec
+
+
+# ---------------------------------------------------------------------------
 # Module-produced strings (audited by the static-audit fixture).
 # ---------------------------------------------------------------------------
 
@@ -1392,6 +1845,8 @@ __all__ = (
     "ProtoSpeechDriveFrame",
     "ProtoSpeechDriveKind",
     "ProtoSpeechDriveStream",
+    "ProtoSpeechEvidenceRecord",
+    "ProtoSpeechEvidenceTable",
     "ProtoSpeechStatus",
     "ProtoUtterance",
     "ProtoUtteranceDisposition",
@@ -1399,5 +1854,8 @@ __all__ = (
     "build_proto_speech_context",
     "build_proto_speech_drive_stream",
     "build_proto_utterance",
+    "empty_evidence_table",
+    "transfer_proto_speech_evidence",
     "update_drive_stream_after_feedback",
+    "update_proto_speech_evidence",
 )
