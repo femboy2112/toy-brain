@@ -21,7 +21,7 @@ from brain.invariants import register
 @register("I-DTRACE-11", status="REQUIRED")
 def check_dispatch_tracer_benchmark_green() -> None:
     """Audit the A10 dispatch_trace axis and the extended full battery."""
-    assert BATTERY_VERSION == "phase3.24.v1"
+    assert BATTERY_VERSION == "phase3.25.v1"
 
     # Axis-only run.
     a10 = run_axis_a10_dispatch_trace()
@@ -49,16 +49,17 @@ def check_dispatch_tracer_benchmark_green() -> None:
     assert partial.determinism_failures == 0
     assert partial.invariant_failures == 0
 
-    # Full battery: eleven axes in canonical order. Phase 3.24 widens
-    # the battery beyond DISPATCH_TRACE with the WORLDLET_FEEDBACK
-    # axis; the runner is the last axis in the tuple.
+    # Full battery: twelve axes in canonical order. Phase 3.25 widens
+    # the battery beyond WORLDLET_FEEDBACK with the OSMOTIC_LEARNING
+    # axis; the OSMOTIC_LEARNING axis is the last axis in the tuple.
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
-    assert len(axes_seen) == 11
+    assert len(axes_seen) == 12
     assert BenchmarkAxis.DISPATCH_TRACE in axes_seen
-    assert axes_seen[-1] is BenchmarkAxis.WORLDLET_FEEDBACK
-    assert run.case_total == 77
+    assert BenchmarkAxis.WORLDLET_FEEDBACK in axes_seen
+    assert axes_seen[-1] is BenchmarkAxis.OSMOTIC_LEARNING
+    assert run.case_total == 91
     assert run.case_warned == 1  # documented A3.04
     assert run.case_failed == 0
     assert run.real_model_calls == 0

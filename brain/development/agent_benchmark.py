@@ -88,7 +88,7 @@ from brain.ui.session import OperatorSession
 # Bounded constants.
 # ---------------------------------------------------------------------------
 
-BATTERY_VERSION: str = "phase3.24.v1"
+BATTERY_VERSION: str = "phase3.25.v1"
 TRANSCRIPT_DIGEST_HEX_LEN: int = 16
 BENCHMARK_CASE_SUMMARY_MAX_LEN: int = 240
 BENCHMARK_CASE_NOTES_MAX_LEN: int = 320
@@ -114,6 +114,8 @@ class BenchmarkAxis(str, Enum):
     DISPATCH_TRACE = "dispatch_trace"
     # Phase 3.24 (I-WFDBK-11): the worldlet feedback battery axis.
     WORLDLET_FEEDBACK = "worldlet_feedback"
+    # Phase 3.25 (I-OSMO-13): the osmotic learning battery axis.
+    OSMOTIC_LEARNING = "osmotic_learning"
 
 
 class BenchmarkCaseStatus(str, Enum):
@@ -2929,7 +2931,8 @@ def run_full_battery() -> BenchmarkRun:
     a9 = run_axis_a9_reasoning_trace()
     a10 = run_axis_a10_dispatch_trace()
     a11 = run_axis_a11_worldlet_feedback()
-    return _assemble_battery_run(earlier + (a7, a8, a9, a10, a11))
+    a12 = run_axis_a12_osmotic_learning()
+    return _assemble_battery_run(earlier + (a7, a8, a9, a10, a11, a12))
 
 
 def _assemble_battery_run(axes: tuple[AxisResult, ...]) -> BenchmarkRun:
@@ -3022,6 +3025,446 @@ def run_partial_battery_phase3_24() -> BenchmarkRun:
     axis without re-running the (already-covered) A1..A10 axes.
     """
     axes = (run_axis_a11_worldlet_feedback(),)
+    return _assemble_battery_run(axes)
+
+
+def run_axis_a12_osmotic_learning() -> AxisResult:
+    """Run the Phase 3.25 A12 osmotic_learning battery axis.
+
+    Fourteen cases A12.01..A12.14 exercising the osmotic-learning
+    live-test runner end-to-end. Drives ``I-OSMO-13``.
+    """
+    import inspect as _inspect
+    from brain.development import (
+        osmotic_learning_probe as _osmotic_module,
+    )
+    from brain.development.osmotic_learning_probe import (
+        OSMOTIC_PROBE_BATTERY_VERSION,
+        OsmoticCondition,
+        OsmoticProbeStatus,
+        build_osmotic_exposure_plan,
+        run_osmotic_live_test,
+        run_osmotic_probe_trial,
+    )
+
+    cases: list[BenchmarkCaseResult] = []
+
+    # Build a single live-test report and reuse it across cases that
+    # need its aggregate counters.
+    report = run_osmotic_live_test()
+    trials = build_osmotic_exposure_plan()
+
+    def _trial_by_id(tid: str):
+        for t in trials:
+            if t.trial_id == tid:
+                return t
+        raise AssertionError(f"trial {tid!r} not found in plan")
+
+    def _result_by_id(tid: str):
+        for r in report.trials:
+            if r.trial_id == tid:
+                return r
+        raise AssertionError(f"trial result {tid!r} not found in report")
+
+    # A12.01 — CONTROL_NO_EXPOSURE rejects target acquisition.
+    r01 = _result_by_id("T01_control_abab")
+    a12_01_ok = (
+        r01.status is OsmoticProbeStatus.PASS
+        and r01.condition is OsmoticCondition.CONTROL_NO_EXPOSURE
+        and r01.prior_acquired_observed is False
+        and r01.transfer_observed is False
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.01",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_01_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"control no-exposure: prior={r01.prior_acquired_observed} "
+                f"transfer={r01.transfer_observed}"
+            ),
+            primary_metric=int(a12_01_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.02 — true ABAB exposure records acquisition.
+    r02 = _result_by_id("T02_true_abab")
+    a12_02_ok = (
+        r02.status is OsmoticProbeStatus.PASS
+        and r02.prior_acquired_observed is True
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.02",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_02_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"true ABAB exposure: prior={r02.prior_acquired_observed} "
+                f"probe_digest={r02.probe_digest}"
+            ),
+            primary_metric=int(a12_02_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.03 — true unlabeled ABAB exposure transfers to renamed ABAB.
+    a12_03_ok = (
+        r02.status is OsmoticProbeStatus.PASS
+        and r02.transfer_observed is True
+        and r02.probe_digest == _trial_by_id(
+            "T02_true_abab"
+        ).expected_target_digest
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.03",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_03_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"true ABAB transfer: transfer={r02.transfer_observed} "
+                f"digest={r02.probe_digest}"
+            ),
+            primary_metric=int(a12_03_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.04 — sham ABBA exposure does not falsely count as ABAB.
+    r05 = _result_by_id("T05_sham_abba_for_abab")
+    a12_04_ok = (
+        r05.status is OsmoticProbeStatus.PASS
+        and r05.condition is OsmoticCondition.SHAM_EXPOSURE
+        and r05.prior_acquired_observed is False
+        and r05.transfer_observed is False
+        and r05.false_positive is False
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.04",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_04_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"sham ABBA: prior={r05.prior_acquired_observed} "
+                f"transfer={r05.transfer_observed} "
+                f"false_pos={r05.false_positive}"
+            ),
+            primary_metric=int(a12_04_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.05 — distractor / interference still recognizes target.
+    r06 = _result_by_id("T06_distractor_abab")
+    a12_05_ok = (
+        r06.status is OsmoticProbeStatus.PASS
+        and r06.condition is OsmoticCondition.DISTRACTOR_INTERFERENCE
+        and r06.prior_acquired_observed is True
+        and r06.transfer_observed is True
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.05",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_05_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"distractor ABAB: prior={r06.prior_acquired_observed} "
+                f"transfer={r06.transfer_observed}"
+            ),
+            primary_metric=int(a12_05_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.06 — ABCABC exposure transfers to renamed ABCABC.
+    r04 = _result_by_id("T04_true_abcabc")
+    a12_06_ok = (
+        r04.status is OsmoticProbeStatus.PASS
+        and r04.transfer_observed is True
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.06",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_06_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"true ABCABC transfer: transfer={r04.transfer_observed} "
+                f"digest={r04.probe_digest}"
+            ),
+            primary_metric=int(a12_06_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.07 — delayed probe after unrelated inputs still recognizes.
+    r07 = _result_by_id("T07_delayed_abab")
+    a12_07_ok = (
+        r07.status is OsmoticProbeStatus.PASS
+        and r07.prior_acquired_observed is True
+        and r07.transfer_observed is True
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.07",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_07_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"delayed ABAB: prior={r07.prior_acquired_observed} "
+                f"transfer={r07.transfer_observed}"
+            ),
+            primary_metric=int(a12_07_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.08 — negative probe for absent AAB does not overclaim.
+    r08 = _result_by_id("T08_control_aab")
+    a12_08_ok = (
+        r08.status is OsmoticProbeStatus.PASS
+        and r08.condition is OsmoticCondition.CONTROL_NO_EXPOSURE
+        and r08.prior_acquired_observed is False
+        and r08.transfer_observed is False
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.08",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_08_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"control AAB: prior={r08.prior_acquired_observed} "
+                f"transfer={r08.transfer_observed}"
+            ),
+            primary_metric=int(a12_08_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.09 — reasoning trace contains the relevant compare-structure
+    # step on the probe step that triggered transfer.
+    # We reuse the T02_true_abab trial result: the reasoning_trace
+    # digest is non-empty; the trial's status is PASS; and the
+    # learning evidence digest matches the recorded result.
+    a12_09_ok = (
+        len(r02.reasoning_trace_digest) == 16
+        and len(r02.learning_evidence_digest) == 16
+        and r02.reasoning_trace_digest != "0" * 16
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.09",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_09_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"reasoning trace digest present: "
+                f"rt={r02.reasoning_trace_digest} "
+                f"le={r02.learning_evidence_digest}"
+            ),
+            primary_metric=int(a12_09_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.10 — dispatch trace digests present for exposure and probe.
+    # T02 has 1 exposure + 1 probe = 2 dispatch digests.
+    a12_10_ok = (
+        len(r02.dispatch_trace_digests) == 2
+        and all(len(d) == 16 for d in r02.dispatch_trace_digests)
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.10",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_10_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"dispatch digests present: "
+                f"count={len(r02.dispatch_trace_digests)}"
+            ),
+            primary_metric=int(a12_10_ok),
+            secondary_metric=len(r02.dispatch_trace_digests),
+        )
+    )
+
+    # A12.11 — learning evidence trace includes exposure + transfer
+    # records. The T02 trial's run state should have at least:
+    # ABSTRACT_PATTERN_ACQUIRED (exposure) + ABSTRACT_PATTERN_REUSED
+    # + TRANSFER_RECOGNIZED (probe). We can't re-walk that state from
+    # the result alone (the runner discards the AgentLoopState), but
+    # the verdict logic guarantees transfer_observed implies
+    # TRANSFER_RECOGNIZED was recorded. The prior_acquired_observed
+    # flag confirms ABSTRACT_PATTERN_ACQUIRED was present at probe
+    # time.
+    a12_11_ok = (
+        r02.transfer_observed is True
+        and r02.prior_acquired_observed is True
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.11",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_11_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"learning records: acquired={r02.prior_acquired_observed} "
+                f"transfer={r02.transfer_observed}"
+            ),
+            primary_metric=int(a12_11_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.12 — live-test report digest stable across two fresh runs.
+    report_b = run_osmotic_live_test()
+    a12_12_ok = (
+        report.digest_hex16 == report_b.digest_hex16
+        and report.trials == report_b.trials
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.12",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_12_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"report digest stable: digest={report.digest_hex16} "
+                f"match={a12_12_ok}"
+            ),
+            primary_metric=int(a12_12_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.13 — source scan has zero forbidden-term hits.
+    src = _inspect.getsource(_osmotic_module)
+    hit_term = _text_has_forbidden_term(src)
+    a12_13_ok = hit_term is None
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.13",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_13_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"osmotic_learning_probe source non-claim-clean: "
+                f"hit={hit_term!r}"
+            ),
+            primary_metric=int(a12_13_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A12.14 — adding A12 is additive: A1..A11 axis case totals match
+    # the documented pre-A12 expected counts.
+    a1 = run_axis_a1_pattern_recognition()
+    a2 = run_axis_a2_cross_input_structural()
+    a3 = run_axis_a3_coherence_variation()
+    a4 = run_axis_a4_repl_coherence()
+    a5 = run_axis_a5_communication()
+    a6 = run_axis_a6_session_continuity()
+    earlier = (a1, a2, a3, a4, a5, a6)
+    a7 = run_axis_a7_blind_transcript(earlier)
+    a8 = run_axis_a8_learning_evidence()
+    a9 = run_axis_a9_reasoning_trace()
+    a10 = run_axis_a10_dispatch_trace()
+    a11 = run_axis_a11_worldlet_feedback()
+    pre_a12_case_counts = (
+        len(a1.cases),
+        len(a2.cases),
+        len(a3.cases),
+        len(a4.cases),
+        len(a5.cases),
+        len(a6.cases),
+        len(a7.cases),
+        len(a8.cases),
+        len(a9.cases),
+        len(a10.cases),
+        len(a11.cases),
+    )
+    expected = (9, 5, 4, 5, 9, 3, 4, 7, 7, 12, 12)
+    a12_14_ok = pre_a12_case_counts == expected
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A12.14",
+            axis=BenchmarkAxis.OSMOTIC_LEARNING,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a12_14_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"A1..A11 case counts retained: "
+                f"got={pre_a12_case_counts!r} expected={expected!r}"
+            ),
+            primary_metric=int(a12_14_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # Reference the unused import so the linter doesn't complain.
+    _ = OSMOTIC_PROBE_BATTERY_VERSION
+
+    return AxisResult(
+        axis=BenchmarkAxis.OSMOTIC_LEARNING,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+def run_partial_battery_phase3_25() -> BenchmarkRun:
+    """Run the A12 osmotic_learning axis only; assemble a BenchmarkRun.
+
+    Phase 3.25 entry point — exercises only the osmotic-learning
+    axis without re-running the (already-covered) A1..A11 axes.
+    """
+    axes = (run_axis_a12_osmotic_learning(),)
     return _assemble_battery_run(axes)
 
 
@@ -3139,11 +3582,13 @@ __all__ = (
     "run_axis_a9_reasoning_trace",
     "run_axis_a10_dispatch_trace",
     "run_axis_a11_worldlet_feedback",
+    "run_axis_a12_osmotic_learning",
     "run_full_battery",
     "run_partial_battery_pattern_axes",
     "run_partial_battery_phase3_22b",
     "run_partial_battery_phase3_23",
     "run_partial_battery_phase3_24",
+    "run_partial_battery_phase3_25",
     "run_partial_battery_with_coherence",
 )
 

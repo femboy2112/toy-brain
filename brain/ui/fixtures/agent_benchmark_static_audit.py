@@ -45,6 +45,8 @@ _EXPECTED_AXIS_VALUES = frozenset(
         "dispatch_trace",
         # Phase 3.24 (I-WFDBK-11): worldlet feedback battery axis.
         "worldlet_feedback",
+        # Phase 3.25 (I-OSMO-13): osmotic learning battery axis.
+        "osmotic_learning",
     }
 )
 
