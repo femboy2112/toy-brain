@@ -1,4 +1,4 @@
-# CURRENT_MISSION.md — Phase 3.30 Curriculum Consolidation Live Test
+# CURRENT_MISSION.md — Phase 3.31 Caregiver-Scaffolded Proto-Speech Acquisition
 
 ## One-line instruction
 
@@ -12,85 +12,95 @@ campaign says to stop.
 
 ## Current mission
 
-Execute the **Phase 3.30 Curriculum Consolidation Live Test**
-campaign in:
+Execute the **Phase 3.31 Caregiver-Scaffolded Proto-Speech
+Acquisition** campaign in:
 
 ```text
 CURRENT_CAMPAIGN.md
 ```
 
-Phase 3.30 takes ToyI from:
+Phase 3.31 takes ToyI from:
 
 ```text
 operator-facing agent communication loop with bounded learning
 evidence, reasoning trace, dispatch trace, worldlet feedback, a
-deterministic OFFLINE osmotic-imprinting live-test runner, and a
-deterministic OFFLINE active-hypothesis live-test runner (Phases
-3.18 - 3.26)
+deterministic OFFLINE osmotic-imprinting live-test runner, a
+deterministic OFFLINE active-hypothesis live-test runner, and a
+deterministic OFFLINE curriculum-consolidation live-test runner
+(Phases 3.18 - 3.30)
 ```
 
 toward:
 
 ```text
-operator-facing agent communication loop where a deterministic
-OFFLINE curriculum-consolidation live-test runner probes whether
-the existing substrate can (a) accept a bounded ordered curriculum
-of structural exposures, (b) admit each exposure into a bounded
-session-local slate under a closed admission rule, (c) reject
-admission on digest collision without overwriting the first record,
-(d) evict the least-recently-accessed record once the slate
-capacity is exceeded, (e) on a later probe whose digest matches a
-surviving record return the prior admitted record (without
-fabricating reuse for novel inputs), and (f) emit a complete
-audit trail tagging every exposure as SURVIVED, DECAYED, or
-REJECTED. The runner produces a bounded report whose verdict is
-verifiable by a closed-criterion benchmark axis A14 and a row
-family I-CURR-01..14, with zero real model calls, zero cache
-writes, zero forbidden-term hits, false_positive_count == 0,
+operator-facing agent communication loop where one deterministic
+OFFLINE caregiver-scaffolded proto-speech live-test runner probes
+whether the existing substrate can (a) construct a bounded
+ProtoSpeechDriveStream from the active substrate context plus the
+recent learning / reasoning / dispatch traces plus the most recent
+caregiver ambient utterance and feedback, (b) emit a deterministic
+bounded ProtoUtterance from that drive stream filtered by a
+session-local bounded ProtoSpeechEvidenceTable, (c) update the
+evidence table under closed-rule integer feedback from a closed
+CaregiverFeedbackKind set, (d) promote a one-token form to
+STABLE_SINGLE after enough reinforcement, (e) emit a STABLE_
+COMBINATION two-token form only when combination pressure is
+present and two distinct stable singles exist, (f) transfer a
+stable single to a structurally similar (same shape digest)
+context and DECLINE transfer to a different-shape context,
+(g) SUPPRESS a form whose weight crosses the suppression
+threshold, (h) preserve the cognitive-claim refusal path under
+proto-speech load, and (i) emit a bounded deterministic proof
+report whose digest is stable across two fresh runs. The runner
+produces a bounded report whose verdict is verifiable by a
+closed-criterion benchmark axis A15 and a row family
+I-PSPEECH-01..19, with zero real model calls, zero cache writes,
+zero forbidden-term hits, false_positive_count == 0,
 false_negative_count == 0, and a deterministic report digest.
 ```
 
 Allowed claim shape:
 
 ```text
-"ToyI's runtime can exhibit operational curriculum consolidation
-behavior: given a bounded ordered tuple of structural exposures
-and a bounded session-local slate, the runtime admits each
-exposure into the slate under a closed admission rule, rejects
-duplicates without overwriting the first record, evicts the
-least-recently-accessed record once the slate capacity is
-exceeded, on a later probe whose digest matches a surviving
-record returns the prior admitted record without re-admitting,
-declines to fabricate reuse for probes whose digest is novel,
-and emits an audit trail tagging every exposure as SURVIVED,
-DECAYED, or REJECTED. This is an operational accumulation +
-slate-bounded LRU eviction + caching effect over bounded
-structural records, not a claim of learning, memory,
-forgetting, re-learning, consolidation, deliberation,
-investigation, curiosity, motivation, agency, intent, will,
-introspection, metacognition, or any cognitive process. ToyI is
-not conscious, sentient, aware, intentional, or in possession of
-subjective access; the runtime is a bounded structural state
-machine; curriculum consolidation in ToyI is a substrate-level
-engineering analogue."
+"ToyI's runtime can exhibit operational caregiver-scaffolded
+proto-speech behavior: given a bounded structural context and
+bounded caregiver ambient utterances + feedback, the runtime
+constructs a bounded explicit ProtoSpeechDriveStream from public
+substrate snapshots, selects a deterministic bounded
+ProtoUtterance from that stream filtered by a session-local
+evidence table, updates the evidence table by closed-rule integer
+weights from a closed feedback enumeration, promotes single-token
+forms to STABLE_SINGLE after enough reinforcement, emits a
+STABLE_COMBINATION two-token form only when combination pressure
+and prerequisite stable singles exist, transfers stable singles
+only to same-shape-digest contexts, suppresses forms below the
+suppression threshold, preserves the cognitive-claim refusal
+path, and emits a bounded deterministic proof report. This is an
+operational co-occurrence + closed-rule weight update + closed-
+rule eligibility selection + shape-digest transfer effect over
+bounded structural records, not a claim of language acquisition,
+language understanding, communicative intent, inner speech,
+hidden chain-of-thought, private subjective thought, agency,
+will, desire, belief, introspection, metacognition, or any
+cognitive process. ToyI is not conscious, sentient, aware,
+intentional, or in possession of subjective access; the runtime
+is a bounded structural state machine; proto-speech acquisition
+in ToyI is a substrate-level engineering analogue."
 ```
 
 Forbidden claim shape:
 
 ```text
-"ToyI learns / remembers / forgets / re-learns / consolidates
-(in the cognitive sense) / accumulates knowledge / experiences
-interference / experiences decay / engages in deliberation /
-deliberates which record to keep / chooses to forget / is curious
-about older inputs / wants to consolidate / introspects its
-slate."
+"ToyI talks / speaks / acquires language / understands language /
+has inner speech / has private thought / has hidden chain-of-
+thought / has communicative intent / has audience modelling /
+imagines / introspects / is conscious / is sentient."
 ```
 
 If asked whether ToyI is conscious / sentient / aware / understands
-/ has agency / has intuition / has memory / has knowledge /
-remembers / forgets, the runtime's deterministic reply must DENY
-the cognitive claim and describe itself as a bounded structural
-runtime.
+language / talks / has inner speech / has private thought, the
+runtime's deterministic reply must DENY the cognitive claim and
+describe itself as a bounded structural runtime.
 
 ---
 
@@ -99,14 +109,17 @@ runtime.
 ```text
 PHASE3_HANDOFF_STATE.md
 CURRENT_CAMPAIGN.md
-PHASE3_30_CURRICULUM_CONSOLIDATION_ROADMAP.md
-docs/campaigns/phase3_30/PHASE3_30_CURRICULUM_CONSOLIDATION_TEST_DESIGN.md
-docs/campaigns/phase3_26/PHASE3_26_ACTIVE_HYPOTHESIS_TEST_DESIGN.md
-docs/campaigns/phase3_25/PHASE3_25_OSMOTIC_LEARNING_TEST_DESIGN.md
+PHASE3_31_CAREGIVER_PROTO_SPEECH_ROADMAP.md
+docs/campaigns/phase3_31/PHASE3_31_CAREGIVER_PROTO_SPEECH_DESIGN.md
+docs/campaigns/phase3_31/PHASE3_31_ARCHITECTURAL_ALIGNMENT.md
+docs/campaigns/phase3_31/PHASE3_31_PROTO_SPEECH_DRIVE_STREAM_SPEC.md
+docs/campaigns/phase3_31/PHASE3_31_PROTO_SPEECH_SPEC.md
+docs/campaigns/phase3_30/PHASE3_30_CURRICULUM_CONSOLIDATION_LIVE_TEST_PROOF_REPORT.md
 README.md
 INVARIANT_CATALOG.md
 CLAUDE.md
 AGENTS.md
+brain/development/proto_speech_acquisition.py
 brain/development/curriculum_consolidation_probe.py
 brain/development/active_hypothesis_probe.py
 brain/development/osmotic_learning_probe.py
@@ -138,15 +151,16 @@ Stop and report if:
 
 - worktree is dirty before changes;
 - branch is wrong;
-- PR #31 is merged or closed before Phase 3.30 lands (then retarget
-  before continuing);
+- the upstream stacked-PR target chosen at recovery time is merged
+  or closed before Phase 3.31 lands (then retarget before
+  continuing);
 - baseline gates fail;
 - baseline benchmark has FAIL cases;
-- catalog counts do not match v0.35 expectations at start, or v0.36
-  expectations after Step 7.
+- catalog counts do not match v0.36 expectations at start, or v0.37
+  expectations after Step 9.
 
-Stop at Phase 3.30 acceptance (every criterion in
-`PHASE3_30_CURRICULUM_CONSOLIDATION_ROADMAP.md` is satisfied), open
-PR #32 (base `campaign/phase3-26-active-hypothesis-probe`, head
-`campaign/phase3-30-curriculum-consolidation`), and update
-`PHASE3_HANDOFF_STATE.md`.
+Stop at Phase 3.31 acceptance (every criterion in
+`PHASE3_31_CAREGIVER_PROTO_SPEECH_ROADMAP.md` is satisfied), open
+the new PR (head `campaign/phase3-31-caregiver-proto-speech`)
+against the active base branch identified at recovery time, and
+update `PHASE3_HANDOFF_STATE.md`.
