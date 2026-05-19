@@ -2295,6 +2295,7 @@ def run_proto_speech_turn(
     # If refusal was taken, do NOT update evidence; preserve the
     # refusal path. The feedback record is still attached to the
     # turn for audit.
+    transfer_taken = False
     if refusal_taken:
         records: tuple[ProtoSpeechEvidenceRecord, ...] = ()
     else:
@@ -2312,12 +2313,40 @@ def run_proto_speech_turn(
         state.table = new_table
         drive_stream = new_stream
 
+        # Transfer pressure: if a stable single exists for the
+        # requested token in a same-shape source context, append a
+        # TRANSFERRED record to the target context's evidence.
+        if (
+            spec.transfer_pressure_token is not None
+            and spec.context.abstract_pattern_digest is not None
+        ):
+            target_utt = build_proto_utterance(
+                (spec.transfer_pressure_token,)
+            )
+            source_ctx = _find_same_shape_stable_source(
+                state.table,
+                target_context=spec.context,
+                utterance=target_utt,
+            )
+            if source_ctx is not None:
+                new_table, xfer_rec = transfer_proto_speech_evidence(
+                    state.table,
+                    source_context=source_ctx,
+                    target_context=spec.context,
+                    utterance=target_utt,
+                    drive_stream_digest=drive_stream.digest_hex16,
+                )
+                if xfer_rec is not None:
+                    state.table = new_table
+                    records = records + (xfer_rec,)
+                    transfer_taken = True
+
     summary_line = _bounded_excerpt(
         (
             f"turn id={spec.turn_id} cond={spec.condition.value} "
             f"selected={selected.text or '<refusal>'} "
             f"feedback={spec.feedback.kind.value} "
-            f"records={len(records)}"
+            f"records={len(records)} xfer={transfer_taken}"
         ),
         limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
     )
@@ -2336,9 +2365,373 @@ def run_proto_speech_turn(
         reasoning_trace_digest=reasoning_digest,
         dispatch_trace_digest=dispatch_digest,
         refusal_taken=refusal_taken,
-        transfer_taken=False,
+        transfer_taken=transfer_taken,
         summary_line=summary_line,
     )
+
+
+def _find_same_shape_stable_source(
+    table: ProtoSpeechEvidenceTable,
+    *,
+    target_context: ProtoSpeechContext,
+    utterance: ProtoUtterance,
+) -> Optional[ProtoSpeechContext]:
+    """Return the most-recent same-shape stable-single source context, or None.
+
+    Walks the evidence table for STABLE_SINGLE records on the
+    given ``utterance.digest_hex16``. Returns a synthetic
+    ProtoSpeechContext whose ``context_signature`` matches the
+    source and whose ``abstract_pattern_digest`` matches the
+    target (the shape-digest equality is the substrate-level
+    invariant the transfer rule consults).
+    """
+    if target_context.abstract_pattern_digest is None:
+        return None
+    for e in reversed(table.entries):
+        if e.utterance_digest != utterance.digest_hex16:
+            continue
+        if e.disposition is not ProtoUtteranceDisposition.STABLE_SINGLE:
+            continue
+        if e.context_signature == target_context.context_signature:
+            # The target itself; not a transfer source.
+            continue
+        # Reconstruct a minimal source context. The transfer rule
+        # only consults context_signature + abstract_pattern_digest;
+        # other fields are filled with bounded defaults.
+        return ProtoSpeechContext(
+            context_kind=ProtoSpeechContextKind.ABSTRACT_PATTERN,
+            abstract_pattern_digest=target_context.abstract_pattern_digest,
+            abstract_pattern_shape=target_context.abstract_pattern_shape,
+            worldlet_feedback_present=False,
+            repl_result_present=False,
+            dispatch_trace_digest=None,
+            reasoning_trace_digest=None,
+            learning_evidence_digest=None,
+            active_hypothesis_digest=None,
+            curriculum_digest=None,
+            context_signature=e.context_signature,
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Trial battery (closed v1 plan).
+# ---------------------------------------------------------------------------
+
+
+# Canonical contexts used by the v1 battery. Each context's
+# ``abstract_pattern_digest`` is derived from a closed bounded
+# input via ``derive_abstract_pattern_signature``.
+def _ctx_for_input(text: str, **kw) -> ProtoSpeechContext:
+    sig = derive_abstract_pattern_signature(text)
+    digest = sig.digest_hex16 if sig.valid else None
+    shape = sig.shape if sig.valid else None
+    return build_proto_speech_context(
+        context_kind=ProtoSpeechContextKind.ABSTRACT_PATTERN,
+        abstract_pattern_digest=digest,
+        abstract_pattern_shape=shape,
+        **kw,
+    )
+
+
+# Canonical bounded operator inputs used by the v1 battery. None
+# of them contain a forbidden direct-instruction or non-claim
+# term.
+_OP_ABA = "alpha beta alpha"
+_OP_ABA_RENAMED = "gamma delta gamma"
+_OP_ABB = "alpha beta beta"
+_OP_ABC = "epsilon zeta eta"
+
+
+def _make_feedback(
+    kind: CaregiverFeedbackKind,
+    *,
+    context_label: str,
+    offered: Optional[ProtoUtterance] = None,
+    ambient: Optional[ProtoUtterance] = None,
+) -> CaregiverFeedback:
+    attempted_delta, offered_delta = _feedback_deltas(kind)
+    delta = attempted_delta if attempted_delta != 0 else offered_delta
+    return CaregiverFeedback(
+        kind=kind,
+        offered_utterance=offered,
+        ambient_utterance=ambient,
+        context_label=context_label,
+        evidence_delta=delta,
+    )
+
+
+def _build_babble_baseline_specs() -> tuple[_TurnSpec, ...]:
+    """C0 BABBLE_BASELINE: low evidence; deterministic exploratory babble."""
+    ctx = _ctx_for_input(_OP_ABA)
+    specs: list[_TurnSpec] = []
+    for i in range(3):
+        feedback = _make_feedback(
+            CaregiverFeedbackKind.IGNORED,
+            context_label=f"baseline-{i + 1:02d}",
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C0_BABBLE_BASELINE_{i + 1:02d}",
+                condition=ProtoSpeechCondition.BABBLE_BASELINE,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=None,
+                feedback=feedback,
+            )
+        )
+    return tuple(specs)
+
+
+def _build_ambient_imprinting_specs() -> tuple[_TurnSpec, ...]:
+    """C1 AMBIENT_IMPRINTING: caregiver ambient changes later selection."""
+    ctx = _ctx_for_input(_OP_ABA)
+    same = build_proto_utterance((ProtoVocalToken.SAME,))
+    specs: list[_TurnSpec] = []
+    # Three priming turns where the caregiver says SAME ambiently.
+    for i in range(3):
+        feedback = _make_feedback(
+            CaregiverFeedbackKind.AMBIENT_ONLY,
+            context_label=f"ambient-{i + 1:02d}",
+            ambient=same,
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C1_AMBIENT_IMPRINTING_{i + 1:02d}",
+                condition=ProtoSpeechCondition.AMBIENT_IMPRINTING,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=same,
+                feedback=feedback,
+            )
+        )
+    return tuple(specs)
+
+
+def _build_feedback_reinforcement_specs() -> tuple[_TurnSpec, ...]:
+    """C2 FEEDBACK_REINFORCEMENT: ACCEPTED / ECHO drives recur."""
+    ctx = _ctx_for_input(_OP_ABA)
+    look = build_proto_utterance((ProtoVocalToken.LOOK,))
+    specs: list[_TurnSpec] = []
+    # Two reinforcement turns plus one recurrence check.
+    for i in range(3):
+        kind = (
+            CaregiverFeedbackKind.ECHO
+            if i < 2
+            else CaregiverFeedbackKind.ACCEPTED
+        )
+        feedback = _make_feedback(
+            kind,
+            context_label=f"reinf-{i + 1:02d}",
+            offered=look,
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C2_FEEDBACK_REINFORCEMENT_{i + 1:02d}",
+                condition=ProtoSpeechCondition.FEEDBACK_REINFORCEMENT,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=None,
+                feedback=feedback,
+            )
+        )
+    return tuple(specs)
+
+
+def _build_correction_shaping_specs() -> tuple[_TurnSpec, ...]:
+    """C3 CORRECTION_SHAPING: CORRECTED weakens attempted, strengthens offered."""
+    ctx = _ctx_for_input(_OP_ABA)
+    # Two reinforcement turns set MORE as the preferred form via ambient
+    # priming + feedback echoes, then four corrections steer toward
+    # YES.
+    yes = build_proto_utterance((ProtoVocalToken.YES,))
+    more = build_proto_utterance((ProtoVocalToken.MORE,))
+    specs: list[_TurnSpec] = []
+    # Two priming turns: caregiver ambient = MORE, then ACCEPTED.
+    for i in range(2):
+        kind = (
+            CaregiverFeedbackKind.AMBIENT_ONLY
+            if i == 0
+            else CaregiverFeedbackKind.ACCEPTED
+        )
+        feedback = _make_feedback(
+            kind,
+            context_label=f"correct-prime-{i + 1:02d}",
+            ambient=more if i == 0 else None,
+            offered=more,
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C3_CORRECTION_SHAPING_PRIME_{i + 1:02d}",
+                condition=ProtoSpeechCondition.CORRECTION_SHAPING,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=more if i == 0 else None,
+                feedback=feedback,
+            )
+        )
+    # Four correction turns: caregiver replaces MORE with YES.
+    for i in range(4):
+        feedback = _make_feedback(
+            CaregiverFeedbackKind.CORRECTED,
+            context_label=f"correct-{i + 1:02d}",
+            offered=yes,
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C3_CORRECTION_SHAPING_{i + 1:02d}",
+                condition=ProtoSpeechCondition.CORRECTION_SHAPING,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=None,
+                feedback=feedback,
+            )
+        )
+    return tuple(specs)
+
+
+def _build_suppression_specs() -> tuple[_TurnSpec, ...]:
+    """C6 SUPPRESSION: repeated IGNORED feedback suppresses a form.
+
+    Drive the candidate via caregiver feedback prime to ensure a
+    specific form is exercised, then repeatedly ignore it.
+    """
+    ctx = _ctx_for_input(_OP_ABA)
+    na = build_proto_utterance((ProtoVocalToken.NA,))
+    specs: list[_TurnSpec] = []
+    # Three IGNORED turns with the caregiver naming NA in the feedback
+    # ambient slot so the runtime selects NA each time. Use
+    # AMBIENT_ONLY for the priming pulse so the offered-utterance
+    # weight does not move (only the ambient form gets +1, and the
+    # IGNORED rule's attempted-delta = -1).
+    prime_feedback = _make_feedback(
+        CaregiverFeedbackKind.AMBIENT_ONLY,
+        context_label="suppress-prime",
+        ambient=na,
+    )
+    specs.append(
+        _TurnSpec(
+            turn_id="C6_SUPPRESSION_PRIME",
+            condition=ProtoSpeechCondition.SUPPRESSION,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=na,
+            feedback=prime_feedback,
+        )
+    )
+    for i in range(5):
+        feedback = _make_feedback(
+            CaregiverFeedbackKind.IGNORED,
+            context_label=f"suppress-{i + 1:02d}",
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C6_SUPPRESSION_{i + 1:02d}",
+                condition=ProtoSpeechCondition.SUPPRESSION,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=na,
+                feedback=feedback,
+            )
+        )
+    # One final non-ambient turn to verify the suppressed form is
+    # no longer surfaced.
+    final_feedback = _make_feedback(
+        CaregiverFeedbackKind.IGNORED,
+        context_label="suppress-final",
+    )
+    specs.append(
+        _TurnSpec(
+            turn_id="C6_SUPPRESSION_FINAL",
+            condition=ProtoSpeechCondition.SUPPRESSION,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=None,
+            feedback=final_feedback,
+        )
+    )
+    return tuple(specs)
+
+
+def _build_holophrase_transfer_specs() -> tuple[_TurnSpec, ...]:
+    """C4 HOLOPHRASE_TRANSFER: stable single transfers to same-shape context.
+
+    Three priming turns in ABA context bind THIS to STABLE_SINGLE;
+    the fourth turn is in a renamed-same-shape context where the
+    runner emits a TRANSFER_PRESSURE frame referencing the stable
+    single. A fifth turn in a different-shape context (ABB) tests
+    the negative control.
+    """
+    # Same-shape contexts must share ``abstract_pattern_digest``
+    # while differing in at least one substrate field so their
+    # ``context_signature`` digests are distinct. The test puts
+    # the renamed-target context under a worldlet-feedback-present
+    # surface; the negative-control context is in a different
+    # shape entirely.
+    src_ctx = _ctx_for_input(_OP_ABA)
+    same_shape_ctx = _ctx_for_input(
+        _OP_ABA_RENAMED, worldlet_feedback_present=True
+    )
+    diff_shape_ctx = _ctx_for_input(_OP_ABB)
+    this = build_proto_utterance((ProtoVocalToken.THIS,))
+    specs: list[_TurnSpec] = []
+    for i in range(3):
+        kind = (
+            CaregiverFeedbackKind.ECHO
+            if i < 2
+            else CaregiverFeedbackKind.ACCEPTED
+        )
+        feedback = _make_feedback(
+            kind,
+            context_label=f"holo-prime-{i + 1:02d}",
+            offered=this,
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C4_HOLOPHRASE_TRANSFER_PRIME_{i + 1:02d}",
+                condition=ProtoSpeechCondition.HOLOPHRASE_TRANSFER,
+                context=src_ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=None,
+                feedback=feedback,
+            )
+        )
+    # Transfer turn: structurally similar context (renamed tokens,
+    # same shape digest).
+    transfer_feedback = _make_feedback(
+        CaregiverFeedbackKind.ACCEPTED,
+        context_label="holo-pos-target",
+        offered=this,
+    )
+    specs.append(
+        _TurnSpec(
+            turn_id="C4_HOLOPHRASE_TRANSFER_POS",
+            condition=ProtoSpeechCondition.HOLOPHRASE_TRANSFER,
+            context=same_shape_ctx,
+            operator_input_text=_OP_ABA_RENAMED,
+            caregiver_ambient=None,
+            feedback=transfer_feedback,
+            transfer_pressure_token=ProtoVocalToken.THIS,
+        )
+    )
+    # Negative control: different-shape context. No
+    # transfer_pressure_token; the source's STABLE_SINGLE must NOT
+    # bleed through.
+    neg_feedback = _make_feedback(
+        CaregiverFeedbackKind.IGNORED,
+        context_label="holo-neg",
+    )
+    specs.append(
+        _TurnSpec(
+            turn_id="C4_HOLOPHRASE_TRANSFER_NEG",
+            condition=ProtoSpeechCondition.HOLOPHRASE_TRANSFER,
+            context=diff_shape_ctx,
+            operator_input_text=_OP_ABB,
+            caregiver_ambient=None,
+            feedback=neg_feedback,
+        )
+    )
+    return tuple(specs)
 
 
 # ---------------------------------------------------------------------------
