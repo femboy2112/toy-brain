@@ -2979,6 +2979,14 @@ class ProtoSpeechAcquisitionReport:
     summary_line: str
     status: ProtoSpeechStatus
 
+    # Phase 3.33 (I-PSPEECH-20 + I-PROBE-02): diagnostic strict
+    # counter + WARN tuple surfacing the TWO_TOKEN_COMBINATION
+    # graceful-pass masking gap. Both fields are OUTSIDE the digest
+    # input by construction; `digest_hex16` continues to be a digest
+    # over `turns` only.
+    stable_combination_count_strict: int
+    strict_count_warnings: tuple[str, ...]
+
     def __post_init__(self) -> None:
         _validate_bounded_printable(
             self.battery_version,
@@ -3059,6 +3067,35 @@ class ProtoSpeechAcquisitionReport:
             raise TypeError(
                 "I-PSPEECH-13 violated: status must be a ProtoSpeechStatus"
             )
+        if (
+            not isinstance(self.stable_combination_count_strict, int)
+            or isinstance(self.stable_combination_count_strict, bool)
+            or self.stable_combination_count_strict < 0
+        ):
+            raise ValueError(
+                "I-PSPEECH-20 violated: "
+                "stable_combination_count_strict must be a non-negative int"
+            )
+        if not isinstance(self.strict_count_warnings, tuple):
+            raise TypeError(
+                "I-PROBE-02 violated: strict_count_warnings must be a tuple"
+            )
+        for w in self.strict_count_warnings:
+            if not isinstance(w, str):
+                raise TypeError(
+                    "I-PROBE-02 violated: every strict_count_warnings entry "
+                    "must be a str"
+                )
+            if not w.isprintable():
+                raise ValueError(
+                    "I-PROBE-02 violated: every strict_count_warnings entry "
+                    "must be a bounded printable string"
+                )
+            if len(w) > PROTO_SPEECH_EXPLAIN_MAX_LEN:
+                raise ValueError(
+                    "I-PROBE-02 violated: strict_count_warnings entry "
+                    f"exceeds {PROTO_SPEECH_EXPLAIN_MAX_LEN} chars"
+                )
 
 
 # Closed v1 expected predicates per condition. Predicates are
@@ -3077,16 +3114,21 @@ def _evaluate_condition_status(
     int,  # transfer_success delta
     int,  # false_positive
     int,  # false_negative
+    tuple[str, ...],  # strict_count_warnings emitted by this condition
 ]:
-    """Return ``(status, stable_single, stable_comb, suppressed, transfers, fp, fn)``.
+    """Return ``(status, stable_single, stable_comb, suppressed, transfers, fp, fn, strict_warnings)``.
 
     The status is PASS iff every per-condition closed predicate
-    holds.
+    holds. The strict_warnings tuple carries any ``strict_count=N
+    graceful_count=M`` lines surfaced by the Phase 3.33 I-PROBE-02
+    WARN discipline for this condition (currently only
+    TWO_TOKEN_COMBINATION emits such lines per the Step 4 audit).
     """
     if not turns:
         return (
             ProtoSpeechStatus.NOT_APPLICABLE,
             0, 0, 0, 0, 0, 0,
+            (),
         )
     ctx_sig = turns[0].context.context_signature
     ctx_entries = final_table.context_entries(
@@ -3337,6 +3379,42 @@ def _evaluate_condition_status(
         ):
             status = ProtoSpeechStatus.FAIL
 
+    # Phase 3.33 (I-PROBE-02): emit a strict-vs-graceful WARN line
+    # for the TWO_TOKEN_COMBINATION graceful-pass acceptance pattern
+    # surfaced by the Step 4 strictness audit (F-1). The line format
+    # is locked: "C<cond>_<NAME> strict_count=N graceful_count=M".
+    # Same population scope as `stable_comb` (this condition's
+    # context table entries restricted to 2-token utterance digests
+    # used by this condition's turns).
+    strict_warnings_list: list[str] = []
+    if condition is ProtoSpeechCondition.TWO_TOKEN_COMBINATION:
+        two_token_digests = frozenset(
+            t.selected_utterance.digest_hex16
+            for t in turns
+            if t.selected_utterance.token_count == 2
+        )
+        strict_count_2t = sum(
+            1
+            for e in final_table.entries
+            if e.utterance_digest in two_token_digests
+            and e.disposition is ProtoUtteranceDisposition.STABLE_COMBINATION
+        )
+        graceful_count_2t = sum(
+            1
+            for e in final_table.entries
+            if e.utterance_digest in two_token_digests
+            and e.disposition in (
+                ProtoUtteranceDisposition.CANDIDATE,
+                ProtoUtteranceDisposition.REINFORCED,
+                ProtoUtteranceDisposition.STABLE_COMBINATION,
+            )
+        )
+        if strict_count_2t == 0 and graceful_count_2t > 0:
+            strict_warnings_list.append(
+                f"C5_TWO_TOKEN_COMBINATION strict_count=0 "
+                f"graceful_count={graceful_count_2t}"
+            )
+
     return (
         status,
         stable_single,
@@ -3345,6 +3423,7 @@ def _evaluate_condition_status(
         transfers,
         fp,
         fn,
+        tuple(strict_warnings_list),
     )
 
 
@@ -3406,6 +3485,7 @@ def run_proto_speech_live_test() -> ProtoSpeechAcquisitionReport:
     fail_count = 0
     na_count = 0
     drive_stream_digests: list[str] = []
+    strict_count_warnings_acc: list[str] = []
 
     for condition, specs in battery:
         state = _make_runtime_state()
@@ -3424,6 +3504,7 @@ def run_proto_speech_live_test() -> ProtoSpeechAcquisitionReport:
             xfers,
             fp,
             fn,
+            cond_strict_warnings,
         ) = _evaluate_condition_status(
             condition,
             tuple(cond_turns),
@@ -3436,6 +3517,7 @@ def run_proto_speech_live_test() -> ProtoSpeechAcquisitionReport:
         transfer_success_count += xfers
         false_positive_count += fp
         false_negative_count += fn
+        strict_count_warnings_acc.extend(cond_strict_warnings)
         if status is ProtoSpeechStatus.PASS:
             pass_count += 1
         elif status is ProtoSpeechStatus.WARN:
@@ -3472,6 +3554,15 @@ def run_proto_speech_live_test() -> ProtoSpeechAcquisitionReport:
         limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
     )
 
+    # Phase 3.33 (I-PSPEECH-20): strict counter for STABLE_COMBINATION
+    # disposition over the whole run. Currently identical in value to
+    # the existing `stable_combination_count` (which is also a strict
+    # disposition filter at the per-condition seam) -- the field exists
+    # as an explicit campaign-provenance handle for the Phase 3.34
+    # projector to consume. Outside the digest input by construction.
+    stable_combination_count_strict = stable_combination_count
+    strict_count_warnings = tuple(strict_count_warnings_acc)
+
     placeholder = ProtoSpeechAcquisitionReport(
         battery_version=PROTO_SPEECH_BATTERY_VERSION,
         turns=tuple(all_turns),
@@ -3494,6 +3585,8 @@ def run_proto_speech_live_test() -> ProtoSpeechAcquisitionReport:
         forbidden_term_hits=0,
         summary_line=summary_line,
         status=report_status,
+        stable_combination_count_strict=stable_combination_count_strict,
+        strict_count_warnings=strict_count_warnings,
     )
     digest = proto_speech_report_digest(placeholder)
     return ProtoSpeechAcquisitionReport(
@@ -3518,6 +3611,8 @@ def run_proto_speech_live_test() -> ProtoSpeechAcquisitionReport:
         forbidden_term_hits=0,
         summary_line=summary_line,
         status=report_status,
+        stable_combination_count_strict=stable_combination_count_strict,
+        strict_count_warnings=strict_count_warnings,
     )
 
 
@@ -3601,6 +3696,9 @@ MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     *(k.value for k in ProtoSpeechDriveKind),
     *(s.value for s in ProtoSpeechStatus),
     *(c.value for c in ProtoSpeechCondition),
+    # Phase 3.33 (I-PROBE-02) canonical WARN-line template. Audited
+    # as bounded printable + non-claim-clean by I-PSPEECH-19.
+    "C5_TWO_TOKEN_COMBINATION strict_count=0 graceful_count=1",
 )
 
 

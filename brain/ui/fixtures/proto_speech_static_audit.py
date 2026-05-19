@@ -249,6 +249,10 @@ def check_proto_speech_static_audit() -> None:
             "forbidden_term_hits",
             "summary_line",
             "status",
+            # Phase 3.33 (I-PSPEECH-20 + I-PROBE-02) diagnostic fields.
+            # Outside the digest input by construction.
+            "stable_combination_count_strict",
+            "strict_count_warnings",
         ),
     }
     for cls, slots in expected_slots.items():
