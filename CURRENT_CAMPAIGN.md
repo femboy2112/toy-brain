@@ -1,266 +1,196 @@
-# CURRENT_CAMPAIGN.md — Phase 3.32 Mainline Reconciliation + ProbeReport Protocol
+# CURRENT_CAMPAIGN.md — Phase 3.33 Proto-Speech Strict Combination Corrigendum
 
 ## Campaign status
 
 ```text
-RECONCILIATION (DONE) + PROTOCOL-DECLARATION (REMAINING)
-SINGLE-PR / NO-PROBE-BEHAVIOR-CHANGE / REVIEW-GATED
+DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / REVIEW-GATED /
+DIAGNOSTIC-ONLY (per ADR-001 D1)
 ```
 
-Phase 3.32 has two halves. The reconciliation half — PR-stack merge
-into main and the campaign-stack merge into the reconciliation branch
-— is **already landed** on HEAD of branch
-`campaign/phase3-32-mainline-reconciliation` (see commits
-`phase3.32: merge campaign stack through phase 3.31 into mainline
-reconciliation branch` and `phase3.32: reconcile campaign stack into
-main`).
-
-The remaining half lands a thin header-only `typing.Protocol`
-(`brain/development/probe_report_protocol.py`) plus a
-deterministic `collect_probe_reports()` adapter, decorates each
-existing probe report dataclass with `ClassVar[str] module_name`,
-adds a static-audit fixture, and bumps catalog v0.37 -> v0.38 with
-a single new STRUCTURAL row `I-PROBE-01`. This is the clean
-interface the Phase 3.34 developmental progression profile
-projector will consume.
-
-Phase 3.32 asks one bounded operational question:
+Phase 3.33 stacks on the completed Phase 3.32 work
+(`campaign/phase3-32-mainline-reconciliation`, expected PR #34 merged
+into `main`). Phase 3.33 asks one bounded question:
 
 ```text
-Can a single header-only typing.Protocol (ProbeReport) be declared
-such that every existing probe report dataclass satisfies it at
-runtime via @runtime_checkable, without modifying any probe
-runner behavior or changing any existing field on any probe
-report (the sole allowed addition is a ClassVar[str] module_name
-constant), while every canonical gate stays green, the benchmark
-A1..A15 totals and digests stay identical to the v0.37 baseline,
-the proto-speech live-test continues to report 10/10 PASS with
-report_digest f6a83b9caef0ac17, catalog rolls cleanly v0.37 ->
-v0.38 with one new STRUCTURAL row I-PROBE-01, and zero new
-behavioral features are introduced?
+Under bounded read-only audit, do the existing five probe runners
+(proto_speech_acquisition, curriculum_consolidation_probe,
+active_hypothesis_probe, osmotic_learning_probe,
+worldlet_feedback_bridge) use graceful-pass acceptance that masks
+substrate capability gaps? For every probe where the answer is
+yes, the campaign adds a *_strict counter to the report layer
+that is computed from the same evidence with acceptance narrowed
+to the canonical disposition; emits a WARN-level finding when
+strict-vs-graceful counts diverge; and updates the static-audit
+fixture to assert the strict counter is present. The campaign
+does NOT change any probe runner's test conditions, priming
+sequences, thresholds, acceptance enums, or evidence-update
+rules. The pre-existing digest_hex16 on every probe report
+remains bit-identical to its Phase 3.31/3.32 baseline.
 ```
 
-This is a **reconciliation + protocol-declaration** campaign. It is
-**NOT** a proof of consciousness, sentience, subjective experience,
-agency, semantic understanding, real reasoning, real learning, real
-memory, real language acquisition, real language understanding, real
-communicative intent, real inner speech, real private thought, real
-hidden chain-of-thought, real audience modelling, intentionality,
-awareness, intuition, embodiment, psychological development, or any
-cognitive process. No new claims are introduced; every prior
-non-claim guardrail carries forward unchanged.
+This is a **diagnostic / observability** campaign. It is **NOT** a
+proof of cognition, sentience, learning, language acquisition, or
+any cognitive process. The campaign explicitly surfaces a previously
+masked measurement gap; it does not change the underlying substrate.
+The substrate has the same capability it had after Phase 3.31 — we
+are simply now able to see it.
 
-Phase 3.32 does **not** add any new `OperatorCommand` member,
-`LOCAL_COMMAND_VERBS` entry, `ACTIVE_VIEWS` value, `GrowthEventType`,
-`GrowthEventSource`, persistence schema column, autosave trigger,
-`LearningEvidenceKind` member, `ReasoningStepKind` member, or
-benchmark axis. It does **not** change L1 / L2 / parser / prompt /
-tick / persistence / autosave / DB schema semantics. It does **not**
-modify theory semantics. The allowed edits are strictly:
+Phase 3.33 does **not** implement SelfModel; does **not** add any new
+`OperatorCommand` member, `LOCAL_COMMAND_VERBS` entry, `ACTIVE_VIEWS`
+value, `GrowthEventType`, `GrowthEventSource`, persistence schema
+column, autosave trigger, `LearningEvidenceKind` member, or
+`ReasoningStepKind` member; does **not** change L1 / L2 / parser /
+prompt / tick / persistence / autosave / DB schema semantics. The
+runtime touches are limited to:
 
-- create `brain/development/probe_report_protocol.py` containing the
-  `@runtime_checkable` `ProbeReport` Protocol class and the
-  `collect_probe_reports()` adapter function;
-- add `module_name: ClassVar[str] = "<canonical_name>"` to each
-  existing probe report dataclass (proto_speech_acquisition,
-  curriculum_consolidation_probe, active_hypothesis_probe,
-  osmotic_learning_probe);
-- add the static-audit fixture
-  `brain/development/fixtures/probe_report_protocol_static_audit.py`;
-- add catalog row `I-PROBE-01` (STRUCTURAL) and update the
-  catalog version banner in `README.md`, `INVARIANT_CATALOG.md`,
-  `tools/catalog.py`, `CURRENT_MISSION.md`, and `CURRENT_CAMPAIGN.md`
-  to v0.38;
-- regenerate `brain/_catalog_ids.py` via
-  `python3 -m tools.catalog generate-ids`;
-- update `PHASE3_HANDOFF_STATE.md`;
-- the commit messages and PR body.
+- **Strict counter fields** added to the existing probe report
+  dataclasses. Each strict counter is computed from the same
+  per-condition evidence as its graceful sibling, with the
+  acceptance set narrowed to the canonical disposition. NO RUNNER
+  BEHAVIOR CHANGES.
 
----
+- **`strict_count_warnings: tuple[str, ...]`** field added to each
+  affected report. Each entry is a bounded printable line: e.g.,
+  `"C5_TWO_TOKEN_COMBINATION strict_count=0 graceful_count=1"`.
 
-## Source-of-truth
+- **One new fixture per affected probe**, asserting strict counter
+  presence on the report dataclass.
 
-- Reconciliation branch: `campaign/phase3-32-mainline-reconciliation`
-- Reconciliation base: `main`
-- Expected new catalog version: v0.38 (was v0.37)
-- Expected catalog-row delta: +1 STRUCTURAL row `I-PROBE-01`;
-  REQUIRED / NOT-EXERCISED / DEFERRED / OBSERVED unchanged
-- Expected benchmark A1..A15: identical totals and digests to the
-  v0.37 baseline (137 total / 136 PASS / 1 WARN A3.04 carry-over /
-  0 FAIL)
-- Expected proto-speech live-test: 10/10 PASS, fp=0, fn=0,
-  stable_single=5, stable_combination=0, suppressed=2,
-  transfer_success=1, report_digest=`f6a83b9caef0ac17`,
-  drive_stream_digest=`dc060a88a814f448`
-- Expected isinstance checks: every existing probe report
-  dataclass passes `isinstance(report, ProbeReport)`
-- Expected invariants: 0 red
-- Expected gate_runner: 5/5 PASS
-- Expected real model calls: 0
-- Expected cache writes: 0
-- Expected forbidden-term hits: 0
+- **Catalog patch**: v0.38 → v0.39 with +5 STRUCTURAL rows (one per
+  affected probe + one for the WARN discipline). No new REQUIRED
+  rows.
+
+Branch:
+
+```text
+campaign/phase3-33-proto-speech-strict-corrigendum
+```
+
+Base: `main` (post-Phase-3.32). If `main` does not yet contain the
+Phase 3.32 ProbeReport protocol, STOP.
+
+Final PR (likely #35): `phase3.33: proto-speech strict combination
+corrigendum`.
 
 ---
 
 ## Step ledger
 
 ```text
-Step 1   PR stack audit + reconciliation plan                 DONE
-Step 2   Operator-controlled merge of PRs #24..#33            DONE
-Step 3   Branch from reconciled main                          DONE
-Step 4   brain/development/probe_report_protocol.py           NEXT
-         + Protocol declaration + module_name ClassVars
-Step 5   collect_probe_reports() adapter + tests
-Step 6   probe_report_protocol_static_audit.py fixture
-Step 7   Catalog v0.37 -> v0.38 (+I-PROBE-01)
-Step 8   Verification: runtime_checkable on all probe reports
-         + full gate run + benchmark + proto-speech live-test
-Step 9   Open PR; update PHASE3_HANDOFF_STATE.md
+Step 1   Design + audit plan + roadmap sync                  commit phase3.33 step1
+Step 2   stable_combination_count_strict on proto-speech     commit phase3.33 step2
+Step 3   transfer_success_count_strict on proto-speech       commit phase3.33 step3
+Step 4   Strictness audit (other 4 probes)                   commit phase3.33 step4
+Step 5a  Strict counter on curriculum_consolidation_probe    commit phase3.33 step5a
+Step 5b  Strict counter on active_hypothesis_probe           commit phase3.33 step5b
+Step 5c  Strict counter on osmotic_learning_probe            commit phase3.33 step5c
+Step 5d  Worldlet feedback (audit-driven, may be no-op)      commit phase3.33 step5d
+Step 6   strict_count_warnings field on all affected probes  commit phase3.33 step6
+Step 7   Static-audit fixtures for strict counter presence   commit phase3.33 step7
+Step 8   Catalog v0.38 → v0.39 (+5 STRUCTURAL rows)          commit phase3.33 step8
+Step 9   Verify A1..A15 digests unchanged; gates green       commit phase3.33 step9
+Step 10  Open PR; update PHASE3_HANDOFF_STATE.md             commit phase3.33 step10
 ```
 
-Steps 1-3 acceptance is captured by the commits already on HEAD
-(`phase3.32: merge campaign stack through phase 3.31 into mainline
-reconciliation branch`, `phase3.32: reconcile campaign stack into
-main`). Steps 4-9 acceptance is captured below.
+Push after every successful step.
+
+Steps 5a/5b/5c/5d are file-disjoint and can be done in parallel.
+Steps 6, 7, 8 can also overlap (different files, no shared state).
 
 ---
 
-## Step 4 detailed scope
+## Hard non-claim boundary
 
-Create `brain/development/probe_report_protocol.py` with the closed
-import set `__future__, typing` and the `@runtime_checkable`
-`ProbeReport` Protocol declaring:
+- No claim of consciousness, sentience, awareness, agency, will,
+  desire, belief, communicative intent, inner speech, hidden
+  chain-of-thought, introspection, metacognition, learning, language
+  acquisition, language understanding, or any cognitive process.
+- No aggregate scalar (no "self-knowledge score", no "honesty
+  score", no "transparency index").
+- No reply text uses language of being more "honest" or "accurate"
+  about itself; the runtime is a bounded structural state machine.
+- The strict counter is a re-aggregation of existing per-condition
+  evidence, not a new measurement. The probe still passes by the
+  same graceful-acceptance criterion it did before.
 
-```text
-digest_hex16: str
-false_positive_count: int
-false_negative_count: int
-module_name: str
-```
+---
 
-Add `module_name: ClassVar[str] = "<canonical_name>"` to each
-existing probe report dataclass:
-
-```text
-ProtoSpeechAcquisitionReport   "proto_speech_acquisition"
-CurriculumConsolidationReport  "curriculum_consolidation_probe"
-ActiveHypothesisReport         "active_hypothesis_probe"
-OsmoticLearningReport          "osmotic_learning_probe"
-```
-
-These are `ClassVar`s — constant strings, no instance-field
-addition, not in any digest, no constructor signature change.
-
-## Step 5 detailed scope
-
-Add the `collect_probe_reports()` function in
-`probe_report_protocol.py` per the design in
-`docs/campaigns/phase3_32/PHASE3_32_PROBE_REPORT_PROTOCOL.md`.
-Function-body imports defer probe-module coupling. Returns a
-deterministic fixed-order tuple of reports.
-
-## Step 6 detailed scope
-
-Land `brain/development/fixtures/probe_report_protocol_static_audit.py`
-per the design doc. Verifies that each probe report class has
-`module_name` matching the canonical constant, and that the four
-required ProbeReport attributes exist as annotations or class
-attributes.
-
-## Step 7 detailed scope
+## Hard runner-invariance boundary (specific to 3.33)
 
 ```text
-README.md catalog-version banner       v0.37 -> v0.38
-INVARIANT_CATALOG.md title             v0.37 -> v0.38
-INVARIANT_CATALOG.md explicit-version  v0.37 -> v0.38
-INVARIANT_CATALOG.md add row           | I-PROBE-01 | STRUCTURAL | ... |
-tools/catalog.py EXPECTED_COUNTS       bump STRUCTURAL by +1
-brain/_catalog_ids.py                  regenerate via tools.catalog generate-ids
+THE FOLLOWING ARE FORBIDDEN IN PHASE 3.33:
+- Changing any probe runner's priming sequence length.
+- Changing any closed-rule threshold (STABLE_COMBINATION_THRESHOLD,
+  REINFORCEMENT_DELTA, SUPPRESSION_THRESHOLD, ...).
+- Changing any acceptance enum (ProtoUtteranceDisposition,
+  CurriculumConsolidationDisposition, ...).
+- Adding a new ProtoVocalToken, CaregiverFeedbackKind,
+  ProtoSpeechCondition, or other closed-rule enum member.
+- Removing or renaming any existing graceful counter.
+- Causing any probe's digest_hex16 to differ from its Phase 3.31/3.32
+  baseline. The digest input is unchanged by design; if a step would
+  change it, the step is out of scope.
+- Emitting FAIL when strict mismatch occurs. WARN only.
+- Treating the WARN as a gate-blocker. WARN findings are
+  observability, not gate signals.
 ```
 
-## Step 8 detailed scope: full verification
-
-```bash
-python3 -m brain.development.proto_speech_acquisition
-python3 -m brain.development.agent_benchmark
-python3 -m tools.catalog counts
-python3 -m tools.citations verify
-python3 -m tools.import_audit
-python3 -m brain.invariants run
-bash tools/check_all.sh
-python3 -m tools.claude_helpers.gate_runner --json
-```
-
-Every command must succeed at the expected verdicts above.
-
-## Step 9 detailed scope: PR open
-
-Commit messages follow the existing convention:
-
-```text
-phase3.32 step4: probe report protocol declaration + module_name classvars
-phase3.32 step5: collect_probe_reports adapter
-phase3.32 step6: probe report protocol static audit fixture
-phase3.32 step7: catalog v0.37 -> v0.38 + I-PROBE-01
-phase3.32 step8: full gate + benchmark + proto-speech verification
-phase3.32 step9: update handoff state
-```
-
-Push the branch and open a PR with `--base main --head
-campaign/phase3-32-mainline-reconciliation`. The PR body must
-include catalog version (v0.38), counts, benchmark totals,
-proto-speech live-test result, gate verdict, invariants result,
-real-model-call count, cache-write count, forbidden-term-hit
-count, an explicit non-claim disclosure, and an explicit "Merge
-with merge commit only after operator approval" instruction.
-
-Do NOT merge the PR.
+If any step's planned implementation appears to require one of the
+above, STOP and report. Phase 3.33 is diagnostic-only.
 
 ---
 
 ## Acceptance criteria
 
-Phase 3.32 succeeds only when every item below is true:
+Phase 3.33 succeeds only when:
 
-- branch `campaign/phase3-32-mainline-reconciliation` exists, cut from
-  `main`, with the campaign stack through Phase 3.31 merged in (DONE);
-- `brain/development/probe_report_protocol.py` exists with the
-  closed `ProbeReport` `@runtime_checkable` Protocol class and the
-  `collect_probe_reports()` adapter function;
-- the `ProbeReport` protocol declares at minimum: `digest_hex16:
-  str`, `false_positive_count: int`, `false_negative_count: int`,
-  `module_name: str`;
-- every existing probe report dataclass passes
-  `isinstance(report, ProbeReport)` at runtime;
-- every existing probe report dataclass has
-  `module_name: ClassVar[str] = "<canonical_name>"` and no other
-  modification;
-- no probe module's runner behavior changes; no probe report's
-  existing field is added, removed, or renamed;
-- the static-audit fixture
-  `brain/development/fixtures/probe_report_protocol_static_audit.py`
-  verifies that all four probe report classes have the expected
-  `module_name` constant and the four ProbeReport attributes;
-- README, INVARIANT_CATALOG, tools/catalog.py, and
-  brain/_catalog_ids.py agree on catalog v0.38; the only catalog
-  delta vs v0.37 is +1 STRUCTURAL row `I-PROBE-01`;
-- `python3 -m brain.development.proto_speech_acquisition` reports
-  10/10 PASS, fp=0, fn=0, digest `f6a83b9caef0ac17`;
-- `python3 -m brain.development.agent_benchmark` reports identical
-  A1..A15 totals and digests to the v0.37 baseline (137 / 136 PASS /
-  1 WARN / 0 FAIL);
-- `python3 -m brain.invariants run` is fully green;
-- `bash tools/check_all.sh` and
-  `python3 -m tools.claude_helpers.gate_runner --json` report
-  5/5 PASS;
-- `real_model_calls == 0`; `cache_writes == 0`;
-  `forbidden_term_hits == 0`;
-- a single PR is opened with base `main` and head
-  `campaign/phase3-32-mainline-reconciliation`;
-- the PR is NOT merged automatically;
-- no new behavioral feature, runtime module beyond
-  `probe_report_protocol.py`, fixture beyond
-  `probe_report_protocol_static_audit.py`, catalog row beyond
-  `I-PROBE-01`, or benchmark axis is introduced;
-- no theory semantics are changed;
-- non-claim discipline is preserved.
+1. `ProtoSpeechAcquisitionReport` exposes `stable_combination_count_strict`
+   and `transfer_success_count_strict`.
+2. Strict counters are correctly computed from the same per-condition
+   evidence as their graceful siblings (verified by unit-style fixture).
+3. Every affected probe (from Step 4 audit) has at least one strict
+   counter.
+4. Every affected probe emits `strict_count_warnings: tuple[str, ...]`.
+5. `run_proto_speech_live_test()` and the other probe runners produce
+   bit-identical `digest_hex16` to their Phase 3.31/3.32 baselines.
+6. Two invocations of each runner produce bit-identical strict
+   counters and bit-identical warning tuples.
+7. Catalog v0.38 → v0.39 with +5 STRUCTURAL rows.
+8. A1..A15 same case totals, same digests, all green.
+9. `python3 -m brain.invariants run` fully green.
+10. `bash tools/check_all.sh` and `python3 -m
+    tools.claude_helpers.gate_runner --json` report 5/5 PASS.
+11. No `brain.llm` import added; no `brain.tick.tick` call outside
+    STEP_TICK; no DB schema change; no curses; no `random`, `time`,
+    or external nondeterministic seed introduced.
+12. PR opens with head `campaign/phase3-33-proto-speech-strict-corrigendum`
+    against `main`; no PR is merged.
+
+---
+
+## Sequencing notes
+
+- Step 4 (audit) should run BEFORE Step 5* (strict counter
+  additions). If the audit reveals a probe has no graceful-pass
+  acceptance, the corresponding Step 5 is a no-op (record this in
+  the campaign log).
+- Step 9 (verify digests unchanged) MUST be run after every
+  Step 5* commit. If the digest changes, revert and investigate.
+
+---
+
+## Cross-references
+
+- `PHASE3_33_PROTO_SPEECH_STRICT_CORRIGENDUM_ROADMAP.md` — full
+  scope and acceptance.
+- `docs/campaigns/phase3_33/PHASE3_33_DESIGN.md` — design walkthrough.
+- `docs/campaigns/phase3_33/PHASE3_33_STRICTNESS_AUDIT_PLAN.md` —
+  audit protocol.
+- `ADR-001-locked-decisions-D1-D8.md` — D1 mandates diagnostic-only.
+- `ADR-003-strict-counter-pattern.md` — full discipline.
+- `ADR-004-target-axes-regression-gate.md` — the TARGET_AXES
+  declaration for the eventual Phase 3.34 regression gate.
+- `.claude/agents/brain-probe-strictness-auditor.md` — the agent
+  that automates Step 4.
+- `tools/developmental_profile_audit.py` — script that fan-outs the
+  Step 4 audit work.
