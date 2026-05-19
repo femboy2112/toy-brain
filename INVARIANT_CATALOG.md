@@ -1,4 +1,4 @@
-# TLICA → `brain/` Invariant Catalog (v0.31)
+# TLICA → `brain/` Invariant Catalog (v0.37)
 
 This catalog is the spine of the v0 plan. Each row binds a Lean source declaration in `lean-scratch-main/TLICA/` to a Python runtime check in `brain/`, names the owning Python module, and points at the fixture that exercises it. v0's success criterion is: every row marked **REQUIRED** asserts green on its named fixture under the deterministic stubs.
 

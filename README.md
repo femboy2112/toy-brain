@@ -1,4 +1,4 @@
-# brain — TLICA-constrained Python kernel (catalog v0.32)
+# brain — TLICA-constrained Python kernel (catalog v0.37)
 
 This package is the TLICA-constrained Python "brain" kernel. Open it, read this file, then read `INVARIANT_CATALOG.md`, then take direction from whichever current kickoff/corrigenda is in flight.
 

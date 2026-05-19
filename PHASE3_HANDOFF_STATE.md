@@ -4,14 +4,29 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.31 COMPLETE; PR #33 open at
-https://github.com/femboy2112/toy-brain/pull/33
-**Active branch:** `campaign/phase3-31-caregiver-proto-speech`
-**Active campaign:** none in flight; Phase 3.31 ready for review
+**Last updated:** Phase 3.32 Mainline Reconciliation in flight;
+Phase 3.31 PR #33 MERGED into
+`campaign/phase3-30-curriculum-consolidation` on 2026-05-19.
+**Active branch:** `campaign/phase3-32-mainline-reconciliation`
+**Active campaign:** Phase 3.32 Mainline Reconciliation — bringing
+`main` current with the completed campaign stack through Phase 3.31
+(catalog v0.37). No new runtime features; documentation /
+catalog-banner / handoff staleness corrections only. Will open a PR
+targeting `main`; operator merges manually.
 **Prior campaigns:**
+  - Phase 3.32 Mainline Reconciliation — IN FLIGHT.
+    `main` was stale at Phase 3.19 / catalog v0.27 because the
+    Phases 3.20–3.31 stack landed as stacked PRs that merged into
+    the prior campaign branch instead of `main`. Reconciliation
+    branch `campaign/phase3-32-mainline-reconciliation` is cut from
+    `main` and merges `origin/campaign/phase3-30-curriculum-
+    consolidation` (which now contains Phase 3.31 via PR #33).
+    No theory-semantics changes, no new behavioral features, no
+    new fixtures, no new catalog rows; non-claim discipline
+    preserved.
   - Phase 3.31 Caregiver-Scaffolded Proto-Speech Acquisition —
-    COMPLETE; pushed to the new stacked branch
-    `campaign/phase3-31-caregiver-proto-speech`. Catalog v0.36
+    COMPLETE; PR #33 MERGED into
+    `campaign/phase3-30-curriculum-consolidation`. Catalog v0.36
     -> v0.37. +I-PSPEECH-01..19 (18 REQUIRED + 1 STRUCTURAL).
     Benchmark: 137 cases (119 + 18), 136 PASS + 1 WARN (A3.04
     carry-over) + 0 FAIL. Live-test runner: 10/10 PASS,
@@ -40,6 +55,13 @@ https://github.com/femboy2112/toy-brain/pull/33
     import, no `brain.tick.tick` call outside the existing
     `STEP_TICK` route.
 **Older campaigns:**
+  > All PRs below (PR #25 .. PR #33) are MERGED into the stacked
+  > chain that lands on `campaign/phase3-30-curriculum-consolidation`
+  > and are being reconciled into `main` by the Phase 3.32 PR. Any
+  > "PR #N open" wording below is historical record from when each
+  > step was first authored; treat the merged-state above as
+  > authoritative.
+
   - Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25 open)
   - Phase 3.21 Developmental Trajectory — COMPLETE (PR #26 open)
   - Phase 3.21 corrigendum: M10 success criterion reframed against
