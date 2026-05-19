@@ -710,8 +710,648 @@ def build_proto_speech_context(
 
 
 # ---------------------------------------------------------------------------
-# Module-produced strings (audited by the static-audit fixture). Populated
-# fully in later steps; the values below cover Step 2 enums.
+# Drive-stream records.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoSpeechDriveFrame:
+    """One bounded drive-stream frame (Phase 3.31).
+
+    Each frame is a closed-shape structural fact derived from a
+    public substrate snapshot. The ``source_surface`` names the
+    substrate; the ``suggested_token_set`` names which tokens this
+    frame would prefer if it were the only frame in the stream.
+    """
+
+    drive_kind: ProtoSpeechDriveKind
+    source_surface: str
+    context_signature: str
+    input_digest_hex16: str
+    evidence_digest_hex16: Optional[str]
+    reasoning_trace_digest_hex16: Optional[str]
+    dispatch_trace_digest_hex16: Optional[str]
+    caregiver_utterance_digest_hex16: Optional[str]
+    weight_hint: int
+    suggested_token_set: tuple[ProtoVocalToken, ...]
+    explanation: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.drive_kind, ProtoSpeechDriveKind):
+            raise TypeError(
+                "I-PSPEECH-14 violated: drive_kind must be a "
+                "ProtoSpeechDriveKind"
+            )
+        _validate_bounded_printable(
+            self.source_surface,
+            field="ProtoSpeechDriveFrame.source_surface",
+            max_len=PROTO_SPEECH_SOURCE_SURFACE_MAX_LEN,
+            forbid_empty=True,
+            audit_non_claim=True,
+        )
+        _validate_digest_hex(
+            self.context_signature,
+            field="ProtoSpeechDriveFrame.context_signature",
+        )
+        _validate_digest_hex(
+            self.input_digest_hex16,
+            field="ProtoSpeechDriveFrame.input_digest_hex16",
+        )
+        for name, val in (
+            ("evidence_digest_hex16", self.evidence_digest_hex16),
+            (
+                "reasoning_trace_digest_hex16",
+                self.reasoning_trace_digest_hex16,
+            ),
+            (
+                "dispatch_trace_digest_hex16",
+                self.dispatch_trace_digest_hex16,
+            ),
+            (
+                "caregiver_utterance_digest_hex16",
+                self.caregiver_utterance_digest_hex16,
+            ),
+        ):
+            if val is None:
+                continue
+            _validate_digest_hex(
+                val, field=f"ProtoSpeechDriveFrame.{name}"
+            )
+        if not isinstance(self.weight_hint, int) or isinstance(
+            self.weight_hint, bool
+        ):
+            raise TypeError(
+                "I-PSPEECH-14 violated: weight_hint must be int"
+            )
+        if (
+            self.weight_hint < 0
+            or self.weight_hint > PROTO_SPEECH_WEIGHT_HINT_MAX
+        ):
+            raise ValueError(
+                "I-PSPEECH-14 violated: weight_hint out of bound "
+                f"[0, {PROTO_SPEECH_WEIGHT_HINT_MAX}]"
+            )
+        if not isinstance(self.suggested_token_set, tuple):
+            raise TypeError(
+                "I-PSPEECH-14 violated: suggested_token_set must be a tuple"
+            )
+        if len(self.suggested_token_set) > PROTO_SPEECH_SUGGESTED_SET_MAX:
+            raise ValueError(
+                "I-PSPEECH-14 violated: suggested_token_set length "
+                f"{len(self.suggested_token_set)} > "
+                f"{PROTO_SPEECH_SUGGESTED_SET_MAX}"
+            )
+        seen: set[ProtoVocalToken] = set()
+        for tok in self.suggested_token_set:
+            if not isinstance(tok, ProtoVocalToken):
+                raise TypeError(
+                    "I-PSPEECH-14 violated: every suggested_token_set entry "
+                    "must be a ProtoVocalToken"
+                )
+            if tok in seen:
+                raise ValueError(
+                    "I-PSPEECH-14 violated: suggested_token_set must not "
+                    "contain duplicates"
+                )
+            seen.add(tok)
+        _validate_bounded_printable(
+            self.explanation,
+            field="ProtoSpeechDriveFrame.explanation",
+            max_len=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+            forbid_empty=True,
+            audit_non_claim=True,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoSpeechDriveStream:
+    """One bounded drive stream (Phase 3.31)."""
+
+    frames: tuple[ProtoSpeechDriveFrame, ...]
+    max_frames: int
+    digest_hex16: str
+    status: ProtoSpeechStatus
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.frames, tuple):
+            raise TypeError(
+                "I-PSPEECH-14 violated: frames must be a tuple"
+            )
+        if len(self.frames) > PROTO_SPEECH_MAX_FRAMES_PER_STREAM:
+            raise ValueError(
+                "I-PSPEECH-14 violated: frames length "
+                f"{len(self.frames)} > "
+                f"{PROTO_SPEECH_MAX_FRAMES_PER_STREAM}"
+            )
+        for f in self.frames:
+            if not isinstance(f, ProtoSpeechDriveFrame):
+                raise TypeError(
+                    "I-PSPEECH-14 violated: every frames entry must be a "
+                    "ProtoSpeechDriveFrame"
+                )
+        if (
+            not isinstance(self.max_frames, int)
+            or self.max_frames != PROTO_SPEECH_MAX_FRAMES_PER_STREAM
+        ):
+            raise ValueError(
+                "I-PSPEECH-14 violated: max_frames must equal "
+                f"{PROTO_SPEECH_MAX_FRAMES_PER_STREAM}"
+            )
+        _validate_digest_hex(
+            self.digest_hex16,
+            field="ProtoSpeechDriveStream.digest_hex16",
+        )
+        if not isinstance(self.status, ProtoSpeechStatus):
+            raise TypeError(
+                "I-PSPEECH-14 violated: status must be a ProtoSpeechStatus"
+            )
+
+
+def _drive_frame_serialize(f: ProtoSpeechDriveFrame) -> str:
+    parts = [
+        f.drive_kind.value,
+        f.source_surface,
+        f.context_signature,
+        f.input_digest_hex16,
+        f.evidence_digest_hex16 or "",
+        f.reasoning_trace_digest_hex16 or "",
+        f.dispatch_trace_digest_hex16 or "",
+        f.caregiver_utterance_digest_hex16 or "",
+        str(f.weight_hint),
+        ",".join(t.value for t in f.suggested_token_set),
+        f.explanation,
+    ]
+    return "|".join(parts)
+
+
+def _drive_stream_digest(
+    frames: tuple[ProtoSpeechDriveFrame, ...],
+) -> str:
+    payload = "\n".join(_drive_frame_serialize(f) for f in frames).encode(
+        "utf-8"
+    )
+    return hashlib.sha256(payload).hexdigest()[
+        :PROTO_SPEECH_DIGEST_HEX_LEN
+    ]
+
+
+def _input_digest(text: str) -> str:
+    payload = text.encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[
+        :PROTO_SPEECH_DIGEST_HEX_LEN
+    ]
+
+
+def build_proto_speech_drive_stream(
+    *,
+    context: ProtoSpeechContext,
+    learning_trace: Optional[LearningEvidenceTrace] = None,
+    reasoning_trace_digest: Optional[str] = None,
+    dispatch_trace_digest: Optional[str] = None,
+    caregiver_ambient: Optional[ProtoUtterance] = None,
+    caregiver_feedback: Optional[CaregiverFeedback] = None,
+    evidence_table_digest: Optional[str] = None,
+    suppressed_tokens: tuple[ProtoVocalToken, ...] = (),
+    stable_single_tokens: tuple[ProtoVocalToken, ...] = (),
+    has_active_hypothesis_unresolved: bool = False,
+    has_seen_context_before: bool = False,
+    input_text: str = "",
+    refusal_guard: bool = False,
+    combination_pressure: bool = False,
+    transfer_pressure_token: Optional[ProtoVocalToken] = None,
+) -> ProtoSpeechDriveStream:
+    """Return a bounded deterministic drive stream for the given inputs.
+
+    The implementation is a pure deterministic function of its
+    keyword arguments; no global mutable state is touched, no
+    ``random`` / ``time`` source is consulted.
+    """
+    if not isinstance(context, ProtoSpeechContext):
+        raise TypeError(
+            "I-PSPEECH-14 violated: context must be a ProtoSpeechContext"
+        )
+    if caregiver_ambient is not None and not isinstance(
+        caregiver_ambient, ProtoUtterance
+    ):
+        raise TypeError(
+            "I-PSPEECH-14 violated: caregiver_ambient must be a "
+            "ProtoUtterance or None"
+        )
+    if caregiver_feedback is not None and not isinstance(
+        caregiver_feedback, CaregiverFeedback
+    ):
+        raise TypeError(
+            "I-PSPEECH-14 violated: caregiver_feedback must be a "
+            "CaregiverFeedback or None"
+        )
+    if transfer_pressure_token is not None and not isinstance(
+        transfer_pressure_token, ProtoVocalToken
+    ):
+        raise TypeError(
+            "I-PSPEECH-14 violated: transfer_pressure_token must be a "
+            "ProtoVocalToken or None"
+        )
+
+    input_digest = _input_digest(input_text)
+    ev_digest = evidence_table_digest
+
+    frames: list[ProtoSpeechDriveFrame] = []
+
+    # 1. REFUSAL_GUARD takes precedence; the stream is short-
+    # circuited and no other suggestion frames are emitted.
+    if refusal_guard:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.REFUSAL_GUARD,
+                source_surface="refusal_guard",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=PROTO_SPEECH_WEIGHT_HINT_MAX,
+                suggested_token_set=(),
+                explanation=_bounded_excerpt(
+                    "refusal guard active: cognitive-claim probe detected; "
+                    "no proto-utterance selected.",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+        return ProtoSpeechDriveStream(
+            frames=tuple(frames),
+            max_frames=PROTO_SPEECH_MAX_FRAMES_PER_STREAM,
+            digest_hex16=_drive_stream_digest(tuple(frames)),
+            status=ProtoSpeechStatus.PASS,
+        )
+
+    # 2. Caregiver ambient prime (precedes the turn).
+    if caregiver_ambient is not None and caregiver_ambient.token_count > 0:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.CAREGIVER_AMBIENT_PRIME,
+                source_surface="caregiver_ambient",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=(
+                    caregiver_ambient.digest_hex16
+                ),
+                weight_hint=10,
+                suggested_token_set=tuple(caregiver_ambient.tokens),
+                explanation=_bounded_excerpt(
+                    f"caregiver ambient prime: tokens="
+                    f"{','.join(t.value for t in caregiver_ambient.tokens)}",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # 3. Caregiver feedback prime (echo / accepted / expanded uplifts
+    # the form named by the most recent feedback record).
+    if caregiver_feedback is not None and caregiver_feedback.kind in (
+        CaregiverFeedbackKind.ACCEPTED,
+        CaregiverFeedbackKind.ECHO,
+        CaregiverFeedbackKind.EXPANDED,
+    ):
+        offered = caregiver_feedback.offered_utterance
+        if offered is not None and offered.token_count > 0:
+            frames.append(
+                ProtoSpeechDriveFrame(
+                    drive_kind=ProtoSpeechDriveKind.CAREGIVER_FEEDBACK_PRIME,
+                    source_surface="caregiver_feedback",
+                    context_signature=context.context_signature,
+                    input_digest_hex16=input_digest,
+                    evidence_digest_hex16=ev_digest,
+                    reasoning_trace_digest_hex16=reasoning_trace_digest,
+                    dispatch_trace_digest_hex16=dispatch_trace_digest,
+                    caregiver_utterance_digest_hex16=offered.digest_hex16,
+                    weight_hint=12,
+                    suggested_token_set=tuple(offered.tokens),
+                    explanation=_bounded_excerpt(
+                        f"caregiver feedback prime: kind="
+                        f"{caregiver_feedback.kind.value} tokens="
+                        f"{','.join(t.value for t in offered.tokens)}",
+                        limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                    ),
+                )
+            )
+
+    # 4. Transfer pressure when a same-shape stable form exists in
+    # a compatible context.
+    if transfer_pressure_token is not None:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.TRANSFER_PRESSURE,
+                source_surface="abstract_pattern",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=11,
+                suggested_token_set=(transfer_pressure_token,),
+                explanation=_bounded_excerpt(
+                    f"transfer pressure: stable single available in "
+                    f"compatible context "
+                    f"token={transfer_pressure_token.value}",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # 5. Recurrence / novelty pressure (depend on whether the context
+    # has been observed before AND on the abstract pattern shape).
+    if has_seen_context_before and caregiver_ambient is not None:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.RECURRENCE_PRESSURE,
+                source_surface="abstract_pattern",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=6,
+                suggested_token_set=(
+                    ProtoVocalToken.SAME,
+                    ProtoVocalToken.AGAIN,
+                ),
+                explanation=_bounded_excerpt(
+                    "recurrence pressure: same shape digest seen recently",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+    elif (
+        not has_seen_context_before
+        and caregiver_ambient is not None
+        and context.abstract_pattern_digest is not None
+    ):
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.NOVELTY_PRESSURE,
+                source_surface="abstract_pattern",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=5,
+                suggested_token_set=(
+                    ProtoVocalToken.LOOK,
+                    ProtoVocalToken.THIS,
+                ),
+                explanation=_bounded_excerpt(
+                    "novelty pressure: new shape digest with ambient context",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # 6. Substrate-presence frames.
+    if context.worldlet_feedback_present:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.WORLDLET_FEEDBACK_PRESENT,
+                source_surface="worldlet",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=4,
+                suggested_token_set=(
+                    ProtoVocalToken.THAT,
+                    ProtoVocalToken.DONE,
+                ),
+                explanation=_bounded_excerpt(
+                    "worldlet feedback present",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+    if context.repl_result_present:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.REPL_FEEDBACK_PRESENT,
+                source_surface="repl",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=4,
+                suggested_token_set=(
+                    ProtoVocalToken.DONE,
+                    ProtoVocalToken.NO,
+                ),
+                explanation=_bounded_excerpt(
+                    "REPL result present",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # 7. UNRESOLVED_HYPOTHESIS pressure.
+    if has_active_hypothesis_unresolved:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.UNRESOLVED_HYPOTHESIS,
+                source_surface="active_hypothesis",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=7,
+                suggested_token_set=(
+                    ProtoVocalToken.HELP,
+                    ProtoVocalToken.MORE,
+                ),
+                explanation=_bounded_excerpt(
+                    "active hypothesis unresolved: no surviving candidate",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # 8. SUPPRESSION_PRESSURE acts as a filter; emitted whenever a
+    # form is currently suppressed in this context.
+    if suppressed_tokens:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.SUPPRESSION_PRESSURE,
+                source_surface="evidence_table",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=8,
+                suggested_token_set=(),
+                explanation=_bounded_excerpt(
+                    "suppression pressure: forms below threshold filtered; "
+                    f"count={len(suppressed_tokens)}",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # 9. COMBINATION_PRESSURE when two distinct stable singles are
+    # available in this context.
+    if combination_pressure and len(stable_single_tokens) >= 2:
+        ordered = tuple(
+            sorted(
+                stable_single_tokens, key=_proto_vocal_token_rank
+            )
+        )
+        # Bound the suggested set to the first two stable tokens to
+        # respect SUGGESTED_TOKEN_SET_MAX.
+        pair = ordered[:2]
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.COMBINATION_PRESSURE,
+                source_surface="evidence_table",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=9,
+                suggested_token_set=pair,
+                explanation=_bounded_excerpt(
+                    "combination pressure: two stable singles available "
+                    f"tokens={','.join(t.value for t in pair)}",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # 10. LOW_EVIDENCE baseline (always emitted when no caregiver
+    # feedback prime has uplifted a specific form).
+    has_prime = any(
+        f.drive_kind is ProtoSpeechDriveKind.CAREGIVER_FEEDBACK_PRIME
+        for f in frames
+    )
+    if not has_prime:
+        frames.append(
+            ProtoSpeechDriveFrame(
+                drive_kind=ProtoSpeechDriveKind.LOW_EVIDENCE,
+                source_surface="evidence_table",
+                context_signature=context.context_signature,
+                input_digest_hex16=input_digest,
+                evidence_digest_hex16=ev_digest,
+                reasoning_trace_digest_hex16=reasoning_trace_digest,
+                dispatch_trace_digest_hex16=dispatch_trace_digest,
+                caregiver_utterance_digest_hex16=None,
+                weight_hint=2,
+                suggested_token_set=(
+                    ProtoVocalToken.BA,
+                    ProtoVocalToken.MA,
+                    ProtoVocalToken.DA,
+                ),
+                explanation=_bounded_excerpt(
+                    "low evidence: exploratory primitives",
+                    limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+                ),
+            )
+        )
+
+    # Bound: respect MAX_FRAMES_PER_STREAM. Order is the canonical
+    # construction order; if we ever exceed the cap, the runner
+    # truncates the LOW_EVIDENCE tail rather than failing.
+    if len(frames) > PROTO_SPEECH_MAX_FRAMES_PER_STREAM:
+        frames = frames[:PROTO_SPEECH_MAX_FRAMES_PER_STREAM]
+
+    return ProtoSpeechDriveStream(
+        frames=tuple(frames),
+        max_frames=PROTO_SPEECH_MAX_FRAMES_PER_STREAM,
+        digest_hex16=_drive_stream_digest(tuple(frames)),
+        status=ProtoSpeechStatus.PASS,
+    )
+
+
+def update_drive_stream_after_feedback(
+    stream: ProtoSpeechDriveStream,
+    *,
+    feedback: CaregiverFeedback,
+) -> ProtoSpeechDriveStream:
+    """Return a new drive stream noting the feedback record.
+
+    The closed-rule update appends a CAREGIVER_FEEDBACK_PRIME frame
+    (if not already present) so post-turn audits can cite the same
+    structural digest the runner used for selection. The original
+    stream is not mutated.
+    """
+    if not isinstance(stream, ProtoSpeechDriveStream):
+        raise TypeError(
+            "I-PSPEECH-14 violated: stream must be a ProtoSpeechDriveStream"
+        )
+    if not isinstance(feedback, CaregiverFeedback):
+        raise TypeError(
+            "I-PSPEECH-14 violated: feedback must be a CaregiverFeedback"
+        )
+    offered = feedback.offered_utterance
+    if offered is None or offered.token_count == 0:
+        return stream
+    if feedback.kind not in (
+        CaregiverFeedbackKind.ACCEPTED,
+        CaregiverFeedbackKind.ECHO,
+        CaregiverFeedbackKind.EXPANDED,
+        CaregiverFeedbackKind.CORRECTED,
+    ):
+        return stream
+    if any(
+        f.drive_kind is ProtoSpeechDriveKind.CAREGIVER_FEEDBACK_PRIME
+        and f.caregiver_utterance_digest_hex16 == offered.digest_hex16
+        for f in stream.frames
+    ):
+        return stream
+    if not stream.frames:
+        return stream
+    base = stream.frames[0]
+    new_frame = ProtoSpeechDriveFrame(
+        drive_kind=ProtoSpeechDriveKind.CAREGIVER_FEEDBACK_PRIME,
+        source_surface="caregiver_feedback",
+        context_signature=base.context_signature,
+        input_digest_hex16=base.input_digest_hex16,
+        evidence_digest_hex16=base.evidence_digest_hex16,
+        reasoning_trace_digest_hex16=base.reasoning_trace_digest_hex16,
+        dispatch_trace_digest_hex16=base.dispatch_trace_digest_hex16,
+        caregiver_utterance_digest_hex16=offered.digest_hex16,
+        weight_hint=12,
+        suggested_token_set=tuple(offered.tokens),
+        explanation=_bounded_excerpt(
+            f"post-feedback prime: kind={feedback.kind.value} "
+            f"tokens={','.join(t.value for t in offered.tokens)}",
+            limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+        ),
+    )
+    new_frames = (new_frame,) + stream.frames
+    if len(new_frames) > PROTO_SPEECH_MAX_FRAMES_PER_STREAM:
+        new_frames = new_frames[:PROTO_SPEECH_MAX_FRAMES_PER_STREAM]
+    return ProtoSpeechDriveStream(
+        frames=new_frames,
+        max_frames=PROTO_SPEECH_MAX_FRAMES_PER_STREAM,
+        digest_hex16=_drive_stream_digest(new_frames),
+        status=stream.status,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Module-produced strings (audited by the static-audit fixture).
 # ---------------------------------------------------------------------------
 
 
@@ -749,11 +1389,15 @@ __all__ = (
     "ProtoSpeechCondition",
     "ProtoSpeechContext",
     "ProtoSpeechContextKind",
+    "ProtoSpeechDriveFrame",
     "ProtoSpeechDriveKind",
+    "ProtoSpeechDriveStream",
     "ProtoSpeechStatus",
     "ProtoUtterance",
     "ProtoUtteranceDisposition",
     "ProtoVocalToken",
     "build_proto_speech_context",
+    "build_proto_speech_drive_stream",
     "build_proto_utterance",
+    "update_drive_stream_after_feedback",
 )
