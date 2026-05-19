@@ -33,5 +33,19 @@
       "Bash(python3 tools/claude_helpers/codex_chatgpt_orchestrator.py:*)",
       "Bash(python3 tools/claude_helpers/codex_chatgpt_flow_orchestrator.py:*)"
     ]
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -n --arg branch \"$(git -C /home/leah/brain/toy-brain branch --show-current 2>/dev/null || echo unknown)\" --arg commit \"$(git -C /home/leah/brain/toy-brain rev-parse --short HEAD 2>/dev/null || echo unknown)\" '{systemMessage:\"Pre-compaction handoff reminder\", hookSpecificOutput:{hookEventName:\"PreCompact\", additionalContext:(\"PRE-COMPACT HANDOFF REMINDER\\n\\nContext is about to be auto-compressed. Before that finishes, update /home/leah/brain/toy-brain/PHASE3_HANDOFF_STATE.md with:\\n\\n- current branch: \" + $branch + \"\\n- latest commit: \" + $commit + \"\\n- current campaign + active step (Phase 3.20 or Phase 3.21)\\n- next step to execute\\n- any in-flight uncommitted work (run git status --short)\\n- any open task list items\\n\\nA fresh Claude Code session reads this file to pick up. Update it NOW so the handoff is fresh after compaction.\")}}'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

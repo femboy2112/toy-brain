@@ -55,8 +55,11 @@ from brain.development.pattern_ledger import (
 from brain.development.processing_window import (
     FeedbackMode,
     InternalEventSource,
+    WORLDLET_SUMMARY_ABSENT_SENTINEL,
+    build_cohmon_summary_text,
     build_pledger_summary_text,
     build_rehearsal_provenance,
+    build_worldlet_summary_text,
     plan_rehearsals,
     validate_feedback_mode,
     validate_processing_window_call_budget,
@@ -229,6 +232,11 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
     "processing_window_size",
     "processing_window_call_budget",
     "feedback_mode",
+    # Phase 3.23 dispatch tracer (I-DTRACE-03): single-slot post-action
+    # record carrying the bounded DispatchTraceReport produced by the
+    # most recent OperatorSession.dispatch call. The precedent is
+    # last_autosave_status (Phase 3.10c).
+    "latest_dispatch_trace",
 })
 
 
@@ -237,6 +245,20 @@ _ALLOWED_SESSION_ATTRS: frozenset[str] = frozenset({
 # against the LocalCommandLine defaults by the constant-parity fixture
 # (``stream_constant_parity.py``).
 _STREAM_PROMOTE_DEFAULT_RHO = Fraction(1, 2)
+
+
+# Phase 3.24 worldlet-pushback reason set, mirrored inline. Matches
+# ``brain.development.worldlet.WORLDLET_PUSHBACK_REASONS`` exactly; we
+# mirror the closed set here so ``_run_worldlet_feedback_step`` can
+# compute the bounded pushback count without importing the worldlet
+# substrate at module load time (the substrate is only typing-imported
+# above). The pattern mirrors the deferred-import discipline used for
+# ``build_full_coherence_report`` in ``_run_cohmon_feedback_step``.
+_WORLDLET_PUSHBACK_REASONS_SESSION: frozenset[str] = frozenset({
+    "missing-target",
+    "rejected",
+    "target-unavailable",
+})
 
 
 def _stream_promote_default_content_state() -> "ContentState":
@@ -297,6 +319,14 @@ class OperatorSession:
     # bit-identically. Operators opt into pattern-ledger feedback
     # by setting this to ``FeedbackMode.PATTERN_LEDGER``.
     feedback_mode: FeedbackMode = FeedbackMode.OFF
+    # Phase 3.23 dispatch tracer (I-DTRACE-03): single-slot post-action
+    # record carrying the bounded DispatchTraceReport produced by the
+    # most recent OperatorSession.dispatch call. None until the first
+    # dispatch lands; the dispatch() handler assigns a fresh report on
+    # every non-NOOP / NOOP / error path. The report is a frozen / slotted
+    # record without any unsafe resource handle so the I-UI-10 self-audit
+    # is preserved.
+    latest_dispatch_trace: Optional["DispatchTraceReport"] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, BrainState):
@@ -435,6 +465,28 @@ class OperatorSession:
             "feedback_mode",
             validate_feedback_mode(self.feedback_mode),
         )
+        # Phase 3.23 dispatch tracer field validation (I-DTRACE-03).
+        # The dispatch tracer module is imported lazily here to keep
+        # the brain.ui.session <-> brain.development.dispatch_tracer
+        # <-> brain.development.coherence_monitor module-load order
+        # acyclic. ``DispatchTraceReport`` is a frozen / slotted record
+        # carrying only bounded primitives and a ``DispatchTrace`` (in
+        # turn a tuple of frozen / slotted ``DispatchTraceStep``
+        # records). It exposes no callable, no file handle, no socket,
+        # no subprocess handle, and no LLM-client surface, so the
+        # I-UI-10 self-audit accepts it as-is.
+        if self.latest_dispatch_trace is not None:
+            from brain.development.dispatch_tracer import (  # noqa: PLC0415
+                DispatchTraceReport as _DispatchTraceReport,
+            )
+            if not isinstance(
+                self.latest_dispatch_trace, _DispatchTraceReport
+            ):
+                raise TypeError(
+                    "OperatorSession.latest_dispatch_trace must be a "
+                    "DispatchTraceReport or None "
+                    f"(got {type(self.latest_dispatch_trace).__name__})"
+                )
         self._assert_no_unsafe_resources()
 
     # ------------------------------------------------------------------
@@ -535,12 +587,31 @@ class OperatorSession:
         consulted for :data:`OperatorCommand.STEP_TICK`; every other
         command kind ignores it. ``client`` is **not** stored on the
         session (``I-UI-10``).
+
+        Phase 3.23 (I-DTRACE-03..07): every dispatch builds a bounded
+        :class:`DispatchTraceReport` and assigns it to
+        :attr:`latest_dispatch_trace`. The trace records the command
+        kind, route label, pre/post substrate facts, mutation kind,
+        autosave consideration, and resource audit outcome. Existing
+        semantics (the ``None`` return, the autosave trigger contract,
+        the I-UI-10 self-audit, kernel-side invariance on failure) are
+        preserved bit-identically.
         """
         if not isinstance(command, Command):
             raise TypeError(
                 "OperatorSession.dispatch requires a Command "
                 f"(got {type(command).__name__})"
             )
+
+        # Lazy import: keeps the brain.ui.session <-> dispatch_tracer
+        # <-> coherence_monitor module-load order acyclic.
+        from brain.development.dispatch_tracer import (  # noqa: PLC0415
+            DispatchMutationKind,
+            DispatchTraceKind,
+            DispatchTraceStatus,
+            build_dispatch_trace_report,
+            new_dispatch_trace_builder,
+        )
 
         # A new valid command attempt supersedes any prior local UI
         # error. Failure handlers below set a fresh error if this
@@ -557,6 +628,87 @@ class OperatorSession:
         mutation_outcome: Optional[bool] = None
 
         kind = command.kind
+        kind_value = kind.value if isinstance(kind, OperatorCommand) else str(kind)
+        route_label, planned_mutation_kind = _classify_dispatch_route(kind)
+        handler_method_name = _dispatch_handler_method_name(kind)
+
+        # Phase 3.23 dispatch tracer (I-DTRACE-03): open a bounded
+        # trace builder for this dispatch. The interaction_id is
+        # synthesized deterministically from bounded session counters
+        # so two sessions advanced by the same command sequence produce
+        # equal dispatch trace digests at each step.
+        interaction_id = self._dispatch_trace_interaction_id(kind_value)
+        builder = new_dispatch_trace_builder(interaction_id)
+        builder.add(
+            DispatchTraceKind.COMMAND_RECEIVED,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            derived_facts=f"command kind received: {kind_value}",
+            digest_contribution=f"cmd:{kind_value}",
+        )
+        builder.add(
+            DispatchTraceKind.ROUTE_SELECTED,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            derived_facts=f"route_label={route_label}",
+            digest_contribution=f"route:{route_label}",
+        )
+        pre_facts = self._dispatch_trace_pre_facts()
+        builder.add(
+            DispatchTraceKind.PRE_STATE_SNAPSHOT,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            before_facts=pre_facts,
+            derived_facts="pre-state captured",
+            digest_contribution="pre-state",
+        )
+
+        if kind is OperatorCommand.NOOP:
+            # Explicit no-op: leave session state unchanged. Drives the
+            # "every command kind is handled" branch of I-UI-03. The
+            # dispatch trace records the no-op route without firing the
+            # autosave hook or the self-audit (the early return path
+            # preserves the historical behavior bit-identically).
+            builder.add(
+                DispatchTraceKind.NOOP_RECORDED,
+                command_kind=kind_value,
+                mutation_kind=DispatchMutationKind.NONE,
+                status=DispatchTraceStatus.NOT_APPLICABLE,
+                route_label=route_label,
+                derived_facts="noop-early-return",
+                digest_contribution="noop",
+            )
+            builder.add(
+                DispatchTraceKind.TRACE_FINALIZED,
+                command_kind=kind_value,
+                mutation_kind=DispatchMutationKind.NONE,
+                status=DispatchTraceStatus.NOT_APPLICABLE,
+                route_label=route_label,
+                derived_facts="trace-finalized",
+                digest_contribution="trace-finalized",
+            )
+            self.latest_dispatch_trace = build_dispatch_trace_report(
+                builder.freeze()
+            )
+            return
+
+        builder.add(
+            DispatchTraceKind.HANDLER_ENTERED,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            derived_facts=f"handler={handler_method_name}",
+            digest_contribution=f"handler-enter:{handler_method_name}",
+        )
+
+        # ----- existing handler tree (semantics unchanged) -----
         if kind in INSPECT_VIEW_MAP:
             self.set_active_view(INSPECT_VIEW_MAP[kind])
             self.set_status(f"view = {INSPECT_VIEW_MAP[kind]}")
@@ -572,10 +724,6 @@ class OperatorSession:
         elif kind is OperatorCommand.QUIT:
             self.quit_flag = True
             self.set_status("quit")
-        elif kind is OperatorCommand.NOOP:
-            # Explicit no-op: leave session state unchanged. Drives the
-            # "every command kind is handled" branch of I-UI-03.
-            return
         elif kind is OperatorCommand.STREAM_APPEND:
             appended_chunk = self._dispatch_stream_append(command.payload)
             # Phase 3.18 I-PWND-01: after a successful external stream
@@ -621,6 +769,63 @@ class OperatorSession:
                 f"I-UI-03 violated: unrouted OperatorCommand {kind!r}"
             )
 
+        # ----- handler returned -----
+        handler_outcome_label = _handler_outcome_label(
+            mutation_outcome=mutation_outcome,
+            error_present=bool(self.error_message),
+        )
+        builder.add(
+            DispatchTraceKind.HANDLER_RETURNED,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            derived_facts=f"outcome={handler_outcome_label}",
+            digest_contribution=f"handler-return:{handler_outcome_label}",
+        )
+        post_facts = self._dispatch_trace_post_facts()
+        builder.add(
+            DispatchTraceKind.POST_STATE_SNAPSHOT,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            after_facts=post_facts,
+            derived_facts="post-state captured",
+            digest_contribution="post-state",
+        )
+
+        # Classify the mutation actually observed.
+        error_present = bool(self.error_message)
+        if error_present:
+            actual_mutation_kind = DispatchMutationKind.ERROR_ONLY
+            mutation_status = DispatchTraceStatus.FAIL
+            builder.add(
+                DispatchTraceKind.ERROR_RECORDED,
+                command_kind=kind_value,
+                mutation_kind=DispatchMutationKind.ERROR_ONLY,
+                status=DispatchTraceStatus.FAIL,
+                route_label=route_label,
+                derived_facts="error_message non-empty after handler",
+                digest_contribution="error",
+            )
+        else:
+            actual_mutation_kind = _refine_stream_append_mutation_kind(
+                planned=planned_mutation_kind,
+                pre_facts=pre_facts,
+                post_facts=post_facts,
+            )
+            mutation_status = DispatchTraceStatus.PASS
+        builder.add(
+            DispatchTraceKind.MUTATION_CLASSIFIED,
+            command_kind=kind_value,
+            mutation_kind=actual_mutation_kind,
+            status=mutation_status,
+            route_label=route_label,
+            derived_facts=f"mutation_kind={actual_mutation_kind.value}",
+            digest_contribution=f"mut:{actual_mutation_kind.value}",
+        )
+
         # Post-dispatch autosave trigger (drives I-AUTOSAVE-08,
         # I-AUTOSAVE-09, I-AUTOSAVE-10). Fires only when:
         #   (a) autosave_config is configured and non-OFF,
@@ -629,11 +834,126 @@ class OperatorSession:
         #   (d) session_store_config is configured.
         # The returned typed report (or None) is stored on
         # session.last_autosave_status. The helper itself never raises.
+        autosave_before = self.last_autosave_status
         self._maybe_autosave_after_dispatch(kind, mutation_outcome)
+        autosave_outcome = _classify_autosave_outcome(
+            autosave_config=self.autosave_config,
+            session_store_config=self.session_store_config,
+            mutation_outcome=mutation_outcome,
+            kind=kind,
+            autosave_before=autosave_before,
+            autosave_after=self.last_autosave_status,
+        )
+        builder.add(
+            DispatchTraceKind.AUTOSAVE_CHECKED,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            derived_facts=f"autosave={autosave_outcome}",
+            digest_contribution=f"autosave:{autosave_outcome}",
+        )
 
         # Self-audit after every dispatch so a buggy handler cannot
         # widen the session's resource surface unnoticed.
         self._assert_no_unsafe_resources()
+        builder.add(
+            DispatchTraceKind.RESOURCE_AUDIT_CHECKED,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.PASS,
+            route_label=route_label,
+            derived_facts="audit:ok",
+            digest_contribution="audit:ok",
+        )
+        builder.add(
+            DispatchTraceKind.TRACE_FINALIZED,
+            command_kind=kind_value,
+            mutation_kind=DispatchMutationKind.NONE,
+            status=DispatchTraceStatus.NOT_APPLICABLE,
+            route_label=route_label,
+            derived_facts="trace-finalized",
+            digest_contribution="trace-finalized",
+        )
+        self.latest_dispatch_trace = build_dispatch_trace_report(
+            builder.freeze()
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 3.23 dispatch tracer helpers (I-DTRACE-03..07).
+    # ------------------------------------------------------------------
+
+    def _dispatch_trace_interaction_id(self, kind_value: str) -> str:
+        """Synthesize a bounded deterministic interaction_id.
+
+        Derived only from bounded session counters and the bounded
+        command_kind value, so two sessions advanced by the same
+        command sequence produce equal interaction_ids at each step.
+        """
+        synth = (
+            f"dispatch:tc{self.tick_counter}:"
+            f"ssc{self.stream_chunk_serial}:"
+            f"sh{len(self.stream_history.chunks)}:"
+            f"eq{len(self.event_queue)}:"
+            f"cmd{kind_value}"
+        )
+        if len(synth) > 64:
+            synth = synth[:60] + " ..."
+        return synth
+
+    def _dispatch_trace_pre_facts(
+        self,
+    ) -> tuple[tuple[str, str], ...]:
+        """Bounded snapshot of session-side facts before a handler runs."""
+        return self._dispatch_trace_session_facts()
+
+    def _dispatch_trace_post_facts(
+        self,
+    ) -> tuple[tuple[str, str], ...]:
+        """Bounded snapshot of session-side facts after a handler runs."""
+        return self._dispatch_trace_session_facts()
+
+    def _dispatch_trace_session_facts(
+        self,
+    ) -> tuple[tuple[str, str], ...]:
+        return (
+            ("active_view", self.active_view),
+            ("event_queue_size", str(len(self.event_queue))),
+            ("stream_history_len", str(len(self.stream_history.chunks))),
+            ("stream_candidate_count", str(len(self.stream_candidates))),
+            (
+                "pattern_entry_count",
+                str(len(self.pattern_ledger.entries)),
+            ),
+            (
+                "growth_event_total",
+                str(len(self.growth_ledger.events)),
+            ),
+            (
+                "processing_window_size",
+                str(self.processing_window_size),
+            ),
+            ("feedback_mode", self.feedback_mode.value),
+            (
+                "worldlet_summary_chunks",
+                str(
+                    sum(
+                        1
+                        for c in self.stream_history.chunks
+                        if c.provenance.endswith(":worldlet_summary")
+                    )
+                ),
+            ),
+            ("tick_counter", str(self.tick_counter)),
+            (
+                "status_message_present",
+                "1" if self.status_message else "0",
+            ),
+            (
+                "error_message_present",
+                "1" if self.error_message else "0",
+            ),
+        )
 
     # ------------------------------------------------------------------
     # Internal handlers
@@ -986,8 +1306,22 @@ class OperatorSession:
         except (TypeError, ValueError) as exc:
             self.set_error(f"processing window plan rejected: {exc}")
             return 0
+        pledger_feedback_enabled = self.feedback_mode in (
+            FeedbackMode.PATTERN_LEDGER,
+            FeedbackMode.PATTERN_AND_COHERENCE,
+            FeedbackMode.PATTERN_COHERENCE_WORLDLET,
+        )
+        cohmon_feedback_enabled = self.feedback_mode in (
+            FeedbackMode.COHERENCE,
+            FeedbackMode.PATTERN_AND_COHERENCE,
+            FeedbackMode.PATTERN_COHERENCE_WORLDLET,
+        )
+        worldlet_feedback_enabled = self.feedback_mode in (
+            FeedbackMode.WORLDLET,
+            FeedbackMode.PATTERN_COHERENCE_WORLDLET,
+        )
         seed_pattern_id: Optional[str] = None
-        if self.feedback_mode is FeedbackMode.PATTERN_LEDGER:
+        if pledger_feedback_enabled:
             seed_pattern_id = derive_pattern_id(
                 derive_pattern_signature(seed_chunk)
             )
@@ -1005,14 +1339,33 @@ class OperatorSession:
                 # cleanly without retrying.
                 break
             fired += 1
-            if self.feedback_mode is FeedbackMode.PATTERN_LEDGER:
+            if pledger_feedback_enabled:
                 if not self._run_feedback_step(
                     tick_index=step.tick_index,
                     seed_pattern_id=seed_pattern_id,
                 ):
-                    # A bounded substrate refused the feedback chunk;
-                    # error_message is set by _append_stream_chunk or
-                    # the helper below. Abort the window cleanly.
+                    # A bounded substrate refused the pledger
+                    # feedback chunk; error_message is set by
+                    # _append_stream_chunk or the helper. Abort
+                    # the window cleanly.
+                    break
+            if cohmon_feedback_enabled:
+                if not self._run_cohmon_feedback_step(
+                    tick_index=step.tick_index,
+                ):
+                    # A bounded substrate refused the cohmon
+                    # feedback chunk; error_message is set by
+                    # _append_stream_chunk or the helper. Abort
+                    # the window cleanly.
+                    break
+            if worldlet_feedback_enabled:
+                if not self._run_worldlet_feedback_step(
+                    tick_index=step.tick_index,
+                ):
+                    # A bounded substrate refused the worldlet
+                    # feedback chunk; error_message is set by
+                    # _append_stream_chunk or the helper. Abort
+                    # the window cleanly.
                     break
         return fired
 
@@ -1055,6 +1408,166 @@ class OperatorSession:
             )
         except (TypeError, ValueError) as exc:
             self.set_error(f"processing window feedback rejected: {exc}")
+            return False
+        chunk = self._append_stream_chunk(
+            text=summary_text,
+            chunk_provenance=summary_provenance,
+            growth_provenance="stream_append:_run_processing_window",
+        )
+        return chunk is not None
+
+    def _run_cohmon_feedback_step(
+        self,
+        *,
+        tick_index: int,
+    ) -> bool:
+        """Fire one Phase 3.20 Coherence Monitor feedback chunk.
+
+        Builds a fresh :class:`CoherenceReport` via
+        :func:`brain.development.coherence_monitor.build_full_coherence_report`
+        (deferred import to avoid a module-load cycle:
+        ``coherence_monitor`` already imports
+        :class:`OperatorSession`; this module would otherwise
+        import ``coherence_monitor`` at the top, completing the
+        cycle). Extracts bounded primitives from the report, calls
+        :func:`build_cohmon_summary_text` to produce the
+        deterministic summary text, composes the
+        ``cohmon_summary`` provenance via
+        :func:`build_rehearsal_provenance`, and dispatches the
+        chunk through :meth:`_append_stream_chunk`. Returns
+        ``True`` on success and ``False`` on any bounded substrate
+        refusal (with :attr:`error_message` already set).
+
+        Drives ``I-CFBK-01``. Consumes zero real model calls
+        because the entire path is offline / structural.
+        """
+        # Deferred function-body import (LOCK I): avoids the
+        # circular module load described in the docstring.
+        from brain.development.coherence_monitor import (
+            build_full_coherence_report,
+        )
+
+        try:
+            report = build_full_coherence_report(
+                self,
+                snapshot_id=f"coh-snap-{tick_index}",
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(
+                f"processing window cohmon feedback rejected: {exc}"
+            )
+            return False
+
+        counts: dict[str, int] = {
+            "pass": 0,
+            "warn": 0,
+            "fail": 0,
+            "not_applicable": 0,
+        }
+        for label, count in report.counts_by_status:
+            if label in counts:
+                counts[label] = count
+
+        try:
+            summary_text = build_cohmon_summary_text(
+                overall_status_value=report.overall_status.value,
+                pass_count=counts["pass"],
+                warn_count=counts["warn"],
+                fail_count=counts["fail"],
+                na_count=counts["not_applicable"],
+                check_count=len(report.snapshot.checks),
+            )
+            summary_provenance = build_rehearsal_provenance(
+                tick_index=tick_index,
+                source=InternalEventSource.COHMON_SUMMARY,
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(
+                f"processing window cohmon feedback rejected: {exc}"
+            )
+            return False
+        chunk = self._append_stream_chunk(
+            text=summary_text,
+            chunk_provenance=summary_provenance,
+            growth_provenance="stream_append:_run_processing_window",
+        )
+        return chunk is not None
+
+    def _run_worldlet_feedback_step(
+        self,
+        *,
+        tick_index: int,
+    ) -> bool:
+        """Fire one Phase 3.24 worldlet-summary feedback chunk.
+
+        Reads bounded primitives from :attr:`worldlet_history` (or
+        falls back to the Phase 3.24 ``"absent"`` sentinel when no
+        worldlet history is present), composes a bounded
+        deterministic summary via
+        :func:`build_worldlet_summary_text`, composes the bounded
+        worldlet-summary provenance via
+        :func:`build_rehearsal_provenance`, and dispatches the
+        chunk through :meth:`_append_stream_chunk`. Returns
+        ``True`` on success and ``False`` on any bounded substrate
+        refusal (with :attr:`error_message` already set).
+
+        Drives ``I-WFDBK-04``. Consumes zero real model calls
+        because the entire path is offline / structural. Does NOT
+        mutate :attr:`worldlet_history` (the Phase 3.24 feedback
+        path is read-only on the worldlet substrate).
+        """
+        history = self.worldlet_history
+        if history is None:
+            state_id_value = WORLDLET_SUMMARY_ABSENT_SENTINEL
+            step_index = 0
+            object_count = 0
+            attempt_count = 0
+            response_count = 0
+            accepted_count = 0
+            pushback_count = 0
+            last_reason_value = WORLDLET_SUMMARY_ABSENT_SENTINEL
+        else:
+            latest_state = history.latest_state
+            state_id_value = latest_state.state_id
+            step_index = latest_state.step_index
+            object_count = len(latest_state.objects)
+            attempts = history.attempts
+            responses = history.responses
+            attempt_count = len(attempts)
+            response_count = len(responses)
+            accepted_count = sum(
+                1 for r in responses if r.accepted
+            )
+            pushback_count = sum(
+                1
+                for r in responses
+                if (not r.accepted)
+                and r.reason in _WORLDLET_PUSHBACK_REASONS_SESSION
+            )
+            if responses:
+                last_reason_value = responses[-1].reason
+            else:
+                last_reason_value = WORLDLET_SUMMARY_ABSENT_SENTINEL
+
+        try:
+            summary_text = build_worldlet_summary_text(
+                state_id_value=state_id_value,
+                step_index=step_index,
+                object_count=object_count,
+                attempt_count=attempt_count,
+                response_count=response_count,
+                accepted_count=accepted_count,
+                pushback_count=pushback_count,
+                last_reason_value=last_reason_value,
+            )
+            summary_provenance = build_rehearsal_provenance(
+                tick_index=tick_index,
+                source=InternalEventSource.WORLDLET_SUMMARY,
+            )
+        except (TypeError, ValueError) as exc:
+            self.set_error(
+                f"processing window worldlet feedback rejected: {exc}"
+            )
             return False
         chunk = self._append_stream_chunk(
             text=summary_text,
@@ -1576,6 +2089,201 @@ class OperatorSession:
         if payload is None:
             return ()
         return payload.summary()
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.23 dispatch tracer helpers (I-DTRACE-03..07).
+# ---------------------------------------------------------------------------
+
+
+def _classify_dispatch_route(kind):
+    """Return the bounded ``(route_label, planned_mutation_kind)`` tuple.
+
+    The actual mutation classification may refine the planned kind
+    (for example, the STREAM_APPEND route may classify as
+    ``STREAM_WINDOW_INTERNAL`` when the rehearsal window produced
+    additional internal chunks); see
+    :func:`_refine_stream_append_mutation_kind`.
+    """
+    # Lazy import: brain.development.dispatch_tracer depends on
+    # brain.development.coherence_monitor, which imports OperatorSession.
+    from brain.development.dispatch_tracer import (  # noqa: PLC0415
+        DispatchMutationKind,
+    )
+
+    if kind in INSPECT_VIEW_MAP:
+        return ("inspect-view-change", DispatchMutationKind.VIEW_CHANGE)
+    if kind is OperatorCommand.QUEUE_PERCEPT:
+        return ("queue-percept", DispatchMutationKind.QUEUE_MUTATION)
+    if kind is OperatorCommand.STEP_TICK:
+        return (
+            "step-tick-via-public-tick",
+            DispatchMutationKind.STEP_TICK,
+        )
+    if kind is OperatorCommand.CLEAR_STATUS:
+        return ("clear-status", DispatchMutationKind.UI_ONLY)
+    if kind is OperatorCommand.HELP:
+        return ("help-view", DispatchMutationKind.VIEW_CHANGE)
+    if kind is OperatorCommand.QUIT:
+        return ("quit-flag", DispatchMutationKind.QUIT_FLAG)
+    if kind is OperatorCommand.NOOP:
+        return ("noop-early-return", DispatchMutationKind.NONE)
+    if kind is OperatorCommand.STREAM_APPEND:
+        return ("stream-append", DispatchMutationKind.STREAM_APPEND)
+    if kind is OperatorCommand.STREAM_PROMOTE:
+        return ("stream-promote", DispatchMutationKind.STREAM_PROMOTE)
+    if kind in (
+        OperatorCommand.SAVE_SESSION,
+        OperatorCommand.LOAD_SESSION,
+    ):
+        return (
+            "session-persistence",
+            DispatchMutationKind.SESSION_PERSISTENCE,
+        )
+    if kind is OperatorCommand.SESSION_STATUS:
+        return ("session-status", DispatchMutationKind.UI_ONLY)
+    if kind in (
+        OperatorCommand.DB_STATUS,
+        OperatorCommand.DB_VERIFY,
+        OperatorCommand.DB_SUMMARY,
+        OperatorCommand.PROFILE_SUMMARY,
+        OperatorCommand.STREAM_DB_SUMMARY,
+        OperatorCommand.DB_DIFF,
+    ):
+        return ("db-observe", DispatchMutationKind.DB_OBSERVE)
+    if kind is OperatorCommand.DB_BACKUP:
+        return ("db-backup", DispatchMutationKind.DB_BACKUP)
+    if kind is OperatorCommand.AUTOSAVE_STATUS:
+        return ("autosave-status", DispatchMutationKind.UI_ONLY)
+    if kind in (
+        OperatorCommand.AUTOSAVE_ENABLE,
+        OperatorCommand.AUTOSAVE_DISABLE,
+    ):
+        return ("autosave-config", DispatchMutationKind.AUTOSAVE)
+    # The enum is closed; fall back to a bounded printable label
+    # rather than raising, so the dispatch trace records the
+    # routing failure structurally.
+    return ("unrouted", DispatchMutationKind.ERROR_ONLY)
+
+
+def _dispatch_handler_method_name(kind) -> str:
+    """Return the bounded printable name of the handler method.
+
+    Used in the trace's ``HANDLER_ENTERED.derived_facts`` field so
+    audits can reconstruct which method handled each route.
+    """
+    if kind in INSPECT_VIEW_MAP:
+        return "set_active_view+set_status"
+    mapping = {
+        OperatorCommand.QUEUE_PERCEPT: "_dispatch_queue",
+        OperatorCommand.STEP_TICK: "_dispatch_step",
+        OperatorCommand.CLEAR_STATUS: "clear_status",
+        OperatorCommand.HELP: "set_active_view+set_status",
+        OperatorCommand.QUIT: "set_quit_flag",
+        OperatorCommand.NOOP: "noop-early-return",
+        OperatorCommand.STREAM_APPEND: "_dispatch_stream_append",
+        OperatorCommand.STREAM_PROMOTE: "_dispatch_stream_promote",
+        OperatorCommand.SAVE_SESSION: "_dispatch_save_session",
+        OperatorCommand.LOAD_SESSION: "_dispatch_load_session",
+        OperatorCommand.SESSION_STATUS: "_dispatch_session_status",
+        OperatorCommand.DB_STATUS: "_dispatch_db_status",
+        OperatorCommand.DB_VERIFY: "_dispatch_db_verify",
+        OperatorCommand.DB_BACKUP: "_dispatch_db_backup",
+        OperatorCommand.DB_SUMMARY: "_dispatch_db_summary",
+        OperatorCommand.PROFILE_SUMMARY: "_dispatch_profile_summary",
+        OperatorCommand.STREAM_DB_SUMMARY: "_dispatch_stream_db_summary",
+        OperatorCommand.DB_DIFF: "_dispatch_db_diff",
+        OperatorCommand.AUTOSAVE_STATUS: "_dispatch_autosave_status",
+        OperatorCommand.AUTOSAVE_ENABLE: "_dispatch_autosave_enable",
+        OperatorCommand.AUTOSAVE_DISABLE: "_dispatch_autosave_disable",
+    }
+    return mapping.get(kind, "unrouted")
+
+
+def _handler_outcome_label(
+    *, mutation_outcome, error_present: bool
+) -> str:
+    """Bounded printable classification of the handler's outcome.
+
+    The mutation_outcome contract (drives ``I-AUTOSAVE-14``) returns
+    ``True`` for a kernel mutation, ``False`` for an outright handler
+    failure, and ``None`` for a read-only route. The error_present
+    flag captures whether ``error_message`` is non-empty after the
+    handler. Combining both yields the bounded label.
+    """
+    if mutation_outcome is True:
+        return "mutated"
+    if mutation_outcome is False:
+        return "failed"
+    if error_present:
+        return "failed-readonly"
+    return "read-only"
+
+
+def _refine_stream_append_mutation_kind(
+    *, planned, pre_facts, post_facts,
+):
+    """Refine ``STREAM_APPEND`` to ``STREAM_WINDOW_INTERNAL`` when applicable.
+
+    The Phase 3.18 processing window can append additional internal
+    rehearsal chunks during a single STREAM_APPEND dispatch. When that
+    happens, the post-dispatch ``stream_history_len`` rises by more
+    than 1 above the pre-dispatch value. The mutation classification
+    reflects this by switching to ``STREAM_WINDOW_INTERNAL``.
+    """
+    from brain.development.dispatch_tracer import (  # noqa: PLC0415
+        DispatchMutationKind,
+    )
+
+    if planned is not DispatchMutationKind.STREAM_APPEND:
+        return planned
+    pre_lookup = {k: v for k, v in pre_facts}
+    post_lookup = {k: v for k, v in post_facts}
+    try:
+        pre_len = int(pre_lookup.get("stream_history_len", "0"))
+        post_len = int(post_lookup.get("stream_history_len", "0"))
+    except ValueError:
+        return planned
+    if post_len > pre_len + 1:
+        return DispatchMutationKind.STREAM_WINDOW_INTERNAL
+    return planned
+
+
+def _classify_autosave_outcome(
+    *,
+    autosave_config,
+    session_store_config,
+    mutation_outcome,
+    kind,
+    autosave_before,
+    autosave_after,
+) -> str:
+    """Bounded printable classification of the autosave hook outcome."""
+    if autosave_config is None:
+        return "considered:no-config"
+    # Lazy: brain.ui.autosave imports brain.ui.session.
+    from brain.ui.autosave import AutosaveMode  # noqa: PLC0415
+
+    if autosave_config.mode is AutosaveMode.OFF:
+        return "considered:mode-off"
+    if session_store_config is None:
+        return "considered:no-db"
+    if mutation_outcome is not True:
+        return "considered:no-mutation"
+    if kind not in (
+        OperatorCommand.STEP_TICK,
+        OperatorCommand.STREAM_PROMOTE,
+    ):
+        return "considered:wrong-trigger"
+    if autosave_after is None:
+        return "considered:hook-noop"
+    if autosave_after is autosave_before:
+        return "considered:hook-noop"
+    if autosave_after.last_attempt_outcome == "ok":
+        return "considered:fired-ok"
+    if autosave_after.last_attempt_outcome == "error":
+        return "considered:fired-failed"
+    return "considered:fired-other"
 
 
 __all__ = [
