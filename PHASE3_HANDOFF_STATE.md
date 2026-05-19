@@ -4,8 +4,8 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.31 COMPLETE; PR #33 opened against the
-PR #32 base (or main if PR #32 has merged)
+**Last updated:** Phase 3.31 COMPLETE; PR #33 open at
+https://github.com/femboy2112/toy-brain/pull/33
 **Active branch:** `campaign/phase3-31-caregiver-proto-speech`
 **Active campaign:** none in flight; Phase 3.31 ready for review
 **Prior campaigns:**
