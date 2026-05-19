@@ -24,26 +24,211 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.27 expected counts — bumped by the Phase 3.19 Internal Feedback
-# Loop catalog patch (I-IFBK-01..02: +1 REQUIRED row, +1 STRUCTURAL
-# row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged). Phase 3.19
-# extends brain/development/processing_window.py with FeedbackMode
-# (closed (str, Enum) with OFF / PATTERN_LEDGER) plus the pure
-# build_pledger_summary_text helper; widens the v1-emitted source
-# set in InternalEventSource to include PLEDGER_SUMMARY (LOCK F
-# keeps COHMON_SUMMARY reserved); adds one new optional
-# OperatorSession field feedback_mode (default FeedbackMode.OFF
-# so the Phase 3.18 rehearsal-only path is preserved bit-
-# identically). The new fixtures are
-# internal_feedback_static_audit.py (STRUCTURAL) and
-# internal_feedback_integration.py (REQUIRED). brain/tick.py is
+# v0.37 expected counts — bumped by the Phase 3.31 Caregiver-
+# Scaffolded Proto-Speech Acquisition catalog patch
+# (I-PSPEECH-01..19: +18 REQUIRED rows, +1 STRUCTURAL row; NOT-
+# EXERCISED / DEFERRED / OBSERVED unchanged). Phase 3.31 adds the
+# new module brain/development/proto_speech_acquisition.py: a
+# pure bounded deterministic OFFLINE live-test runner with closed
+# ProtoVocalToken (15 values), CaregiverFeedbackKind (6 values),
+# ProtoSpeechContextKind (9 values), ProtoUtteranceDisposition
+# (8 values), ProtoSpeechDriveKind (12 values), ProtoSpeechStatus
+# (4 values), and ProtoSpeechCondition (10 values) enums and the
+# bounded ProtoUtterance, CaregiverFeedback, ProtoSpeechContext,
+# ProtoSpeechDriveFrame, ProtoSpeechDriveStream,
+# ProtoSpeechEvidenceRecord, ProtoSpeechEvidenceTable,
+# ProtoSpeechTurn, ProtoSpeechAcquisitionReport records. The
+# runner probes whether the existing substrate realizes the
+# operational analogue of caregiver-scaffolded proto-speech
+# acquisition (drive-stream-grounded babble + closed-rule
+# evidence updates + shape-digest transfer + suppression +
+# combination + refusal-held) under ten bounded conditions. The
+# benchmark battery adds one axis: A15 proto_speech_acquisition
+# (18 cases A15.01..A15.18). Total benchmark cases: 137 (119 +
+# 18); 136 PASS + 1 WARN (A3.04 carry-over) + 0 FAIL. brain/tick
+# .py is not edited; no existing runtime file's behavior changes;
+# OFFLINE default preserved; zero real model calls; non-claim
+# discipline enforced via the canonical _FORBIDDEN_NON_CLAIM_TERMS
+# tuple on every produced summary string and the new module
+# source. "Proto-speech acquisition" is engineering shorthand for
+# bounded co-occurrence + closed-rule weight updates + drive-
+# stream-grounded selection + shape-digest transfer at the
+# substrate level; the runtime is not claimed to have language,
+# inner speech, hidden chain-of-thought, communicative intent,
+# audience modelling, or any cognitive process.
+# v0.36 history retained: bumped by the Phase 3.30 Curriculum
+# Consolidation Live Test catalog patch (I-CURR-01..14: +13
+# REQUIRED rows, +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED /
+# OBSERVED unchanged). Phase 3.30 adds the new module
+# brain/development/curriculum_consolidation_probe.py: a pure
+# bounded deterministic OFFLINE live-test runner with closed
+# CurriculumCondition (5 values), AuditDisposition (3 values),
+# AdmissionOutcome (3 values), TrialVerdict (4 values) enums and
+# the bounded CurriculumExposure, CurriculumStructureRecord,
+# CurriculumProbeStep, CurriculumTrial, CurriculumTrialResult,
+# CurriculumConsolidationReport records. The runner probes whether
+# the existing substrate realizes the operational analogue of
+# *curriculum consolidation*: bounded ordered structural exposure
+# + closed admission rule + LRU decay + session-local cache reuse
+# + tri-disposition audit at the substrate level. The v1
+# ten-trial battery covers shapes A B / A A / A B C / A A B /
+# A B A / A B B / collision pairs / five- and six-shape overflow /
+# reuse positive and negative under five conditions
+# (SINGLE_STRUCTURE, SEQUENTIAL_NONINTERFERING,
+# SEQUENTIAL_INTERFERING, DECAY_ON_DISUSE, REUSE_AFTER_NEWER).
+# Eleven new fixtures land in brain/ui/fixtures/. The benchmark
+# battery adds one axis: A14 curriculum_consolidation (14 cases
+# A14.01..A14.14). Total benchmark cases: 119 (105 + 14); 118 PASS
+# + 1 WARN (A3.04 carry-over) + 0 FAIL. brain/tick.py is not
+# edited; no existing runtime file's behavior changes; OFFLINE
+# default preserved; zero real model calls; non-claim discipline
+# enforced via the canonical _FORBIDDEN_NON_CLAIM_TERMS tuple on
+# every produced summary string and the new module source.
+# "Curriculum consolidation" is engineering shorthand for bounded
+# ordered structural exposure + closed admission rule + LRU decay
+# + session-local cache reuse + tri-disposition audit at the
+# substrate level; the runtime is not claimed to have learning,
+# memory, forgetting, consolidation, interference, deliberation,
+# attention, working memory, episodic memory, or any cognitive
+# process.
+# v0.35 history retained: bumped by the Phase 3.26 Active
+# Hypothesis + Self-Directed Probe Loop catalog patch
+# (I-AHYP-01..14: +13 REQUIRED rows, +1 STRUCTURAL row;
+# NOT-EXERCISED / DEFERRED / OBSERVED unchanged). Phase 3.26 adds the new module
+# brain/development/active_hypothesis_probe.py: a pure bounded
+# deterministic OFFLINE live-test runner with closed AmbiguityCondition
+# (5 values), ActiveHypothesisStatus (4 values), ProbeConstructionRule
+# (6 values), TrialVerdict (4 values), ProbeOutcome (2 values) enums
+# and the bounded ActiveHypothesisCandidate, ActiveProbeStep,
+# ActiveHypothesisTrial, ActiveHypothesisResult,
+# ActiveHypothesisLiveTestReport records. The runner probes whether
+# the existing substrate realizes the operational analogue of
+# *active hypothesis + self-directed probe*: bounded structural
+# candidate enumeration + falsification + caching at the substrate
+# level. The v1 ten-trial battery covers shapes A B A, A B B,
+# A B C, A B A B, A A, A A B under five conditions
+# (CONTROL_NO_AMBIGUITY, SINGLE_HYPOTHESIS_CONVERGES,
+# MULTI_HYPOTHESIS_NARROWS, NO_HYPOTHESIS_SURVIVES,
+# REUSE_CACHED_HYPOTHESIS). Eleven new fixtures land in
+# brain/ui/fixtures/. The benchmark battery adds one axis: A13
+# active_hypothesis (14 cases A13.01..A13.14). Total benchmark
+# cases: 105 (91 + 14); 104 PASS + 1 WARN (A3.04 carry-over) + 0
+# FAIL. brain/tick.py is not edited; no existing runtime file's
+# behavior changes; OFFLINE default preserved; zero real model
+# calls; non-claim discipline enforced via the canonical
+# _FORBIDDEN_NON_CLAIM_TERMS tuple on every produced summary
+# string and the new module source. "Active hypothesis" /
+# "self-directed probe" is engineering shorthand for bounded
+# structural candidate enumeration + falsification + caching at
+# the substrate level; the runtime is not claimed to have
+# inquiry, curiosity, deliberation, planning, decision-making,
+# introspection, or any cognitive property.
+# v0.34 history retained: bumped by the Phase 3.25 Osmotic Learning
+# Live Test catalog patch (I-OSMO-01..14: +13 REQUIRED rows, +1
+# STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
+# Phase 3.25 adds the new module
+# brain/development/osmotic_learning_probe.py: a pure bounded
+# deterministic OFFLINE live-test runner with the closed
+# OsmoticCondition (4 values) and OsmoticProbeStatus (4 values)
+# enums and the bounded OsmoticExposureEvent, OsmoticProbeTrial,
+# OsmoticProbeResult, OsmoticLiveTestReport records. The runner
+# probes whether the existing substrate realizes the operational
+# analogue of osmotic imprinting + activation under four bounded
+# conditions: CONTROL_NO_EXPOSURE, TRUE_EXPOSURE, SHAM_EXPOSURE,
+# DISTRACTOR_INTERFERENCE. The v1 ten-trial battery covers ABAB,
+# ABBA, AAB, ABCABC target shapes. Ten new fixtures land in
+# brain/ui/fixtures/. The benchmark battery adds one axis: A12
+# osmotic_learning (14 cases A12.01..A12.14). Total benchmark
+# cases: 91 (77 + 14); 90 PASS + 1 WARN (A3.04 carry-over) + 0
+# FAIL. brain/tick.py is not edited; no existing runtime file's
+# behavior changes; OFFLINE default preserved; zero real model
+# calls; non-claim discipline enforced via the canonical
+# _FORBIDDEN_NON_CLAIM_TERMS tuple on every produced summary
+# string and the new module source. "Osmotic learning" is
+# engineering shorthand for unlabeled exposure-driven structural
+# uptake at the substrate level; the runtime is not claimed to
+# have intuition, awareness, perception, or unconscious learning.
+# v0.33 history retained: bumped by the Phase 3.24 Worldlet Feedback
+# Bridge catalog patch (I-WFDBK-01..12: +11 REQUIRED rows, +1
+# STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
+# Phase 3.24 adds the bounded pure helper build_worldlet_summary_text
+# in brain/development/processing_window.py, the two new FeedbackMode
+# members WORLDLET and PATTERN_COHERENCE_WORLDLET, the new
+# InternalEventSource.WORLDLET_SUMMARY member, the OperatorSession
+# helper method _run_worldlet_feedback_step in brain/ui/session.py,
+# the two new closed-enum extensions ReasoningStepKind.CHECK_WORLDLET_FEEDBACK
+# and LearningEvidenceKind.WORLDLET_FEEDBACK_RECORDED, the three new
+# AgentObservationSummary fields, the dispatch-trace
+# worldlet_summary_chunks derived fact, and benchmark axis A11
+# worldlet_feedback (12 cases A11.01..A11.12). Eight new fixtures
+# land in brain/ui/fixtures/. brain/tick.py is not edited; no
+# existing runtime file's behavior changes; OFFLINE default
+# preserved; zero real model calls; non-claim discipline enforced
+# via the canonical _FORBIDDEN_NON_CLAIM_TERMS tuple on every
+# produced summary string and the new helper output.
+# v0.32 history retained: bumped by the Phase 3.23 Dispatch Tracer
+# Wiring catalog patch (I-DTRACE-01..12: +11 REQUIRED rows, +1
+# STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
+# Phase 3.23 adds the brain/development/dispatch_tracer.py module: a
+# pure deterministic audit-trail substrate with closed
+# DispatchTraceKind (12 values), DispatchMutationKind (14 values),
+# and DispatchTraceStatus (4 values) enums and bounded
+# DispatchTraceStep / DispatchTrace / DispatchTraceReport /
+# DispatchTraceDigest / DispatchTraceConfig records. The
+# OperatorSession.dispatch path is wired to build a bounded trace
+# inline on every dispatch and store the report on the new
+# single-slot OperatorSession.latest_dispatch_trace field; existing
+# semantics are kept bit-identical. AgentLoopResult exposes the
+# trace report; the Phase 3.22b reasoning trace gains a
+# CHECK_DISPATCH_TRACE step before EMIT_REPLY citing the digest, and
+# the Phase 3.22b learning evidence ledger gains a
+# DISPATCH_TRACE_RECORDED record kind citing the same digest. The
+# benchmark gains one new axis A10 (12 cases). Nine new fixtures
+# land in brain/ui/fixtures/ (constructor + session-stream +
+# processing-window + step-tick-error + noop + agent-loop-integration
+# + reasoning-learning-integration + benchmark-axis + static-audit).
+# brain/tick.py is not edited; no existing runtime file's behavior
+# changes; OFFLINE default preserved; zero real model calls; non-
+# claim discipline enforced via the canonical
+# _FORBIDDEN_NON_CLAIM_TERMS tuple on every produced summary string
+# and the new module source.
+# v0.29 history retained: bumped by the Phase 3.21 Developmental
+# Trajectory catalog patch (I-DEVMILE-01..11: +10 REQUIRED rows,
+# +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED
+# unchanged). Phase 3.21 adds the brain/development/milestone_harness.py
+# module: a strict consumer of existing public surfaces that
+# defines a closed ten-member DevelopmentalMilestone enum, a
+# closed four-member MilestoneStatus enum, a frozen / slotted
+# MilestoneResult record, ten pure deterministic helpers
+# run_m01_*..run_m10_*, and an aggregator run_all_milestones().
+# Eleven new fixtures land in brain/ui/fixtures/ (one per
+# milestone + one static audit). brain/tick.py is not edited;
+# no existing runtime file is modified; OFFLINE default
+# preserved; zero real model calls; non-claim discipline
+# enforced via the canonical _FORBIDDEN_NON_CLAIM_TERMS tuple
+# on every produced summary string and the harness module
+# source. "Developmental" / "milestone" / "trajectory" are used
+# in the operational sense only, never psychological.
+# v0.28 history retained: Phase 3.20 extends brain/development/processing_window.py
+# with two new FeedbackMode members (COHERENCE and
+# PATTERN_AND_COHERENCE), a pure build_cohmon_summary_text helper
+# accepting only bounded primitives, the COHMON_SUMMARY_TEXT_*
+# constants, and widens the v1-emitted source set in
+# InternalEventSource to include COHMON_SUMMARY (no member is
+# reserved at v0.28). OperatorSession gains a new
+# _run_cohmon_feedback_step helper that performs a deferred
+# function-body import of build_full_coherence_report to avoid a
+# circular module load. The new fixtures are
+# coherence_feedback_static_audit.py (STRUCTURAL) and
+# coherence_feedback_integration.py (REQUIRED). brain/tick.py is
 # not edited; L1 / L2 cache semantics unchanged; parser / prompt
-# unchanged; no new GrowthEventType / OperatorCommand / operator
-# verb; STREAM_APPEND consumes zero real model calls so the
-# feedback path consumes zero real model calls regardless of size.
+# unchanged; no new GrowthEventType / GrowthEventSource /
+# OperatorCommand / operator verb; STREAM_APPEND consumes zero
+# real model calls so the feedback path consumes zero real model
+# calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 283,
-    "STRUCTURAL": 90,
+    "REQUIRED": 392,
+    "STRUCTURAL": 101,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,

@@ -1,24 +1,36 @@
 """Phase 3.18 Bounded Internal Processing Window substrate
-(extended by Phase 3.19 Internal Feedback Loop).
+(extended by Phase 3.19 Internal Feedback Loop, Phase 3.20
+Coherence Feedback Bridge, and Phase 3.24 Worldlet Feedback
+Bridge).
 
 A session-level rehearsal + feedback helper. After a successful
 external STREAM_APPEND dispatch, the session fires up to N
 internal STREAM_APPEND events whose text is the EXACT text of the
 most recent operator chunk (the Phase 3.18 rehearsal path).
-When :class:`FeedbackMode` is :data:`FeedbackMode.PATTERN_LEDGER`,
-each rehearsal is followed by a deterministic Pattern Ledger
-summary chunk whose text is built by
-:func:`build_pledger_summary_text` and re-enters the same
-STREAM_APPEND path. The summary chunk's structural signature
-differs from the seed chunk's, so Pattern Ledger.observe records
-a second-order pattern entry distinct from the seed entry.
+When :class:`FeedbackMode` is :data:`FeedbackMode.PATTERN_LEDGER`
+(or :data:`FeedbackMode.PATTERN_AND_COHERENCE`), each rehearsal
+is followed by a deterministic Pattern Ledger summary chunk whose
+text is built by :func:`build_pledger_summary_text` and re-enters
+the same STREAM_APPEND path. When :class:`FeedbackMode` is
+:data:`FeedbackMode.COHERENCE` (or
+:data:`FeedbackMode.PATTERN_AND_COHERENCE`), each rehearsal is
+followed by a deterministic Coherence Monitor summary chunk whose
+text is built by :func:`build_cohmon_summary_text` from bounded
+primitives the session extracts from a live
+:func:`brain.development.coherence_monitor.build_full_coherence_report`
+call. Each summary chunk's structural signature differs from the
+seed chunk's signature (and from the other summary family's
+signature), so Pattern Ledger.observe records additional
+second-order pattern entries distinct from the seed entry.
 
 The module is deliberately closed:
 
 * No I/O, no network, no shell, no LLM, no ``brain.tick`` import,
-  no ``brain.ui.session`` import (one-way dependency), no curses,
-  no threading / asyncio / atexit / signal / importlib / time /
-  random.
+  no ``brain.ui.session`` import (one-way dependency), no
+  ``brain.development.coherence_monitor`` import (the
+  coherence-feedback path takes bounded primitives the caller
+  already extracted), no curses, no threading / asyncio / atexit
+  / signal / importlib / time / random.
 * No callable / handle / client field appears on any record this
   module produces.
 * Every bounded printable string this module produces is audited
@@ -26,8 +38,9 @@ The module is deliberately closed:
   by the static-audit fixtures; the module's own assertion is a
   matching list at the bottom of the file.
 
-Drives Phase 3.18 catalog rows ``I-PWND-01`` and ``I-PWND-02``
-and Phase 3.19 catalog rows ``I-IFBK-01`` and ``I-IFBK-02``.
+Drives Phase 3.18 catalog rows ``I-PWND-01`` and ``I-PWND-02``,
+Phase 3.19 catalog rows ``I-IFBK-01`` and ``I-IFBK-02``, and
+Phase 3.20 catalog rows ``I-CFBK-01`` and ``I-CFBK-02``.
 """
 from __future__ import annotations
 
@@ -97,38 +110,60 @@ class InternalEventSource(str, Enum):
 
     REHEARSAL = "rehearsal"
     PLEDGER_SUMMARY = "pledger_summary"  # Phase 3.19 v1-emitted
-    COHMON_SUMMARY = "cohmon_summary"  # reserved (Phase 3.19 LOCK F)
+    COHMON_SUMMARY = "cohmon_summary"  # Phase 3.20 v1-emitted
+    WORLDLET_SUMMARY = "worldlet_summary"  # Phase 3.24 v1-emitted
 
 
 _V1_EMITTED_SOURCES: frozenset[InternalEventSource] = frozenset({
     InternalEventSource.REHEARSAL,
     InternalEventSource.PLEDGER_SUMMARY,
+    InternalEventSource.COHMON_SUMMARY,
+    InternalEventSource.WORLDLET_SUMMARY,
 })
 
 
 class FeedbackMode(str, Enum):
-    """Finite closed enumeration of internal feedback modes (I-IFBK-02).
+    """Finite closed enumeration of internal feedback modes
+    (I-IFBK-02 / I-CFBK-02).
 
-    Phase 3.19 v1 ships exactly two members:
+    Phase 3.20 v1 ships exactly four members:
 
     * ``OFF`` — no feedback chunk is generated; the processing
       window's rehearsal path is bit-identical to Phase 3.18.
     * ``PATTERN_LEDGER`` — after each rehearsal, one deterministic
       Pattern Ledger summary chunk re-enters the STREAM_APPEND
       path under provenance
-      ``"internal_processing_window:<k>:pledger_summary"``.
-
-    Coherence-monitor feedback (architecture C) is DEFERRED per
-    LOCK F; no ``COHERENCE`` member is exposed.
+      ``"internal_processing_window:<k>:pledger_summary"``
+      (Phase 3.19).
+    * ``COHERENCE`` — after each rehearsal, one deterministic
+      Coherence Monitor summary chunk re-enters the STREAM_APPEND
+      path under provenance
+      ``"internal_processing_window:<k>:cohmon_summary"``
+      (Phase 3.20). The session is responsible for building a
+      fresh :class:`~brain.development.coherence_monitor.CoherenceReport`
+      and extracting the bounded primitives this module's
+      :func:`build_cohmon_summary_text` accepts.
+    * ``PATTERN_AND_COHERENCE`` — composition of
+      ``PATTERN_LEDGER`` and ``COHERENCE``: after each rehearsal,
+      both the pledger_summary chunk and the cohmon_summary chunk
+      fire (in that fixed order).
     """
 
     OFF = "off"
     PATTERN_LEDGER = "pattern_ledger"
+    COHERENCE = "coherence"
+    PATTERN_AND_COHERENCE = "pattern_and_coherence"
+    WORLDLET = "worldlet"  # Phase 3.24
+    PATTERN_COHERENCE_WORLDLET = "pattern_coherence_worldlet"  # Phase 3.24
 
 
 _FEEDBACK_MODE_VALID: frozenset[FeedbackMode] = frozenset({
     FeedbackMode.OFF,
     FeedbackMode.PATTERN_LEDGER,
+    FeedbackMode.COHERENCE,
+    FeedbackMode.PATTERN_AND_COHERENCE,
+    FeedbackMode.WORLDLET,
+    FeedbackMode.PATTERN_COHERENCE_WORLDLET,
 })
 
 
@@ -145,6 +180,59 @@ PLEDGER_SUMMARY_TEXT_PREFIX: str = "pledger_summary"
 #: " sat=" (5) + "quiesced" (8) = 123. Well under
 #: STREAM_TEXT_MAX_LEN = 1024.
 PLEDGER_SUMMARY_TEXT_MAX_LEN: int = 240
+
+
+#: Bounded printable prefix that every coherence-summary text begins
+#: with. Locked to a non-claim-clean structural marker.
+COHMON_SUMMARY_TEXT_PREFIX: str = "cohmon_summary"
+
+
+#: Bounded printable max length of the deterministic summary text
+#: produced by :func:`build_cohmon_summary_text`. Computed
+#: conservatively over the legal input domain at v0.27 Coherence
+#: Monitor bounds: the prefix (14) + " overall=" (9) + max-length
+#: overall_status_value "not_applicable" (14) + " pass=" (6) +
+#: 2-digit count (2) + " warn=" (6) + 2-digit count (2) +
+#: " fail=" (6) + 2-digit count (2) + " na=" (4) + 2-digit count
+#: (2) + " checks=" (8) + 2-digit count (2) = 77 chars. The
+#: locked cap doubles that for headroom. Well under
+#: STREAM_TEXT_MAX_LEN = 1024.
+COHMON_SUMMARY_TEXT_MAX_LEN: int = 160
+
+
+#: Bounded printable prefix that every worldlet-summary text begins
+#: with (Phase 3.24). Locked to a non-claim-clean structural marker.
+WORLDLET_SUMMARY_TEXT_PREFIX: str = "worldlet_summary"
+
+
+#: Bounded printable max length of the deterministic summary text
+#: produced by :func:`build_worldlet_summary_text`. Computed
+#: conservatively over the legal input domain: the prefix (16) +
+#: " state=" (7) + max-length state_id_value 64 + " step=" (5) +
+#: 5-digit step (5) + " objects=" (9) + 3-digit count (3) +
+#: " attempts=" (10) + 3-digit count (3) + " responses=" (11) +
+#: 3-digit count (3) + " accepted=" (10) + 3-digit count (3) +
+#: " pushback=" (10) + 3-digit count (3) + " last_reason=" (13) +
+#: max-length closed-set value "target-unavailable" (18) = 196
+#: chars. The locked cap rounds up for headroom. Well under
+#: STREAM_TEXT_MAX_LEN = 1024.
+WORLDLET_SUMMARY_TEXT_MAX_LEN: int = 240
+
+
+#: Bounded printable sentinel returned for ``state_id_value`` and
+#: ``last_reason_value`` when no live worldlet history is present
+#: (the Phase 3.24 "absent" sentinel; closed-set member).
+WORLDLET_SUMMARY_ABSENT_SENTINEL: str = "absent"
+
+
+#: Inclusive upper bounds for the per-count fields accepted by
+#: :func:`build_worldlet_summary_text`. The 256 ceiling mirrors the
+#: Pattern Ledger / Growth Ledger / stream-history maxima used
+#: elsewhere in this module. The step ceiling matches the
+#: bounded-int convention used in other processing-window paths.
+_WORLDLET_SUMMARY_MAX_STEP_INDEX: int = 65535
+_WORLDLET_SUMMARY_MAX_COUNT: int = 256
+_WORLDLET_SUMMARY_MAX_STATE_ID_LEN: int = 64
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +382,48 @@ _PLEDGER_SUMMARY_VALID_SAT_STATES: frozenset[str] = frozenset({
 })
 
 
+#: Bounded printable closed set of valid ``overall_status`` value
+#: strings for :func:`build_cohmon_summary_text`. Mirrors the
+#: ``CoherenceCheckStatus`` enum values without importing the
+#: enum itself (the audit forbids
+#: ``brain.development.coherence_monitor`` imports here; the
+#: bounded helper accepts the string value the caller already
+#: extracted from ``CoherenceReport.overall_status.value``).
+_COHMON_SUMMARY_VALID_OVERALL_STATUS_VALUES: frozenset[str] = frozenset({
+    "pass",
+    "warn",
+    "fail",
+    "not_applicable",
+})
+
+
+#: Inclusive upper bound for each per-status count accepted by
+#: :func:`build_cohmon_summary_text`. Mirrors
+#: ``brain.development.coherence_monitor.COHERENCE_MAX_CHECKS = 64``
+#: without importing it. The helper rejects any count above this
+#: ceiling so a future Coherence Monitor cap change cannot
+#: silently widen the produced text.
+_COHMON_SUMMARY_MAX_COUNT: int = 64
+
+
+#: Bounded printable closed set of valid ``last_reason_value``
+#: strings for :func:`build_worldlet_summary_text` (Phase 3.24).
+#: Mirrors ``brain.development.worldlet.WORLDLET_RESPONSE_REASONS``
+#: plus the Phase 3.24 ``"absent"`` sentinel for "no responses
+#: yet / worldlet_history is None". Mirrored inline so this module
+#: never imports ``brain.development.worldlet`` (the audit forbids
+#: that import here; the bounded helper accepts the string the
+#: caller already extracted from ``WorldletResponse.reason`` or
+#: the Phase 3.24 sentinel).
+_WORLDLET_SUMMARY_VALID_LAST_REASONS: frozenset[str] = frozenset({
+    "accepted",
+    "missing-target",
+    "rejected",
+    "target-unavailable",
+    WORLDLET_SUMMARY_ABSENT_SENTINEL,
+})
+
+
 def build_pledger_summary_text(
     *,
     pattern_id: str,
@@ -391,6 +521,286 @@ def build_pledger_summary_text(
     if composed == COGITO_ID:
         raise ValueError(
             "processing window: composed summary must not equal COGITO_ID"
+        )
+    return composed
+
+
+def build_cohmon_summary_text(
+    *,
+    overall_status_value: str,
+    pass_count: int,
+    warn_count: int,
+    fail_count: int,
+    na_count: int,
+    check_count: int,
+) -> str:
+    """Build the deterministic Coherence Monitor summary text (I-CFBK-02).
+
+    Produces a bounded printable string of the locked shape::
+
+        "cohmon_summary overall=<status> pass=<np> warn=<nw> fail=<nf> na=<nna> checks=<nc>"
+
+    Pure function: no I/O, no time, no random, no PID, no hostname,
+    no ``id()``. Same inputs yield the same output across runs /
+    processes / OSes. Caller responsibilities:
+
+    * ``overall_status_value`` is the value of
+      ``CoherenceReport.overall_status`` (a member of
+      ``CoherenceCheckStatus``). Must be in the closed set
+      ``{"pass", "warn", "fail", "not_applicable"}``.
+    * Each per-status count is an int in
+      ``[0, _COHMON_SUMMARY_MAX_COUNT]`` (no bool).
+    * ``check_count`` equals
+      ``pass_count + warn_count + fail_count + na_count``. The
+      helper enforces this cross-check so a malformed report
+      cannot produce inconsistent text.
+
+    Output non-claim audit (LOCK J) is checked by the static-audit
+    fixture; the helper itself enforces only bounded-shape
+    invariants. PASS / WARN / FAIL / NOT_APPLICABLE are treated as
+    structural status labels only.
+    """
+    if not isinstance(overall_status_value, str):
+        raise ValueError(
+            "processing window: overall_status_value must be str "
+            f"(got {type(overall_status_value).__name__})"
+        )
+    if not overall_status_value:
+        raise ValueError(
+            "processing window: overall_status_value must be non-empty"
+        )
+    if not overall_status_value.isprintable():
+        raise ValueError(
+            "processing window: overall_status_value must be printable"
+        )
+    if overall_status_value == COGITO_ID:
+        raise ValueError(
+            "processing window: overall_status_value must not equal COGITO_ID"
+        )
+    if overall_status_value not in _COHMON_SUMMARY_VALID_OVERALL_STATUS_VALUES:
+        raise ValueError(
+            "processing window: overall_status_value "
+            f"{overall_status_value!r} not in "
+            f"{sorted(_COHMON_SUMMARY_VALID_OVERALL_STATUS_VALUES)!r}"
+        )
+
+    for field_name, count in (
+        ("pass_count", pass_count),
+        ("warn_count", warn_count),
+        ("fail_count", fail_count),
+        ("na_count", na_count),
+        ("check_count", check_count),
+    ):
+        if not isinstance(count, int) or isinstance(count, bool):
+            raise ValueError(
+                f"processing window: {field_name} must be int "
+                f"(got {type(count).__name__})"
+            )
+        if count < 0:
+            raise ValueError(
+                f"processing window: {field_name} must be >= 0 "
+                f"(got {count})"
+            )
+        if count > _COHMON_SUMMARY_MAX_COUNT:
+            raise ValueError(
+                f"processing window: {field_name} must be <= "
+                f"{_COHMON_SUMMARY_MAX_COUNT} (got {count})"
+            )
+
+    expected_check_count = pass_count + warn_count + fail_count + na_count
+    if check_count != expected_check_count:
+        raise ValueError(
+            "processing window: check_count "
+            f"{check_count} must equal pass+warn+fail+na "
+            f"({expected_check_count})"
+        )
+
+    composed = (
+        f"{COHMON_SUMMARY_TEXT_PREFIX} overall={overall_status_value}"
+        f" pass={pass_count} warn={warn_count}"
+        f" fail={fail_count} na={na_count}"
+        f" checks={check_count}"
+    )
+    if len(composed) > COHMON_SUMMARY_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed cohmon summary length "
+            f"{len(composed)} exceeds COHMON_SUMMARY_TEXT_MAX_LEN="
+            f"{COHMON_SUMMARY_TEXT_MAX_LEN}"
+        )
+    if len(composed) > STREAM_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed cohmon summary length "
+            f"{len(composed)} exceeds STREAM_TEXT_MAX_LEN="
+            f"{STREAM_TEXT_MAX_LEN}"
+        )
+    if not composed or not composed.isprintable():
+        raise ValueError(
+            "processing window: composed cohmon summary must be "
+            "bounded printable"
+        )
+    if composed == COGITO_ID:
+        raise ValueError(
+            "processing window: composed cohmon summary must not equal "
+            "COGITO_ID"
+        )
+    return composed
+
+
+def build_worldlet_summary_text(
+    *,
+    state_id_value: str,
+    step_index: int,
+    object_count: int,
+    attempt_count: int,
+    response_count: int,
+    accepted_count: int,
+    pushback_count: int,
+    last_reason_value: str,
+) -> str:
+    """Build the deterministic worldlet-summary text (Phase 3.24, I-WFDBK-01).
+
+    Produces a bounded printable string of the locked shape::
+
+        "worldlet_summary state=<state_id_value> step=<n> objects=<n>
+         attempts=<n> responses=<n> accepted=<n> pushback=<n>
+         last_reason=<v>"
+
+    (one logical line; line wrapping above is documentation-only).
+
+    Pure function: no I/O, no time, no random, no PID, no hostname,
+    no ``id()``. Same inputs yield the same output across runs /
+    processes / OSes. Caller responsibilities:
+
+    * ``state_id_value`` is the printable bounded id of the
+      :class:`~brain.development.worldlet.WorldletState` the caller
+      just extracted, or :data:`WORLDLET_SUMMARY_ABSENT_SENTINEL`
+      when ``worldlet_history is None``. Capped at
+      :data:`_WORLDLET_SUMMARY_MAX_STATE_ID_LEN` chars.
+    * Each per-count is an int in
+      ``[0, _WORLDLET_SUMMARY_MAX_COUNT]`` (no bool).
+    * ``step_index`` is an int in
+      ``[0, _WORLDLET_SUMMARY_MAX_STEP_INDEX]`` (no bool).
+    * ``last_reason_value`` is a member of the closed set
+      :data:`_WORLDLET_SUMMARY_VALID_LAST_REASONS`.
+    * ``accepted_count + pushback_count <= response_count`` is
+      enforced as a consistency cross-check (mirroring
+      :func:`build_cohmon_summary_text`).
+
+    Output non-claim audit is checked by the static-audit fixture;
+    the helper itself enforces only bounded-shape invariants. The
+    word ``accepted`` appears in the produced text as a structural
+    response-status label only.
+    """
+    if not isinstance(state_id_value, str):
+        raise ValueError(
+            "processing window: state_id_value must be str "
+            f"(got {type(state_id_value).__name__})"
+        )
+    if not state_id_value:
+        raise ValueError(
+            "processing window: state_id_value must be non-empty"
+        )
+    if not state_id_value.isprintable():
+        raise ValueError(
+            "processing window: state_id_value must be printable"
+        )
+    if state_id_value == COGITO_ID:
+        raise ValueError(
+            "processing window: state_id_value must not equal COGITO_ID"
+        )
+    if len(state_id_value) > _WORLDLET_SUMMARY_MAX_STATE_ID_LEN:
+        raise ValueError(
+            "processing window: state_id_value length "
+            f"{len(state_id_value)} exceeds "
+            f"{_WORLDLET_SUMMARY_MAX_STATE_ID_LEN}"
+        )
+
+    if not isinstance(step_index, int) or isinstance(step_index, bool):
+        raise ValueError(
+            "processing window: step_index must be int "
+            f"(got {type(step_index).__name__})"
+        )
+    if step_index < 0:
+        raise ValueError(
+            "processing window: step_index must be >= 0 "
+            f"(got {step_index})"
+        )
+    if step_index > _WORLDLET_SUMMARY_MAX_STEP_INDEX:
+        raise ValueError(
+            "processing window: step_index must be <= "
+            f"{_WORLDLET_SUMMARY_MAX_STEP_INDEX} (got {step_index})"
+        )
+
+    for field_name, count in (
+        ("object_count", object_count),
+        ("attempt_count", attempt_count),
+        ("response_count", response_count),
+        ("accepted_count", accepted_count),
+        ("pushback_count", pushback_count),
+    ):
+        if not isinstance(count, int) or isinstance(count, bool):
+            raise ValueError(
+                f"processing window: {field_name} must be int "
+                f"(got {type(count).__name__})"
+            )
+        if count < 0:
+            raise ValueError(
+                f"processing window: {field_name} must be >= 0 "
+                f"(got {count})"
+            )
+        if count > _WORLDLET_SUMMARY_MAX_COUNT:
+            raise ValueError(
+                f"processing window: {field_name} must be <= "
+                f"{_WORLDLET_SUMMARY_MAX_COUNT} (got {count})"
+            )
+
+    if accepted_count + pushback_count > response_count:
+        raise ValueError(
+            "processing window: accepted_count + pushback_count "
+            f"({accepted_count + pushback_count}) must be <= "
+            f"response_count ({response_count})"
+        )
+
+    if not isinstance(last_reason_value, str):
+        raise ValueError(
+            "processing window: last_reason_value must be str "
+            f"(got {type(last_reason_value).__name__})"
+        )
+    if last_reason_value not in _WORLDLET_SUMMARY_VALID_LAST_REASONS:
+        raise ValueError(
+            "processing window: last_reason_value "
+            f"{last_reason_value!r} not in "
+            f"{sorted(_WORLDLET_SUMMARY_VALID_LAST_REASONS)!r}"
+        )
+
+    composed = (
+        f"{WORLDLET_SUMMARY_TEXT_PREFIX} state={state_id_value}"
+        f" step={step_index} objects={object_count}"
+        f" attempts={attempt_count} responses={response_count}"
+        f" accepted={accepted_count} pushback={pushback_count}"
+        f" last_reason={last_reason_value}"
+    )
+    if len(composed) > WORLDLET_SUMMARY_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed worldlet summary length "
+            f"{len(composed)} exceeds WORLDLET_SUMMARY_TEXT_MAX_LEN="
+            f"{WORLDLET_SUMMARY_TEXT_MAX_LEN}"
+        )
+    if len(composed) > STREAM_TEXT_MAX_LEN:
+        raise ValueError(
+            f"processing window: composed worldlet summary length "
+            f"{len(composed)} exceeds STREAM_TEXT_MAX_LEN="
+            f"{STREAM_TEXT_MAX_LEN}"
+        )
+    if not composed or not composed.isprintable():
+        raise ValueError(
+            "processing window: composed worldlet summary must be "
+            "bounded printable"
+        )
+    if composed == COGITO_ID:
+        raise ValueError(
+            "processing window: composed worldlet summary must not "
+            "equal COGITO_ID"
         )
     return composed
 
@@ -536,15 +946,25 @@ def plan_rehearsals(
 MODULE_PRODUCED_STRINGS: tuple[str, ...] = (
     PROCESSING_WINDOW_PROVENANCE_PREFIX,
     PLEDGER_SUMMARY_TEXT_PREFIX,
+    COHMON_SUMMARY_TEXT_PREFIX,
+    WORLDLET_SUMMARY_TEXT_PREFIX,
+    WORLDLET_SUMMARY_ABSENT_SENTINEL,
     InternalEventSource.REHEARSAL.value,
     InternalEventSource.PLEDGER_SUMMARY.value,
     InternalEventSource.COHMON_SUMMARY.value,
+    InternalEventSource.WORLDLET_SUMMARY.value,
     FeedbackMode.OFF.value,
     FeedbackMode.PATTERN_LEDGER.value,
+    FeedbackMode.COHERENCE.value,
+    FeedbackMode.PATTERN_AND_COHERENCE.value,
+    FeedbackMode.WORLDLET.value,
+    FeedbackMode.PATTERN_COHERENCE_WORLDLET.value,
 )
 
 
 __all__ = [
+    "COHMON_SUMMARY_TEXT_MAX_LEN",
+    "COHMON_SUMMARY_TEXT_PREFIX",
     "FeedbackMode",
     "InternalEventSource",
     "MODULE_PRODUCED_STRINGS",
@@ -554,8 +974,13 @@ __all__ = [
     "PROCESSING_WINDOW_PROVENANCE_PREFIX",
     "PROCESSING_WINDOW_SIZE_MAX",
     "RehearsalStep",
+    "WORLDLET_SUMMARY_ABSENT_SENTINEL",
+    "WORLDLET_SUMMARY_TEXT_MAX_LEN",
+    "WORLDLET_SUMMARY_TEXT_PREFIX",
+    "build_cohmon_summary_text",
     "build_pledger_summary_text",
     "build_rehearsal_provenance",
+    "build_worldlet_summary_text",
     "plan_rehearsals",
     "validate_feedback_mode",
     "validate_processing_window_call_budget",

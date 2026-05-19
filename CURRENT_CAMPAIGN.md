@@ -1,701 +1,199 @@
-# CURRENT_CAMPAIGN.md — Phase 3.19 Internal Feedback Loop Prototype
+# CURRENT_CAMPAIGN.md — Phase 3.32 Mainline Reconciliation
 
 ## Campaign status
 
 ```text
-DRAFT / BRANCH-FIRST / STEP-COMMIT / PUSH-EVERY-STEP / REVIEW-GATED
+RECONCILIATION / SINGLE-PR / NO-NEW-FEATURES / REVIEW-GATED
 ```
 
-Phase 3.19 follows the completed Phase 3.18 Bounded Internal Processing
-Window campaign (PR #23). Phase 3.18 shipped:
+Phase 3.32 is a stabilization campaign. The Phases 3.20 .. 3.31
+campaign stack landed via stacked PRs that merged into prior
+campaign branches instead of into `main`, so `main` is currently
+stale at Phase 3.19 / catalog v0.27. Phase 3.31 PR #33 was merged
+on 2026-05-19 into `campaign/phase3-30-curriculum-consolidation`,
+which is now the latest completed stack tip and contains
+Phase 3.31 / catalog v0.37.
+
+Phase 3.32 asks one bounded operational question:
 
 ```text
-- brain/development/processing_window.py with plan_rehearsals,
-  InternalEventSource closed enum (REHEARSAL + reserved
-  PLEDGER_SUMMARY / COHMON_SUMMARY), RehearsalStep, bounded constants
-  PROCESSING_WINDOW_SIZE_MAX = 255, PROCESSING_WINDOW_CALL_BUDGET_MAX
-  = 65535, PROCESSING_WINDOW_PROVENANCE_PREFIX
-  = "internal_processing_window".
-- OperatorSession gained processing_window_size and
-  processing_window_call_budget integer fields, plus the
-  _run_processing_window(seed_chunk) method invoked from
-  dispatch() after a successful external STREAM_APPEND.
-- INVARIANT_CATALOG.md v0.25 -> v0.26 with rows I-PWND-01
-  (integration) and I-PWND-02 (static AST audit).
-- Pattern recognition demonstration PASS on D1 saturation
-  (N=255), D2 monotonicity, D3 determinism, D4 independence.
-- Zero real model calls; brain/tick.py unchanged; no LLM/cache/
-  parser/schema change; OFFLINE default preserved.
+Can the completed campaign stack through Phase 3.31 (catalog v0.37)
+be brought onto main as a single reconciliation PR, with every
+canonical gate green, every catalog-version banner aligned, every
+generated-id file regenerated, and the operator-facing handoff /
+mission docs no longer pointing future agents at stale branch
+assumptions, while adding zero new behavioral features and
+preserving every existing non-claim discipline guardrail?
 ```
 
-Phase 3.19 asks one bounded operational question:
+This is a **reconciliation / stabilization** campaign. It is
+**NOT** a proof of consciousness, sentience, subjective experience,
+agency, semantic understanding, real reasoning, real learning, real
+memory, real language acquisition, real language understanding, real
+communicative intent, real inner speech, real private thought, real
+hidden chain-of-thought, real audience modelling, intentionality,
+awareness, intuition, embodiment, psychological development, or any
+cognitive process. No new claims are introduced; every prior
+non-claim guardrail carries forward unchanged.
 
-```text
-Can ToyI's runtime route a bounded internal feedback event,
-derived from Pattern Ledger state observed during the processing
-window, back into the same Pattern Ledger / Growth Ledger
-substrate -- without touching brain/tick.py, the LLM, the parser,
-the cache, or any consciousness-adjacent boundary?
-```
+Phase 3.32 does **not** add any new `OperatorCommand` member,
+`LOCAL_COMMAND_VERBS` entry, `ACTIVE_VIEWS` value, `GrowthEventType`,
+`GrowthEventSource`, persistence schema column, autosave trigger,
+`LearningEvidenceKind` member, `ReasoningStepKind` member,
+benchmark axis, runtime module, or catalog row. It does **not**
+change L1 / L2 / parser / prompt / tick / persistence / autosave /
+DB schema semantics. It does **not** modify theory semantics. The
+allowed edits are strictly:
 
-This is a **research** campaign toward an operationally
-learning/growing "I" approximation. It is **not** a proof of
-consciousness.
-
-Phase 3.19 does **not** implement SelfModel; does **not** modify
-Growth Ledger / Pattern Ledger / Coherence Monitor semantics; does
-**not** modify L1 / L2 / parser / prompt / tick / persistence /
-autosave / DB schema. The runtime touches are limited to:
-
-- `brain/development/processing_window.py` (extend with feedback
-  planner; emit the previously reserved `PLEDGER_SUMMARY`
-  `InternalEventSource` member);
-- `brain/ui/session.py` (add bounded session field
-  `feedback_mode`; extend `_run_processing_window` to optionally
-  fire a feedback chunk between or after rehearsals);
-- `INVARIANT_CATALOG.md` v0.26 -> v0.27 with bounded new row
-  family `I-IFBK-01..NN` (exact count fixed in Step 5);
-- new fixtures under `brain/ui/fixtures/`.
-
-Preferred campaign branch:
-
-```text
-campaign/phase3-19-internal-feedback-loop
-```
-
-Preferred final PR title:
-
-```text
-phase3.19: internal feedback loop prototype
-```
-
-Rules:
-
-```text
-work on the campaign branch
-commit successful step results
-push every successful step commit to the campaign branch
-finish by opening a PR into main
-never push campaign work directly to main
-never merge without explicit user approval
-never edit brain/tick.py in Phase 3.19
-```
+- a `--no-ff` merge of `origin/campaign/phase3-30-curriculum-
+  consolidation` into a new branch
+  `campaign/phase3-32-mainline-reconciliation` cut from `main`;
+- corrections to stale README / INVARIANT_CATALOG / handoff /
+  current-mission / current-campaign banners and version strings;
+- regeneration of `brain/_catalog_ids.py` if drift is detected;
+- the reconciliation commit message and PR body.
 
 ---
 
-## Mandatory files to read
+## Source-of-truth
 
-Before doing campaign work, a repo-capable agent must read:
-
-```text
-CURRENT_MISSION.md
-CURRENT_CAMPAIGN.md
-README.md
-INVARIANT_CATALOG.md
-CLAUDE.md
-AGENTS.md
-PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
-docs/campaigns/phase3_18/PHASE3_18_HUMAN_DEVELOPMENT_SYNTHESIS.md
-docs/campaigns/phase3_18/PHASE3_18_PATTERN_RECOGNITION_DEMO.md
-docs/campaigns/phase3_18/PHASE3_18_AUDIT.md
-brain/development/processing_window.py
-brain/development/pattern_ledger.py
-brain/development/coherence_monitor.py
-brain/development/growth_ledger.py
-brain/development/text_stream.py
-brain/ui/session.py
-brain/ui/snapshot.py
-brain/tick.py
-brain/llm/client.py
-brain/llm/ptcns_backed.py
-tools/claude_helpers/campaign_state.py
-tools/claude_helpers/gate_runner.py
-tools/claude_helpers/flow_manifest.py
-tools/claude_helpers/codex_chatgpt_flow_orchestrator.py
-.claude/agents/brain-current-mission.md
-.claude/agents/chatgpt-codex-flow-orchestrator.md
-.claude/commands/orchestrate-flow-with-codex.md
-.claude/commands/go.md
-tools/check_all.sh
-```
-
-Then read whichever files the next campaign step names.
+- Reconciliation branch: `campaign/phase3-32-mainline-reconciliation`
+- Reconciliation base: `main`
+- Source merged: `origin/campaign/phase3-30-curriculum-consolidation`
+  (which contains Phase 3.31 via PR #33 merged 2026-05-19)
+- Expected catalog version: v0.37
+- Expected catalog counts: REQUIRED 392 / STRUCTURAL 101 /
+  NOT-EXERCISED 14 / DEFERRED 15 / OBSERVED 16
+- Expected benchmark: 137 total / 136 PASS / 1 WARN (A3.04
+  carry-over) / 0 FAIL
+- Expected proto-speech live-test: 10/10 PASS, fp=0, fn=0,
+  stable_single=5, stable_combination=0, suppressed=2,
+  transfer_success=1, report_digest=`f6a83b9caef0ac17`,
+  drive_stream_digest=`dc060a88a814f448`
+- Expected invariants: 0 red
+- Expected gate_runner: 5/5 PASS
+- Expected real model calls: 0
+- Expected cache writes: 0
+- Expected forbidden-term hits: 0
 
 ---
 
-## Baseline
+## Steps
 
-Expected current state:
+### Step 1 — verify state (read-only)
 
-```text
-Catalog: v0.27
-Counts:
-  REQUIRED:        283
-  STRUCTURAL:       90
-  NOT-EXERCISED:    14
-  DEFERRED:         15
-  OBSERVED:         16
-Latest completed campaign:    Phase 3.18 Bounded Internal Processing
-                              Window (PR #23)
-Current campaign:             Phase 3.19 Internal Feedback Loop
-                              Prototype
-Next eligible step:           Step 8 internal feedback behavior
-                              report (Steps 1-7 + Review Gate A
-                              complete)
-Canonical design seed:        PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
+- Confirm worktree is clean.
+- Confirm PR #33 is MERGED into
+  `campaign/phase3-30-curriculum-consolidation`.
+- Confirm the source branch contains
+  `brain/development/proto_speech_acquisition.py`,
+  `docs/campaigns/phase3_31/`, and the
+  `PHASE3_31_CAREGIVER_PROTO_SPEECH_ROADMAP.md` roadmap.
+
+### Step 2 — cut reconciliation branch
+
+```
+git checkout main
+git pull --ff-only origin main
+git checkout -b campaign/phase3-32-mainline-reconciliation
 ```
 
-Inherited follow-ups deliberately deferred:
+### Step 3 — merge campaign stack
 
-```text
-- SelfModel implementation remains OUT OF SCOPE.
-- /pattern-ledger / /coherence-summary / /growth-ledger UIs remain
-  DEFERRED at catalog level.
-- I-LLMCACHE-21 / I-LLMCACHE-22 remain NOT-EXERCISED.
-- Tracer wiring through OperatorSession.dispatch remains DEFERRED.
-- Coherence Monitor feedback (architecture C) may ship as a v1
-  read-only branch or remain DEFERRED depending on Step 4 LOCK F.
-- Combined pattern + coherence feedback (architecture D) is
-  DEFERRED unless Step 5 explicitly bundles it.
-- REPL / worldlet feedback (architectures D / E) remain
-  DEFERRED.
-- Real-model reflection over feedback events remains DEFERRED.
+```
+git merge --no-ff origin/campaign/phase3-30-curriculum-consolidation
 ```
 
----
+Resolve any conflicts by preferring campaign-branch content unless
+there is a clear main-only fix that is genuinely absent upstream.
+Do not drop campaign files; do not hand-edit large generated
+sections.
 
-## Operational target
+### Step 4 — patch staleness
 
-Phase 3.19 uses this operational definition:
+Verify and, if needed, patch:
 
-```text
-Bounded internal feedback WORKS iff:
-  - OperatorSession.feedback_mode = FEEDBACK_MODE_PATTERN_LEDGER
-    drives _run_processing_window to emit, in addition to the
-    Phase 3.18 rehearsal chunks, a bounded number of feedback
-    chunks whose text is a deterministic Pattern Ledger summary
-    string derived from the live entry's pattern_id /
-    recurrence_count / saturation_state.
-  - Each feedback chunk has provenance prefix
-    "internal_processing_window:<k>:pledger_summary".
-  - Each feedback chunk drives Pattern Ledger.observe and Growth
-    Ledger.observe through the existing _append_stream_chunk
-    call site (no new emission code, no new GrowthEventType).
-  - The feedback chunks produce SECOND-ORDER Pattern Ledger
-    entries whose structural signature differs from the seed
-    chunk's structural signature (they are derived from a
-    different deterministic text shape).
-  - Pattern Ledger reaches a final state with: 1 first-order
-    entry (the seed pattern) AND 1 second-order entry (the
-    feedback pattern); both have deterministic pattern_ids.
-  - Recurrence counts match deterministic formulas (no off-by-
-    one, no float drift).
-  - Same input + same configuration produces the same Pattern
-    Ledger / Growth Ledger state across runs / processes / OSes.
-  - Zero real model calls; brain/tick.py untouched; cache
-    counters unchanged; no schema change; OFFLINE default
-    preserved.
-  - The non-claim audit (canonical
-    _FORBIDDEN_NON_CLAIM_TERMS tuple) passes against the new
-    feedback-summary text generator and every bounded printable
-    string the module produces.
+- `README.md` catalog-version banner reads `v0.37`.
+- `INVARIANT_CATALOG.md` title and explicit-version paragraph
+  both read `v0.37`.
+- `tools/catalog.py` `EXPECTED_COUNTS` and the parsed catalog agree
+  (counts gate passes).
+- `brain/_catalog_ids.py` is regenerated via
+  `python3 -m tools.catalog generate-ids`.
+- `PHASE3_HANDOFF_STATE.md` reflects Phase 3.32 reconciliation in
+  flight and the merged status of the campaign stack.
+- `CURRENT_MISSION.md` / `CURRENT_CAMPAIGN.md` describe Phase 3.32
+  (not a stale Phase 3.31 instruction).
+- Any "PR #N open" / "stack is open" wording in handoff/mission
+  is either corrected or annotated as historical.
 
-Coherence Monitor feedback (architecture C) SHIPS only if Step 4
-LOCK F authorizes a bounded read-only summary that does NOT touch
-truth claims, scalar I-ness, or aggregate scoring; otherwise
-DEFERRED.
+No new behavioral code is added under any circumstances.
 
-Combined feedback (architecture D) is DEFERRED unless Step 5
-explicitly bundles it.
+### Step 5 — run full gate set
+
 ```
-
----
-
-## Real model call budget
-
-```text
-Max 20 real external model-backed calls total across the campaign.
-Phase 3.19 expects to consume ZERO real model calls because the
-  feedback path uses STREAM_APPEND which does not invoke
-  brain.tick.tick or the LLM.
-Stop before exceeding 20.
-No unbounded loops; no "keep trying forever."
-```
-
----
-
-## Non-goals
-
-```text
-no SelfModel implementation
-no Growth Ledger semantic change (no new GrowthEventType, no new
-  GrowthEventSource)
-no Pattern Ledger semantic change (no new SourceKind, no new
-  saturation state, no signature shape change)
-no Coherence Monitor semantic change
-no L1 cache semantic change
-no L2 (eval_v1) semantic change
-no parser change
-no prompt change
-no proof or claim of consciousness
-no claim of sentience
-no claim of subjective experience
-no claim of semantic understanding
-no truth adjudication
-no claim of agency / intent / will / desire
-no claim of self-modification in the strong sense
-no aggregate consciousness / sentience / awareness / I-ness /
-  growth score
-no model-backed behavior as default
-no hidden LLM calls
-no silent network/model calls in offline/mock modes
-no silent repair calls
-no hidden autosave behavior
-no direct raw-text-to-BrainState mutation
-no direct raw-text-to-COGITO_ID mapping
-no DB schema change
-no SCHEMA_VERSION bump
-no /save-session / /load-session / autosave extension
-no tick semantic change (brain/tick.py untouched)
-no raw prompts or model outputs committed to the repo
-no raw cache contents printed in docs
-no secrets committed to the repo
-no cache files committed to the repo (brain/.llm_cache stays
-  gitignored)
-no UI verb expansion unless explicitly reviewed
-no raw codex invocation outside the sanctioned bridges
-no Stage C.1 broad repo edits
-no unbounded Codex collaboration loop
-no unbounded state growth
-no runtime change that elevates the "internal feedback" surface
-  above bounded printable record identifiers + ints + Fractions
-```
-
----
-
-## Macro sequence
-
-```text
-Step 1   Mission sync + roadmap
-Step 2   Internal feedback synthesis
-Step 3   Internal feedback probe matrix
-Step 4   Corrigenda / design locks
-Step 5   Catalog patch plan
-Step 6   Review Gate A
-Step 7   Apply implementation (if gated through)
-Step 8   Behavior report
-Step 9   Findings / triage
-Step 10  Final audit
-Step 11  PR preparation
-```
-
-Every step that lands files must pass the standard preflight gates
-before commit and must push the campaign branch on success:
-
-```bash
-python3 -m tools.claude_helpers.gate_runner --json
-```
-
-(or, on gate_runner failure:)
-
-```bash
+python3 -m brain.development.proto_speech_acquisition
+python3 -m brain.development.agent_benchmark
 python3 -m tools.catalog counts
 python3 -m tools.citations verify
 python3 -m tools.import_audit
 python3 -m brain.invariants run
 bash tools/check_all.sh
-```
-
----
-
-## ChatGPT/Codex consultation policy
-
-```text
-Stage A wrapper:  python3 tools/claude_helpers/codex_chatgpt_subagent.py
-Stage A modes:    plan / review / summarize / debug
-Stage A slash:    /ask-chatgpt
-Stage B wrapper:  python3 tools/claude_helpers/codex_chatgpt_write_worker.py
-Stage B modes:    write
-Stage B slash:    /ask-chatgpt-write
-Stage C.1 wrapper: python3 tools/claude_helpers/codex_chatgpt_flow_orchestrator.py
-Stage C.1 shape:  dynamic DAG; max 2 active nodes; isolated nodes may
-                   run in parallel; chained nodes require depends_on;
-                   no automatic retry; hard cap 8 nodes;
-                   campaign cap 5 nodes unless operator approves more
-Stage C.1 slash:  /orchestrate-flow-with-codex
-```
-
-Stage A is allowed at: synthesis / patch plan / behavior report /
-final audit adversarial review.
-
-Stage B is allowed at: bounded single-file doc drafts whose exact
-path is on the allowlist.
-
-Stage C.1 is allowed at:
-
-```text
-Step 1   parent Claude writes directly
-Step 2   synthesis doc shard (optional)
-Step 3   probe matrix shard (optional)
-Step 4   corrigenda shard (optional)
-Step 5   catalog patch plan shard (optional)
-Step 6   never; review gate is a parent-Claude decision
-Step 7   bounded module/fixture shards permitted after review gate
-Step 8   docs around the test; not the test itself if a runtime
-         change would be needed
-Step 9   findings doc draft after measurements exist
-Step 10  audit doc draft after measurements exist
-Step 11  PR body draft only
-```
-
-Stage C.1 is **forbidden** at:
-
-```text
-never    raw codex / codex exec invocation
-never    running the real codex-cli model loop itself
-never    touching secrets
-never    committing cache files
-never    broad runtime changes
-never    brain/tick.py edits
-never    final catalog reconciliation
-never    overlapping write sets among active nodes
-never    declared read/write collisions among active nodes
-never    staging / commit / push
-```
-
-Before every Stage C.1 wave:
-
-```bash
-python3 -m tools.claude_helpers.flow_manifest validate \
-  /tmp/<manifest>.json --strict
-python3 -m tools.claude_helpers.flow_manifest summary \
-  /tmp/<manifest>.json
-```
-
-Every step report must include the Stage A / Stage B / Stage C.1
-disclosure block defined in `CURRENT_MISSION.md`.
-
----
-
-# Step 1 — Mission sync + roadmap
-
-Purpose: install Phase 3.19 as the current mission and land the
-Phase 3.19 roadmap at repo root.
-
-Allowed files:
-
-```text
-CURRENT_MISSION.md
-CURRENT_CAMPAIGN.md
-PHASE3_19_INTERNAL_FEEDBACK_LOOP_ROADMAP.md
-```
-
-Forbidden in Step 1:
-
-```text
-brain/**
-tools/**
-.claude/**
-INVARIANT_CATALOG.md
-README.md
-docs/campaigns/**
-lean_reference/**
-scenarios/**
-traces/**
-```
-
-Required work: write Phase 3.19 mission / campaign / roadmap;
-verify gate_runner --json green.
-
-Commit message:
-
-```text
-phase3.19 step1: internal feedback mission sync
-```
-
-Push.
-
----
-
-# Step 2 — Internal feedback synthesis
-
-Create:
-
-```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_SYNTHESIS.md
-```
-
-Required analysis (per Phase 3.19 mission):
-
-```text
-1. Current Phase 3.18 mechanism (rehearsal-only).
-2. Gap (recurrence does not feed back; Coherence Monitor is
-   read-only; Growth Ledger records; no REPL/worldlet
-   participation).
-3. Proposed feedback loop and event shape.
-4. Candidate architectures A-F (see roadmap).
-5. Human-development analogy (carefully bounded).
-6. Testable hypotheses H1-H7.
-7. Recommended v1 (pattern-ledger feedback only; coherence
-   feedback either bundled bounded-read-only or DEFERRED;
-   no model-generated reflection; no SelfModel).
-```
-
-Commit message:
-
-```text
-phase3.19 step2: internal feedback synthesis
-```
-
-Push.
-
----
-
-# Step 3 — Internal feedback probe matrix
-
-Create:
-
-```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_PROBE_MATRIX.md
-```
-
-Matrix:
-
-```text
-- window sizes: 0, 5, 10, 50
-- modes: rehearsal-only, pattern feedback, coherence feedback (if
-  in scope), combined feedback (if in scope)
-- inputs: repeated motif, contradiction pair, self-reference
-  phrase, neutral factual text, emotionally valenced text
-- measurements: stream chunk count, rehearsal step count, pattern
-  entries, recurrence_count, confidence, saturation_state, Growth
-  Ledger events, Coherence Monitor status, model call count if
-  any, L1 / L2 cache counters if any, state mutation footprint,
-  invariant status
-```
-
-If implementation does not yet support feedback, mark cells as
-planned/probe-blocked and state exactly what runtime surface is
-missing.
-
-Commit message:
-
-```text
-phase3.19 step3: internal feedback probe matrix
-```
-
-Push.
-
----
-
-# Step 4 — Corrigenda / design locks
-
-Create:
-
-```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_CORRIGENDA.md
-```
-
-Lock LOCK A through LOCK J as described in the mission.
-
-Commit message:
-
-```text
-phase3.19 step4: internal feedback corrigenda
-```
-
-Push.
-
----
-
-# Step 5 — Catalog patch plan
-
-Create:
-
-```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_CATALOG_PATCH_PLAN.md
-```
-
-Must include: exact implementation architecture, exact files,
-exact row family + statuses, exact catalog version/count delta,
-exact fixtures, exact behavior-report plan, exact non-goals,
-review-gate decision request.
-
-Commit message:
-
-```text
-phase3.19 step5: internal feedback catalog patch plan
-```
-
-Push.
-
----
-
-# Step 6 — Review Gate A
-
-Apply the autonomy authorization from `CURRENT_MISSION.md`. If
-all ten conditions pass, record `Review Gate A — ACCEPT PLAN AS
-WRITTEN` and proceed. If any fails, stop.
-
-This step does NOT change files. Commit only if the gate-status
-record is part of an updated doc artifact created in step 5 or
-4; otherwise this step is a transition record only.
-
----
-
-# Step 7 — Apply implementation
-
-Implement bounded internal feedback per the accepted plan. Required
-properties:
-
-```text
-- bounded deterministic feedback
-- no tick.py change
-- no real model calls by default
-- no unbounded growth
-- provenance on every internal feedback artifact
-- no raw prompt/model response
-- closed enums where appropriate
-- constructor validation, no silent clamp except where existing
-  pattern uses saturation
-- tests for N = 0, 5, 10, 50
-- tests for no non-claim language
-```
-
-Commit message:
-
-```text
-phase3.19 step7: implement internal feedback loop
-```
-
-Push.
-
----
-
-# Step 8 — Behavior report
-
-Create:
-
-```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_BEHAVIOR_REPORT.md
-```
-
-Run and report:
-
-```text
-- rehearsal-only baseline
-- pattern feedback
-- coherence feedback if implemented
-- combined feedback if implemented
-- N = 0 / 5 / 10 / 50
-- deterministic repeatability
-- distinct input independence
-- saturation / cap behavior
-- cache / call count if any
-- invariant gates
-- non-claim audit
-```
-
-Commit message:
-
-```text
-phase3.19 step8: internal feedback behavior report
-```
-
-Push.
-
----
-
-# Step 9 — Findings
-
-Create:
-
-```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_FINDINGS.md
-```
-
-Classify:
-
-```text
-- blockers
-- safety/invariant findings
-- behavior successes
-- weak behavior
-- deferred enhancements
-- next research directions
-```
-
-Commit message:
-
-```text
-phase3.19 step9: internal feedback findings
-```
-
-Push.
-
----
-
-# Step 10 — Final audit
-
-Create:
-
-```text
-docs/campaigns/phase3_19/PHASE3_19_INTERNAL_FEEDBACK_AUDIT.md
-```
-
-Verdict options:
-
-```text
-PASS                          : feedback path implemented and
-                                demonstrated end-to-end
-PASS WITH DEFERRED FOLLOW-UPS : feedback path shipped; coherence
-                                feedback or combined feedback
-                                deferred
-PARTIAL                       : feedback path partial
-BLOCKED                       : feedback path blocked at design
-FAIL                          : invariant / runtime regression
-```
-
-Validation (canonical preflight):
-
-```bash
 python3 -m tools.claude_helpers.gate_runner --json
 ```
 
-Required content: verdict; files changed across the campaign; gate
-results; cumulative real model call count; mode tested; explicit
-"no SelfModel implementation"; "no consciousness / sentience /
-subjective / semantic / truth / agency / self-modification claim";
-"no aggregate awareness / I-ness / growth score"; "no hidden LLM
-call / hidden persistence / DB schema change"; "no L2 semantic
-change"; "no tick semantic change"; "no raw prompts / responses /
-cache files / secrets committed"; "OFFLINE remains default;
-model-backed remains explicit opt-in"; Stage A / Stage B / Stage C.1
-bridge usage disclosure; next-campaign note.
+Every command must succeed at the expected verdicts listed under
+"Source-of-truth".
+
+### Step 6 — commit, push, open PR
 
 Commit message:
 
-```text
-phase3.19 step10: final internal feedback audit
+```
+phase3.32: reconcile campaign stack into main
 ```
 
-Push.
+Push the branch and open a PR with `--base main --head
+campaign/phase3-32-mainline-reconciliation`. The PR body must
+include catalog version, counts, benchmark totals, proto-speech
+live-test result, gate verdict, invariants result, real-model-call
+count, cache-write count, forbidden-term-hit count, staleness
+patches applied, remaining WARNs, an explicit non-claim
+disclosure, and an explicit "Merge with merge commit only after
+operator approval" instruction.
+
+Do NOT merge the PR.
 
 ---
 
-# Step 11 — PR preparation
+## Acceptance criteria
 
-Open a PR to main with title:
+Phase 3.32 succeeds only when:
 
-```text
-phase3.19: internal feedback loop prototype
-```
-
-PR body must include: PR URL, base/head, catalog version/counts,
-what feedback was implemented, whether pattern recurrence now feeds
-back into later processing, whether coherence feedback is included
-or deferred, whether 50-tick processing window remains recommended,
-validation, real model calls used, non-claims, next campaign
-recommendation.
-
-Do not merge.
+- branch `campaign/phase3-32-mainline-reconciliation` exists,
+  cut from `main`, with `origin/campaign/phase3-30-curriculum-
+  consolidation` merged via `--no-ff`;
+- README, INVARIANT_CATALOG, tools/catalog.py, and
+  brain/_catalog_ids.py agree on catalog v0.37 with banner
+  counts REQUIRED=392 STRUCTURAL=101 NOT-EXERCISED=14
+  DEFERRED=15 OBSERVED=16;
+- `python3 -m brain.development.proto_speech_acquisition`
+  reports 10/10 PASS, fp=0, fn=0, digest `f6a83b9caef0ac17`;
+- `python3 -m brain.development.agent_benchmark` reports
+  137 total / 136 PASS / 1 WARN / 0 FAIL;
+- `python3 -m brain.invariants run` is fully green;
+- `bash tools/check_all.sh` and
+  `python3 -m tools.claude_helpers.gate_runner --json` report
+  5/5 PASS;
+- real_model_calls == 0; cache_writes == 0;
+  forbidden_term_hits == 0;
+- `PHASE3_HANDOFF_STATE.md`, `CURRENT_MISSION.md`, and
+  `CURRENT_CAMPAIGN.md` describe Phase 3.32 (not stale Phase
+  3.31 instructions);
+- a single PR is opened with base `main` and head
+  `campaign/phase3-32-mainline-reconciliation`;
+- the PR is NOT merged automatically;
+- no new behavioral feature, runtime module, fixture, catalog
+  row, or benchmark axis is introduced;
+- no theory semantics are changed;
+- non-claim discipline is preserved.
