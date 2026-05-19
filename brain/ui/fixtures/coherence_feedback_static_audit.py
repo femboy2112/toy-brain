@@ -71,6 +71,8 @@ _EXPECTED_FEEDBACK_MODE_VALUES: frozenset[str] = frozenset({
     "pattern_ledger",
     "coherence",
     "pattern_and_coherence",
+    "worldlet",
+    "pattern_coherence_worldlet",
 })
 
 
@@ -303,6 +305,7 @@ def check_coherence_feedback_static_audit() -> None:
         InternalEventSource.REHEARSAL,
         InternalEventSource.PLEDGER_SUMMARY,
         InternalEventSource.COHMON_SUMMARY,
+        InternalEventSource.WORLDLET_SUMMARY,
     ):
         for k in (1, 2, 3, 42, 255):
             provenance = build_rehearsal_provenance(

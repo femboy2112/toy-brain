@@ -1,8 +1,7 @@
-"""Phase 3.23 dispatch tracer benchmark axis fixture.
+"""Phase 3.24 worldlet feedback benchmark axis fixture.
 
-Drives ``I-DTRACE-11`` (REQUIRED). Audits that the A10 dispatch_trace
-axis is green and that the full-battery runner reports the documented
-totals.
+Drives ``I-WFDBK-11`` (REQUIRED). Audits the A11 worldlet_feedback
+axis and the extended full battery.
 """
 from __future__ import annotations
 
@@ -11,33 +10,33 @@ from brain.development.agent_benchmark import (
     BenchmarkAxis,
     BenchmarkCaseStatus,
     BenchmarkRun,
-    run_axis_a10_dispatch_trace,
+    run_axis_a11_worldlet_feedback,
     run_full_battery,
-    run_partial_battery_phase3_23,
+    run_partial_battery_phase3_24,
 )
 from brain.invariants import register
 
 
-@register("I-DTRACE-11", status="REQUIRED")
-def check_dispatch_tracer_benchmark_green() -> None:
-    """Audit the A10 dispatch_trace axis and the extended full battery."""
+@register("I-WFDBK-11", status="REQUIRED")
+def check_worldlet_feedback_benchmark_green() -> None:
+    """Audit the A11 worldlet_feedback axis + the extended full battery."""
     assert BATTERY_VERSION == "phase3.24.v1"
 
     # Axis-only run.
-    a10 = run_axis_a10_dispatch_trace()
-    assert a10.axis is BenchmarkAxis.DISPATCH_TRACE
-    assert len(a10.cases) == 12
-    expected_ids = tuple(f"A10.{i:02d}" for i in range(1, 13))
-    actual_ids = tuple(c.case_id for c in a10.cases)
+    a11 = run_axis_a11_worldlet_feedback()
+    assert a11.axis is BenchmarkAxis.WORLDLET_FEEDBACK
+    assert len(a11.cases) == 12
+    expected_ids = tuple(f"A11.{i:02d}" for i in range(1, 13))
+    actual_ids = tuple(c.case_id for c in a11.cases)
     assert actual_ids == expected_ids, actual_ids
-    for c in a10.cases:
+    for c in a11.cases:
         assert c.status is BenchmarkCaseStatus.PASS, (
-            f"I-DTRACE-11 violated: {c.case_id} not PASS ({c.status.value}): "
+            f"I-WFDBK-11 violated: {c.case_id} not PASS ({c.status.value}): "
             f"{c.summary!r}"
         )
 
-    # Partial-battery (A10 only).
-    partial = run_partial_battery_phase3_23()
+    # Partial-battery (A11 only).
+    partial = run_partial_battery_phase3_24()
     assert isinstance(partial, BenchmarkRun)
     assert partial.case_total == 12
     assert partial.case_passed == 12
@@ -49,14 +48,12 @@ def check_dispatch_tracer_benchmark_green() -> None:
     assert partial.determinism_failures == 0
     assert partial.invariant_failures == 0
 
-    # Full battery: eleven axes in canonical order. Phase 3.24 widens
-    # the battery beyond DISPATCH_TRACE with the WORLDLET_FEEDBACK
-    # axis; the runner is the last axis in the tuple.
+    # Full battery: eleven axes in canonical order ending with
+    # WORLDLET_FEEDBACK.
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
     assert len(axes_seen) == 11
-    assert BenchmarkAxis.DISPATCH_TRACE in axes_seen
     assert axes_seen[-1] is BenchmarkAxis.WORLDLET_FEEDBACK
     assert run.case_total == 77
     assert run.case_warned == 1  # documented A3.04
@@ -67,8 +64,7 @@ def check_dispatch_tracer_benchmark_green() -> None:
     assert run.determinism_failures == 0
     assert run.invariant_failures == 0
 
-    # Determinism: two invocations of run_full_battery produce equal
-    # transcript digests and equal axis-case shapes.
+    # Determinism: two invocations produce equal transcript digests.
     run2 = run_full_battery()
     assert run.transcript_digest_hex16 == run2.transcript_digest_hex16
     assert run.transcripts == run2.transcripts

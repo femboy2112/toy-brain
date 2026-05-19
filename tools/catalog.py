@@ -24,7 +24,25 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.32 expected counts — bumped by the Phase 3.23 Dispatch Tracer
+# v0.33 expected counts — bumped by the Phase 3.24 Worldlet Feedback
+# Bridge catalog patch (I-WFDBK-01..12: +11 REQUIRED rows, +1
+# STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
+# Phase 3.24 adds the bounded pure helper build_worldlet_summary_text
+# in brain/development/processing_window.py, the two new FeedbackMode
+# members WORLDLET and PATTERN_COHERENCE_WORLDLET, the new
+# InternalEventSource.WORLDLET_SUMMARY member, the OperatorSession
+# helper method _run_worldlet_feedback_step in brain/ui/session.py,
+# the two new closed-enum extensions ReasoningStepKind.CHECK_WORLDLET_FEEDBACK
+# and LearningEvidenceKind.WORLDLET_FEEDBACK_RECORDED, the three new
+# AgentObservationSummary fields, the dispatch-trace
+# worldlet_summary_chunks derived fact, and benchmark axis A11
+# worldlet_feedback (12 cases A11.01..A11.12). Eight new fixtures
+# land in brain/ui/fixtures/. brain/tick.py is not edited; no
+# existing runtime file's behavior changes; OFFLINE default
+# preserved; zero real model calls; non-claim discipline enforced
+# via the canonical _FORBIDDEN_NON_CLAIM_TERMS tuple on every
+# produced summary string and the new helper output.
+# v0.32 history retained: bumped by the Phase 3.23 Dispatch Tracer
 # Wiring catalog patch (I-DTRACE-01..12: +11 REQUIRED rows, +1
 # STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED unchanged).
 # Phase 3.23 adds the brain/development/dispatch_tracer.py module: a
@@ -85,8 +103,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 324,
-    "STRUCTURAL": 96,
+    "REQUIRED": 335,
+    "STRUCTURAL": 97,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,

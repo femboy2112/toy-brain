@@ -43,6 +43,8 @@ _EXPECTED_AXIS_VALUES = frozenset(
         "reasoning_trace",
         # Phase 3.23 (I-DTRACE-11): dispatch trace battery axis.
         "dispatch_trace",
+        # Phase 3.24 (I-WFDBK-11): worldlet feedback battery axis.
+        "worldlet_feedback",
     }
 )
 
