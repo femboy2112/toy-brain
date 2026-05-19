@@ -51,6 +51,8 @@ _EXPECTED_AXIS_VALUES = frozenset(
         "active_hypothesis",
         # Phase 3.30 (I-CURR-13): curriculum consolidation battery axis.
         "curriculum_consolidation",
+        # Phase 3.31 (I-PSPEECH-18): proto-speech acquisition axis.
+        "proto_speech_acquisition",
     }
 )
 

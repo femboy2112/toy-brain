@@ -4,10 +4,42 @@ This file lets a new Claude Code instance pick up the in-flight work
 without losing context. It is updated after every meaningful step so
 a fresh session can `git status`, read this file, then keep going.
 
-**Last updated:** Phase 3.30 COMPLETE; PR #32 open against PR #31
-**Active branch:** `campaign/phase3-30-curriculum-consolidation`
-**Active campaign:** none in flight; Phase 3.30 ready for review
+**Last updated:** Phase 3.31 COMPLETE; PR #33 open at
+https://github.com/femboy2112/toy-brain/pull/33
+**Active branch:** `campaign/phase3-31-caregiver-proto-speech`
+**Active campaign:** none in flight; Phase 3.31 ready for review
 **Prior campaigns:**
+  - Phase 3.31 Caregiver-Scaffolded Proto-Speech Acquisition —
+    COMPLETE; pushed to the new stacked branch
+    `campaign/phase3-31-caregiver-proto-speech`. Catalog v0.36
+    -> v0.37. +I-PSPEECH-01..19 (18 REQUIRED + 1 STRUCTURAL).
+    Benchmark: 137 cases (119 + 18), 136 PASS + 1 WARN (A3.04
+    carry-over) + 0 FAIL. Live-test runner: 10/10 PASS,
+    false_positive=0, false_negative=0, stable_single=5,
+    stable_combination=0, suppressed=2, transfer_success=1,
+    digest `f6a83b9caef0ac17`, drive_stream_digest
+    `dc060a88a814f448`. Adds `brain/development/
+    proto_speech_acquisition.py`: a pure deterministic OFFLINE
+    live-test runner that probes the operational analogue of
+    caregiver-scaffolded proto-speech acquisition under ten
+    conditions (BABBLE_BASELINE, AMBIENT_IMPRINTING,
+    FEEDBACK_REINFORCEMENT, CORRECTION_SHAPING,
+    HOLOPHRASE_TRANSFER, TWO_TOKEN_COMBINATION, SUPPRESSION,
+    TURN_TAKING, REFUSAL_HELD, DRIVE_STREAM_PRESSURE). The
+    drive-stream-grounded babble selector reads from a bounded
+    explicit `ProtoSpeechDriveStream` (the audit substitute for
+    inner speech) and filters by a session-local
+    `ProtoSpeechEvidenceTable` with closed-rule integer-weight
+    updates (`ACCEPTED` +3, `ECHO` +3, `EXPANDED` +1/+4,
+    `CORRECTED` -2/+3, `IGNORED` -1, `AMBIENT_ONLY` +1) and
+    shape-digest transfer. No new `OperatorCommand`, no new
+    `LOCAL_COMMAND_VERBS` entry, no new `ACTIVE_VIEWS` value,
+    no new `GrowthEventType` / `GrowthEventSource`, no new
+    `LearningEvidenceKind` / `ReasoningStepKind` member, no DB
+    schema change, no autosave-policy change, no `brain.llm`
+    import, no `brain.tick.tick` call outside the existing
+    `STEP_TICK` route.
+**Older campaigns:**
   - Phase 3.20 Coherence Feedback Bridge — COMPLETE (PR #25 open)
   - Phase 3.21 Developmental Trajectory — COMPLETE (PR #26 open)
   - Phase 3.21 corrigendum: M10 success criterion reframed against
@@ -75,13 +107,13 @@ a fresh session can `git status`, read this file, then keep going.
 
 ## What is in flight
 
-No active campaign. Phase 3.30 Curriculum Consolidation Live Test
-is COMPLETE on the
-`campaign/phase3-30-curriculum-consolidation` branch, stacked on
-PR #31 (Phase 3.26). PR #32 is open at
-https://github.com/femboy2112/toy-brain/pull/32 with base
-`campaign/phase3-26-active-hypothesis-probe` and head
-`campaign/phase3-30-curriculum-consolidation`.
+No active campaign. Phase 3.31 Caregiver-Scaffolded Proto-Speech
+Acquisition is COMPLETE on the
+`campaign/phase3-31-caregiver-proto-speech` branch. A new PR
+opens against the active base branch identified at recovery time
+(`campaign/phase3-30-curriculum-consolidation` while PR #32 was
+open; the operator should retarget the PR up the stack as
+upstream PRs merge).
 
 The non-claim discipline anchored by
 `brain.development.coherence_monitor._FORBIDDEN_NON_CLAIM_TERMS`
@@ -101,13 +133,13 @@ NOT mean the runtime has a goal, plan, or wish.
 ## Current step pointer
 
 ```text
-campaign:   none in flight; Phase 3.30 COMPLETE
-status:     eight PRs (#25 + #26 + #27 + #28 + #29 + #30 + #31 +
-            #32) awaiting operator merge decision; #32 is stacked
-            on #31 and depends on it.
-gates:      v0.36; all 5 gates PASS at Phase 3.30 close
-branch:     campaign/phase3-30-curriculum-consolidation
-            (stacked on campaign/phase3-26-active-hypothesis-probe)
+campaign:   none in flight; Phase 3.31 COMPLETE
+status:     nine PRs (#25 + #26 + #27 + #28 + #29 + #30 + #31 +
+            #32 + #33) awaiting operator merge decision; #33 is
+            stacked on #32 and depends on it.
+gates:      v0.37; all 5 gates PASS at Phase 3.31 close
+branch:     campaign/phase3-31-caregiver-proto-speech
+            (stacked on campaign/phase3-30-curriculum-consolidation)
 
 queued next-campaign candidates (after Phase 3.26 lands):
   - Phase 3.27 worldlet UI construction (operator command + payload
@@ -131,7 +163,41 @@ queued next-campaign candidates (after Phase 3.26 lands):
 
 ---
 
-## Phase 3.30 step ledger (COMPLETE)
+## Phase 3.31 step ledger (COMPLETE)
+
+```text
+Step 1  Design + alignment + roadmap + mission/campaign sync   DONE   commit 0da5e82 (pushed)
+Step 2  proto_speech_acquisition.py inventory + records        DONE   commit f25c4b9 (pushed)
+Step 3  ProtoSpeechDriveStream + frame builder                 DONE   commit 7b23341 (pushed)
+Step 4  Caregiver feedback + evidence updates                  DONE   commit a635c12 (pushed)
+Step 5  Drive-grounded babble + ambient + reinforcement        DONE   commit 9ef0748 (pushed)
+Step 6  Correction + suppression + transfer                    DONE   commit d05e004 (pushed)
+Step 7  Two-token combination + turn-taking + refusal guard    DONE   commit 4871e38 (pushed)
+Step 8  Benchmark A15 proto_speech_acquisition axis            DONE   commit 5801c9d (pushed)
+Step 9  Catalog v0.37 + I-PSPEECH-01..19 fixtures              DONE   commit 58e7744 (pushed)
+Step 10 Proof + transcripts + behavior + findings + audit      DONE   (this commit)
+```
+
+Verdict: **PASS WITH NO PHASE-3.31-INTRODUCED FOLLOW-UPS**
+(A3.04 carry-over noted but is a Phase 3.21 W3 blocker, not new
+in Phase 3.31). Catalog v0.37.
+
+Catalog patch: `I-PSPEECH-01..I-PSPEECH-19` (18 REQUIRED + 1
+STRUCTURAL); all rows green in the runner. Eleven new fixtures.
+Benchmark: 137 cases (119 from Phase 3.22..3.30 + 18 from Phase
+3.31), 136 PASS + 1 documented WARN (A3.04 carry-over) + 0
+FAIL, 0 real model calls.
+
+Live-test verdict: 10/10 conditions PASS,
+false_positive_count=0, false_negative_count=0,
+stable_single_count=5, stable_combination_count=0,
+suppressed_count=2, transfer_success_count=1,
+digest `f6a83b9caef0ac17`, drive_stream_digest
+`dc060a88a814f448`.
+
+Phase 3.21 W3 (A3.04 NOT_APPLICABLE blocker) — REMAINS WARN.
+
+## Phase 3.30 step ledger (COMPLETE — historical)
 
 ```text
 Step 1  Mission + design + roadmap docs                       DONE   commit f8d3e6f (pushed)
@@ -243,8 +309,10 @@ Then resume at the step named under **Current step pointer** above.
   while PR #30 is open; retargets up the stack as upstream PRs merge.
 - PR #32 (Phase 3.30) → `campaign/phase3-26-active-hypothesis-probe`
   while PR #31 is open; retargets up the stack as upstream PRs merge.
+- PR #33 (Phase 3.31) → `campaign/phase3-30-curriculum-consolidation`
+  while PR #32 is open; retargets up the stack as upstream PRs merge.
 - Stack merge order (operator-controlled):
-  PR #24 → #25 → #26 → #27 → #28 → #29 → #30 → #31 → #32.
+  PR #24 → #25 → #26 → #27 → #28 → #29 → #30 → #31 → #32 → #33.
 
 ---
 

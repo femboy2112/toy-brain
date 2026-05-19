@@ -20,7 +20,7 @@ from brain.invariants import register
 @register("I-WFDBK-11", status="REQUIRED")
 def check_worldlet_feedback_benchmark_green() -> None:
     """Audit the A11 worldlet_feedback axis + the extended full battery."""
-    assert BATTERY_VERSION == "phase3.30.v1"
+    assert BATTERY_VERSION == "phase3.31.v1"
 
     # Axis-only run.
     a11 = run_axis_a11_worldlet_feedback()
@@ -55,12 +55,13 @@ def check_worldlet_feedback_benchmark_green() -> None:
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
-    assert len(axes_seen) == 14
+    assert len(axes_seen) == 15
     assert BenchmarkAxis.WORLDLET_FEEDBACK in axes_seen
     assert BenchmarkAxis.OSMOTIC_LEARNING in axes_seen
     assert BenchmarkAxis.ACTIVE_HYPOTHESIS in axes_seen
-    assert axes_seen[-1] is BenchmarkAxis.CURRICULUM_CONSOLIDATION
-    assert run.case_total == 119
+    assert BenchmarkAxis.CURRICULUM_CONSOLIDATION in axes_seen
+    assert axes_seen[-1] is BenchmarkAxis.PROTO_SPEECH_ACQUISITION
+    assert run.case_total == 137
     assert run.case_warned == 1  # documented A3.04
     assert run.case_failed == 0
     assert run.real_model_calls == 0

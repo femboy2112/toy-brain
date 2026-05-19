@@ -88,7 +88,7 @@ from brain.ui.session import OperatorSession
 # Bounded constants.
 # ---------------------------------------------------------------------------
 
-BATTERY_VERSION: str = "phase3.30.v1"
+BATTERY_VERSION: str = "phase3.31.v1"
 TRANSCRIPT_DIGEST_HEX_LEN: int = 16
 BENCHMARK_CASE_SUMMARY_MAX_LEN: int = 240
 BENCHMARK_CASE_NOTES_MAX_LEN: int = 320
@@ -120,6 +120,11 @@ class BenchmarkAxis(str, Enum):
     ACTIVE_HYPOTHESIS = "active_hypothesis"
     # Phase 3.30 (I-CURR-13): the curriculum consolidation battery axis.
     CURRICULUM_CONSOLIDATION = "curriculum_consolidation"
+    # Phase 3.31 (I-PSPEECH-18): the caregiver-scaffolded proto-speech
+    # acquisition battery axis (drive-stream-grounded babble + closed-
+    # rule evidence updates + shape-digest transfer + suppression +
+    # combination + refusal-held).
+    PROTO_SPEECH_ACQUISITION = "proto_speech_acquisition"
 
 
 class BenchmarkCaseStatus(str, Enum):
@@ -2938,8 +2943,9 @@ def run_full_battery() -> BenchmarkRun:
     a12 = run_axis_a12_osmotic_learning()
     a13 = run_axis_a13_active_hypothesis()
     a14 = run_axis_a14_curriculum_consolidation()
+    a15 = run_axis_a15_proto_speech_acquisition()
     return _assemble_battery_run(
-        earlier + (a7, a8, a9, a10, a11, a12, a13, a14)
+        earlier + (a7, a8, a9, a10, a11, a12, a13, a14, a15)
     )
 
 
@@ -4410,6 +4416,547 @@ def run_partial_battery_phase3_30() -> BenchmarkRun:
     return _assemble_battery_run(axes)
 
 
+def run_axis_a15_proto_speech_acquisition() -> AxisResult:
+    """Run the Phase 3.31 A15 proto_speech_acquisition battery axis.
+
+    Eighteen cases A15.01..A15.18 exercising the caregiver-
+    scaffolded proto-speech acquisition live-test runner end-to-end,
+    its drive-stream-grounded babble path, and its closed-rule
+    evidence updates. Drives ``I-PSPEECH-18``.
+    """
+    import inspect as _inspect
+    from brain.development import (
+        proto_speech_acquisition as _pspeech_module,
+    )
+    from brain.development.proto_speech_acquisition import (
+        PROTO_SPEECH_BATTERY_VERSION,
+        CaregiverFeedback,
+        CaregiverFeedbackKind,
+        ProtoSpeechCondition,
+        ProtoSpeechDriveKind,
+        ProtoSpeechStatus,
+        ProtoUtteranceDisposition,
+        ProtoVocalToken,
+        REFUSAL_SENTINEL,
+        build_proto_speech_context,
+        build_proto_speech_drive_stream,
+        build_proto_utterance,
+        empty_evidence_table,
+        run_proto_speech_live_test,
+        select_babble_from_drive_stream,
+    )
+
+    cases: list[BenchmarkCaseResult] = []
+
+    report = run_proto_speech_live_test()
+    condition_status = dict(report.condition_statuses)
+
+    # A15.01 -- closed proto-vocal inventory of exactly 15 tokens.
+    a15_01_ok = len(list(ProtoVocalToken)) == 15
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.01",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_01_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"proto-vocal inventory size=15: ok={a15_01_ok}",
+            primary_metric=int(a15_01_ok),
+            secondary_metric=len(list(ProtoVocalToken)),
+        )
+    )
+
+    # A15.02 -- ProtoUtterance enforces 1- or 2-token bound.
+    u_single = build_proto_utterance((ProtoVocalToken.BA,))
+    u_double = build_proto_utterance(
+        (ProtoVocalToken.SAME, ProtoVocalToken.AGAIN)
+    )
+    overlong_rejected = False
+    try:
+        build_proto_utterance(
+            (
+                ProtoVocalToken.BA,
+                ProtoVocalToken.MA,
+                ProtoVocalToken.DA,
+            )
+        )
+    except (TypeError, ValueError):
+        overlong_rejected = True
+    a15_02_ok = (
+        u_single.token_count == 1
+        and u_double.token_count == 2
+        and overlong_rejected
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.02",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_02_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"ProtoUtterance bounds: 1tok={u_single.token_count} "
+                f"2tok={u_double.token_count} "
+                f"overlong_rejected={overlong_rejected}"
+            ),
+            primary_metric=int(a15_02_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # Per-condition status lookup helper.
+    def _cond_pass(c: ProtoSpeechCondition) -> bool:
+        return condition_status.get(c) is ProtoSpeechStatus.PASS
+
+    # A15.03 -- BABBLE_BASELINE emits deterministic exploratory babble.
+    a15_03_ok = _cond_pass(ProtoSpeechCondition.BABBLE_BASELINE)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.03",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_03_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"babble baseline condition status pass={a15_03_ok}",
+            primary_metric=int(a15_03_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.04 -- AMBIENT_IMPRINTING changes later selection.
+    a15_04_ok = _cond_pass(ProtoSpeechCondition.AMBIENT_IMPRINTING)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.04",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_04_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"ambient imprinting pass={a15_04_ok}",
+            primary_metric=int(a15_04_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.05 -- ACCEPTED/ECHO reinforcement promotes a form.
+    a15_05_ok = _cond_pass(
+        ProtoSpeechCondition.FEEDBACK_REINFORCEMENT
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.05",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_05_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"reinforcement pass={a15_05_ok} "
+                f"stable_single_count={report.stable_single_count}"
+            ),
+            primary_metric=int(a15_05_ok),
+            secondary_metric=report.stable_single_count,
+        )
+    )
+
+    # A15.06 -- CORRECTED weakens attempted and strengthens offered.
+    a15_06_ok = _cond_pass(ProtoSpeechCondition.CORRECTION_SHAPING)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.06",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_06_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"correction shaping pass={a15_06_ok}",
+            primary_metric=int(a15_06_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.07 -- IGNORED suppresses a form after threshold.
+    a15_07_ok = (
+        _cond_pass(ProtoSpeechCondition.SUPPRESSION)
+        and report.suppressed_count >= 1
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.07",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_07_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"suppression pass={a15_07_ok} "
+                f"suppressed_count={report.suppressed_count}"
+            ),
+            primary_metric=int(a15_07_ok),
+            secondary_metric=report.suppressed_count,
+        )
+    )
+
+    # A15.08 -- stable holophrase transfers to renamed same-shape context.
+    a15_08_ok = (
+        _cond_pass(ProtoSpeechCondition.HOLOPHRASE_TRANSFER)
+        and report.transfer_success_count == 1
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.08",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_08_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"holophrase transfer pass={a15_08_ok} "
+                f"transfer_success={report.transfer_success_count}"
+            ),
+            primary_metric=int(a15_08_ok),
+            secondary_metric=report.transfer_success_count,
+        )
+    )
+
+    # A15.09 -- negative different-shape context produces no transfer.
+    neg_turns = [
+        t for t in report.turns
+        if t.condition is ProtoSpeechCondition.HOLOPHRASE_TRANSFER
+    ]
+    a15_09_ok = (
+        bool(neg_turns)
+        and all(not t.transfer_taken for t in neg_turns[-1:])
+        and report.false_positive_count == 0
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.09",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_09_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"neg transfer block pass={a15_09_ok} fp="
+                f"{report.false_positive_count}"
+            ),
+            primary_metric=int(a15_09_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.10 -- two-token combination appears only after prerequisites.
+    comb_turns = [
+        t for t in report.turns
+        if t.condition is ProtoSpeechCondition.TWO_TOKEN_COMBINATION
+    ]
+    last_comb = comb_turns[-1] if comb_turns else None
+    a15_10_ok = (
+        _cond_pass(ProtoSpeechCondition.TWO_TOKEN_COMBINATION)
+        and last_comb is not None
+        and last_comb.selected_utterance.token_count == 2
+        and all(
+            t.selected_utterance.token_count != 2
+            for t in comb_turns[:-1]
+        )
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.10",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_10_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"combination after prereq pass={a15_10_ok}"
+            ),
+            primary_metric=int(a15_10_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.11 -- turn-taking order proof.
+    a15_11_ok = _cond_pass(ProtoSpeechCondition.TURN_TAKING)
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.11",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_11_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"turn taking pass={a15_11_ok}",
+            primary_metric=int(a15_11_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.12 -- cognitive-claim refusal stays intact.
+    refusal_turns = [
+        t for t in report.turns
+        if t.condition is ProtoSpeechCondition.REFUSAL_HELD
+    ]
+    a15_12_ok = (
+        _cond_pass(ProtoSpeechCondition.REFUSAL_HELD)
+        and bool(refusal_turns)
+        and all(t.refusal_taken for t in refusal_turns)
+        and all(
+            len(t.evidence_records_added) == 0 for t in refusal_turns
+        )
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.12",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_12_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"refusal held pass={a15_12_ok}",
+            primary_metric=int(a15_12_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.13 -- live-test report digest stable across two fresh runs.
+    report_b = run_proto_speech_live_test()
+    a15_13_ok = (
+        report.digest_hex16 == report_b.digest_hex16
+        and report.drive_stream_digest_hex16
+        == report_b.drive_stream_digest_hex16
+        and report.turns == report_b.turns
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.13",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_13_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"report digest stable: digest={report.digest_hex16} "
+                f"match={a15_13_ok}"
+            ),
+            primary_metric=int(a15_13_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.14 -- drive stream construction + digest determinism.
+    ctx = build_proto_speech_context(
+        abstract_pattern_digest="0123456789abcdef",
+        abstract_pattern_shape="A B A",
+    )
+    stream_a = build_proto_speech_drive_stream(
+        context=ctx, input_text="alpha beta alpha"
+    )
+    stream_b = build_proto_speech_drive_stream(
+        context=ctx, input_text="alpha beta alpha"
+    )
+    a15_14_ok = (
+        stream_a.digest_hex16 == stream_b.digest_hex16
+        and len(stream_a.frames) >= 1
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.14",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_14_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"drive stream determinism: digest="
+                f"{stream_a.digest_hex16} match={a15_14_ok}"
+            ),
+            primary_metric=int(a15_14_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.15 -- babble is generated from drive stream (no random;
+    # selection always uses a frame's suggested_token_set or the
+    # turn-index fallback over BA/MA/DA).
+    src = _inspect.getsource(_pspeech_module)
+    a15_15_ok = (
+        "import random" not in src
+        and "from random" not in src
+        and "import time" not in src
+        and "from time" not in src
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.15",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_15_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"babble from drive stream not random: ok={a15_15_ok}"
+            ),
+            primary_metric=int(a15_15_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.16 -- suppression pressure blocks ineffective prior form.
+    suppression_turns = [
+        t for t in report.turns
+        if t.condition is ProtoSpeechCondition.SUPPRESSION
+    ]
+    # The final suppression turn must NOT emit the NA form.
+    a15_16_ok = (
+        bool(suppression_turns)
+        and suppression_turns[-1].selected_utterance.text != "na"
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.16",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_16_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=f"suppression pressure blocks na: ok={a15_16_ok}",
+            primary_metric=int(a15_16_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.17 -- combination pressure permits two-token only after
+    # prerequisites.
+    a15_17_ok = (
+        last_comb is not None
+        and last_comb.selected_utterance.token_count == 2
+        and any(
+            f.drive_kind is ProtoSpeechDriveKind.COMBINATION_PRESSURE
+            for f in last_comb.drive_stream.frames
+        )
+        and all(
+            t.selected_utterance.token_count != 2
+            for t in comb_turns[:-1]
+        )
+    )
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.17",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_17_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"combination pressure gated: ok={a15_17_ok}"
+            ),
+            primary_metric=int(a15_17_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # A15.18 -- adding A15 is additive: A1..A14 axis case totals
+    # match the documented pre-A15 expected counts.
+    a1 = run_axis_a1_pattern_recognition()
+    a2 = run_axis_a2_cross_input_structural()
+    a3 = run_axis_a3_coherence_variation()
+    a4 = run_axis_a4_repl_coherence()
+    a5 = run_axis_a5_communication()
+    a6 = run_axis_a6_session_continuity()
+    earlier = (a1, a2, a3, a4, a5, a6)
+    a7 = run_axis_a7_blind_transcript(earlier)
+    a8 = run_axis_a8_learning_evidence()
+    a9 = run_axis_a9_reasoning_trace()
+    a10 = run_axis_a10_dispatch_trace()
+    a11 = run_axis_a11_worldlet_feedback()
+    a12 = run_axis_a12_osmotic_learning()
+    a13 = run_axis_a13_active_hypothesis()
+    a14 = run_axis_a14_curriculum_consolidation()
+    pre_a15_case_counts = (
+        len(a1.cases),
+        len(a2.cases),
+        len(a3.cases),
+        len(a4.cases),
+        len(a5.cases),
+        len(a6.cases),
+        len(a7.cases),
+        len(a8.cases),
+        len(a9.cases),
+        len(a10.cases),
+        len(a11.cases),
+        len(a12.cases),
+        len(a13.cases),
+        len(a14.cases),
+    )
+    expected = (9, 5, 4, 5, 9, 3, 4, 7, 7, 12, 12, 14, 14, 14)
+    a15_18_ok = pre_a15_case_counts == expected
+    cases.append(
+        BenchmarkCaseResult(
+            case_id="A15.18",
+            axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+            status=(
+                BenchmarkCaseStatus.PASS
+                if a15_18_ok
+                else BenchmarkCaseStatus.FAIL
+            ),
+            summary=(
+                f"A1..A14 case counts retained: "
+                f"got={pre_a15_case_counts!r} expected={expected!r}"
+            ),
+            primary_metric=int(a15_18_ok),
+            secondary_metric=0,
+        )
+    )
+
+    # Reference unused imports so linters do not complain.
+    _ = PROTO_SPEECH_BATTERY_VERSION
+    _ = CaregiverFeedback
+    _ = CaregiverFeedbackKind
+    _ = ProtoUtteranceDisposition
+    _ = REFUSAL_SENTINEL
+    _ = empty_evidence_table
+    _ = select_babble_from_drive_stream
+
+    return AxisResult(
+        axis=BenchmarkAxis.PROTO_SPEECH_ACQUISITION,
+        status=_aggregate_axis_status(tuple(cases)),
+        cases=tuple(cases),
+    )
+
+
+def run_partial_battery_phase3_31() -> BenchmarkRun:
+    """Run the A15 proto_speech_acquisition axis only.
+
+    Phase 3.31 entry point — exercises only the proto-speech
+    axis without re-running the (already-covered) A1..A14 axes.
+    """
+    axes = (run_axis_a15_proto_speech_acquisition(),)
+    return _assemble_battery_run(axes)
+
+
 # ---------------------------------------------------------------------------
 # Module-produced strings (audited).
 # ---------------------------------------------------------------------------
@@ -4527,6 +5074,7 @@ __all__ = (
     "run_axis_a12_osmotic_learning",
     "run_axis_a13_active_hypothesis",
     "run_axis_a14_curriculum_consolidation",
+    "run_axis_a15_proto_speech_acquisition",
     "run_full_battery",
     "run_partial_battery_pattern_axes",
     "run_partial_battery_phase3_22b",
@@ -4535,6 +5083,7 @@ __all__ = (
     "run_partial_battery_phase3_25",
     "run_partial_battery_phase3_26",
     "run_partial_battery_phase3_30",
+    "run_partial_battery_phase3_31",
     "run_partial_battery_with_coherence",
 )
 

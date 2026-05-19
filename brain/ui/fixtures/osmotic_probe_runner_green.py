@@ -73,7 +73,7 @@ def check_osmotic_live_test_determinism() -> None:
 @register("I-OSMO-13", status="REQUIRED")
 def check_osmotic_benchmark_axis_green() -> None:
     """A12 osmotic_learning axis is green + extended full battery."""
-    assert BATTERY_VERSION == "phase3.30.v1"
+    assert BATTERY_VERSION == "phase3.31.v1"
 
     # Axis-only run.
     a12 = run_axis_a12_osmotic_learning()
@@ -101,17 +101,18 @@ def check_osmotic_benchmark_axis_green() -> None:
     assert partial.determinism_failures == 0
     assert partial.invariant_failures == 0
 
-    # Full battery: thirteen axes in canonical order ending with
-    # ACTIVE_HYPOTHESIS. OSMOTIC_LEARNING is still present but is no
-    # longer the last axis (Phase 3.26 widens the battery).
+    # Full battery: fifteen axes in canonical order ending with
+    # PROTO_SPEECH_ACQUISITION. OSMOTIC_LEARNING is still present but
+    # is no longer the last axis (Phase 3.26..3.31 widen the battery).
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
-    assert len(axes_seen) == 14
+    assert len(axes_seen) == 15
     assert BenchmarkAxis.OSMOTIC_LEARNING in axes_seen
     assert BenchmarkAxis.ACTIVE_HYPOTHESIS in axes_seen
-    assert axes_seen[-1] is BenchmarkAxis.CURRICULUM_CONSOLIDATION
-    assert run.case_total == 119
+    assert BenchmarkAxis.CURRICULUM_CONSOLIDATION in axes_seen
+    assert axes_seen[-1] is BenchmarkAxis.PROTO_SPEECH_ACQUISITION
+    assert run.case_total == 137
     assert run.case_warned == 1  # documented A3.04
     assert run.case_failed == 0
     assert run.real_model_calls == 0

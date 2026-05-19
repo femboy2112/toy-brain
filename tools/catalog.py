@@ -24,10 +24,42 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = REPO_ROOT / "INVARIANT_CATALOG.md"
 GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 
-# v0.36 expected counts — bumped by the Phase 3.30 Curriculum
-# Consolidation Live Test catalog patch (I-CURR-01..14: +13 REQUIRED
-# rows, +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED / OBSERVED
-# unchanged). Phase 3.30 adds the new module
+# v0.37 expected counts — bumped by the Phase 3.31 Caregiver-
+# Scaffolded Proto-Speech Acquisition catalog patch
+# (I-PSPEECH-01..19: +18 REQUIRED rows, +1 STRUCTURAL row; NOT-
+# EXERCISED / DEFERRED / OBSERVED unchanged). Phase 3.31 adds the
+# new module brain/development/proto_speech_acquisition.py: a
+# pure bounded deterministic OFFLINE live-test runner with closed
+# ProtoVocalToken (15 values), CaregiverFeedbackKind (6 values),
+# ProtoSpeechContextKind (9 values), ProtoUtteranceDisposition
+# (8 values), ProtoSpeechDriveKind (12 values), ProtoSpeechStatus
+# (4 values), and ProtoSpeechCondition (10 values) enums and the
+# bounded ProtoUtterance, CaregiverFeedback, ProtoSpeechContext,
+# ProtoSpeechDriveFrame, ProtoSpeechDriveStream,
+# ProtoSpeechEvidenceRecord, ProtoSpeechEvidenceTable,
+# ProtoSpeechTurn, ProtoSpeechAcquisitionReport records. The
+# runner probes whether the existing substrate realizes the
+# operational analogue of caregiver-scaffolded proto-speech
+# acquisition (drive-stream-grounded babble + closed-rule
+# evidence updates + shape-digest transfer + suppression +
+# combination + refusal-held) under ten bounded conditions. The
+# benchmark battery adds one axis: A15 proto_speech_acquisition
+# (18 cases A15.01..A15.18). Total benchmark cases: 137 (119 +
+# 18); 136 PASS + 1 WARN (A3.04 carry-over) + 0 FAIL. brain/tick
+# .py is not edited; no existing runtime file's behavior changes;
+# OFFLINE default preserved; zero real model calls; non-claim
+# discipline enforced via the canonical _FORBIDDEN_NON_CLAIM_TERMS
+# tuple on every produced summary string and the new module
+# source. "Proto-speech acquisition" is engineering shorthand for
+# bounded co-occurrence + closed-rule weight updates + drive-
+# stream-grounded selection + shape-digest transfer at the
+# substrate level; the runtime is not claimed to have language,
+# inner speech, hidden chain-of-thought, communicative intent,
+# audience modelling, or any cognitive process.
+# v0.36 history retained: bumped by the Phase 3.30 Curriculum
+# Consolidation Live Test catalog patch (I-CURR-01..14: +13
+# REQUIRED rows, +1 STRUCTURAL row; NOT-EXERCISED / DEFERRED /
+# OBSERVED unchanged). Phase 3.30 adds the new module
 # brain/development/curriculum_consolidation_probe.py: a pure
 # bounded deterministic OFFLINE live-test runner with closed
 # CurriculumCondition (5 values), AuditDisposition (3 values),
@@ -195,8 +227,8 @@ GENERATED_IDS_PATH = REPO_ROOT / "brain" / "_catalog_ids.py"
 # real model calls so the feedback path consumes zero real model
 # calls regardless of size.
 EXPECTED_COUNTS: dict[str, int] = {
-    "REQUIRED": 374,
-    "STRUCTURAL": 100,
+    "REQUIRED": 392,
+    "STRUCTURAL": 101,
     "NOT-EXERCISED": 14,
     "DEFERRED": 15,
     "OBSERVED": 16,
