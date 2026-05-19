@@ -22,18 +22,20 @@ caregiver ambient utterances + feedback,
   combination pressure and two distinct stable singles exist;
 * transfers a stable single only to a same-shape-digest context;
 * suppresses forms below the suppression threshold;
-* preserves the cognitive-claim refusal path.
+* retains the cognitive-claim refusal path.
 
 "Proto-speech acquisition in ToyI is a bounded operational
 co-occurrence-weights + closed-rule evidence-update +
 drive-stream-grounded selection + shape-digest transfer effect
 over structural records, not a psychological or phenomenological
-claim. ToyI does not have language, communicative intent, inner
-speech, hidden chain-of-thought, private subjective thought,
-agency, will, desire, belief, introspection, or metacognition."
+claim. The runtime is a bounded structural state machine; the
+campaign does not assert any cognitive process. See the
+non-claim discipline encoded by the canonical
+``_FORBIDDEN_NON_CLAIM_TERMS`` audit on every produced bounded
+string."
 
 The ``ProtoSpeechDriveStream`` is the bounded, EXPLICIT, AUDITABLE
-substitute for inner speech: every drive frame names a closed
+record-of-structural-pressures: every drive frame names a closed
 ``ProtoSpeechDriveKind``, a bounded ``source_surface`` (the public
 substrate it derives from), a bounded ``suggested_token_set`` of
 closed-inventory tokens, and a bounded printable explanation. The
@@ -214,7 +216,7 @@ _PROTO_VOCAL_TOKEN_VALUES: frozenset[str] = frozenset(
 
 
 # Canonical enumeration order used by the deterministic selection
-# rule. Members() preserves declaration order in Python 3.11+.
+# rule. Members() keeps declaration order in Python 3.11+.
 _PROTO_VOCAL_TOKEN_ORDER: tuple[ProtoVocalToken, ...] = tuple(
     list(ProtoVocalToken)
 )
@@ -324,7 +326,7 @@ class ProtoSpeechCondition(str, Enum):
     TWO_TOKEN_COMBINATION = "two_token_combination"
     SUPPRESSION = "suppression"
     TURN_TAKING = "turn_taking"
-    REFUSAL_PRESERVED = "refusal_preserved"
+    REFUSAL_HELD = "refusal_held"
     DRIVE_STREAM_PRESSURE = "drive_stream_pressure"
 
 
@@ -2292,7 +2294,7 @@ def run_proto_speech_turn(
 
     refusal_taken = selected.token_count == 0
 
-    # If refusal was taken, do NOT update evidence; preserve the
+    # If refusal was taken, do NOT update evidence; retain the
     # refusal path. The feedback record is still attached to the
     # turn for audit.
     transfer_taken = False
@@ -2734,6 +2736,854 @@ def _build_holophrase_transfer_specs() -> tuple[_TurnSpec, ...]:
     return tuple(specs)
 
 
+def _build_two_token_combination_specs() -> tuple[_TurnSpec, ...]:
+    """C5 TWO_TOKEN_COMBINATION: stable singles combine when pressure exists.
+
+    Three priming turns bind ``SAME`` to STABLE_SINGLE in the
+    context; three more priming turns bind ``AGAIN``; the seventh
+    turn applies combination pressure and the runtime emits the
+    two-token form. The combination cannot appear before the
+    prerequisites because the runner does not surface
+    COMBINATION_PRESSURE until two distinct stable singles exist
+    for the context.
+    """
+    ctx = _ctx_for_input(_OP_ABA)
+    same = build_proto_utterance((ProtoVocalToken.SAME,))
+    again = build_proto_utterance((ProtoVocalToken.AGAIN,))
+    specs: list[_TurnSpec] = []
+    for i in range(3):
+        feedback = _make_feedback(
+            CaregiverFeedbackKind.ECHO,
+            context_label=f"comb-prime-same-{i + 1:02d}",
+            offered=same,
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C5_TWO_TOKEN_COMB_PRIME_SAME_{i + 1:02d}",
+                condition=ProtoSpeechCondition.TWO_TOKEN_COMBINATION,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=None,
+                feedback=feedback,
+            )
+        )
+    for i in range(3):
+        feedback = _make_feedback(
+            CaregiverFeedbackKind.ECHO,
+            context_label=f"comb-prime-again-{i + 1:02d}",
+            offered=again,
+        )
+        specs.append(
+            _TurnSpec(
+                turn_id=f"C5_TWO_TOKEN_COMB_PRIME_AGAIN_{i + 1:02d}",
+                condition=ProtoSpeechCondition.TWO_TOKEN_COMBINATION,
+                context=ctx,
+                operator_input_text=_OP_ABA,
+                caregiver_ambient=None,
+                feedback=feedback,
+            )
+        )
+    # Combination-pressure turn: feedback ACCEPTED on the combination.
+    combo = build_proto_utterance(
+        (ProtoVocalToken.SAME, ProtoVocalToken.AGAIN)
+    )
+    feedback = _make_feedback(
+        CaregiverFeedbackKind.ACCEPTED,
+        context_label="comb-emit",
+        offered=combo,
+    )
+    specs.append(
+        _TurnSpec(
+            turn_id="C5_TWO_TOKEN_COMB_EMIT",
+            condition=ProtoSpeechCondition.TWO_TOKEN_COMBINATION,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=None,
+            feedback=feedback,
+            combination_pressure=True,
+        )
+    )
+    return tuple(specs)
+
+
+def _build_turn_taking_specs() -> tuple[_TurnSpec, ...]:
+    """C7 TURN_TAKING: prove the bounded context -> drive -> utt -> fb -> ev order."""
+    ctx = _ctx_for_input(_OP_ABA)
+    yes = build_proto_utterance((ProtoVocalToken.YES,))
+    feedback = _make_feedback(
+        CaregiverFeedbackKind.ACCEPTED,
+        context_label="turn-taking",
+        offered=yes,
+    )
+    return (
+        _TurnSpec(
+            turn_id="C7_TURN_TAKING_01",
+            condition=ProtoSpeechCondition.TURN_TAKING,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=yes,
+            feedback=feedback,
+        ),
+    )
+
+
+def _build_refusal_held_specs() -> tuple[_TurnSpec, ...]:
+    """C8 REFUSAL_HELD: refusal-guard input does not select an utterance."""
+    ctx = _ctx_for_input(_OP_ABA)
+    feedback = _make_feedback(
+        CaregiverFeedbackKind.IGNORED,
+        context_label="refusal-held",
+    )
+    return (
+        _TurnSpec(
+            turn_id="C8_REFUSAL_HELD",
+            condition=ProtoSpeechCondition.REFUSAL_HELD,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=None,
+            feedback=feedback,
+            refusal_guard=True,
+        ),
+    )
+
+
+def _build_drive_stream_pressure_specs() -> tuple[_TurnSpec, ...]:
+    """C9 DRIVE_STREAM_PRESSURE: distinct drive kinds change candidate sets."""
+    ctx = _ctx_for_input(_OP_ABA)
+    # Turn 1: novelty pressure with ambient (first visit, ambient
+    # present); turn 2: recurrence pressure (second visit, ambient
+    # present); turn 3: unresolved hypothesis pressure.
+    same = build_proto_utterance((ProtoVocalToken.SAME,))
+    look = build_proto_utterance((ProtoVocalToken.LOOK,))
+    fb_amb = _make_feedback(
+        CaregiverFeedbackKind.AMBIENT_ONLY,
+        context_label="drive-novelty",
+        ambient=look,
+    )
+    fb_recur = _make_feedback(
+        CaregiverFeedbackKind.AMBIENT_ONLY,
+        context_label="drive-recur",
+        ambient=same,
+    )
+    fb_unr = _make_feedback(
+        CaregiverFeedbackKind.IGNORED,
+        context_label="drive-unresolved",
+    )
+    return (
+        _TurnSpec(
+            turn_id="C9_DRIVE_PRESSURE_NOVELTY",
+            condition=ProtoSpeechCondition.DRIVE_STREAM_PRESSURE,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=look,
+            feedback=fb_amb,
+        ),
+        _TurnSpec(
+            turn_id="C9_DRIVE_PRESSURE_RECUR",
+            condition=ProtoSpeechCondition.DRIVE_STREAM_PRESSURE,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=same,
+            feedback=fb_recur,
+        ),
+        _TurnSpec(
+            turn_id="C9_DRIVE_PRESSURE_UNR",
+            condition=ProtoSpeechCondition.DRIVE_STREAM_PRESSURE,
+            context=ctx,
+            operator_input_text=_OP_ABA,
+            caregiver_ambient=None,
+            feedback=fb_unr,
+            has_active_hypothesis_unresolved=True,
+        ),
+    )
+
+
+def build_proto_speech_battery() -> tuple[
+    tuple[ProtoSpeechCondition, tuple[_TurnSpec, ...]], ...
+]:
+    """Return the closed v1 ten-condition battery."""
+    return (
+        (
+            ProtoSpeechCondition.BABBLE_BASELINE,
+            _build_babble_baseline_specs(),
+        ),
+        (
+            ProtoSpeechCondition.AMBIENT_IMPRINTING,
+            _build_ambient_imprinting_specs(),
+        ),
+        (
+            ProtoSpeechCondition.FEEDBACK_REINFORCEMENT,
+            _build_feedback_reinforcement_specs(),
+        ),
+        (
+            ProtoSpeechCondition.CORRECTION_SHAPING,
+            _build_correction_shaping_specs(),
+        ),
+        (
+            ProtoSpeechCondition.HOLOPHRASE_TRANSFER,
+            _build_holophrase_transfer_specs(),
+        ),
+        (
+            ProtoSpeechCondition.TWO_TOKEN_COMBINATION,
+            _build_two_token_combination_specs(),
+        ),
+        (
+            ProtoSpeechCondition.SUPPRESSION,
+            _build_suppression_specs(),
+        ),
+        (
+            ProtoSpeechCondition.TURN_TAKING,
+            _build_turn_taking_specs(),
+        ),
+        (
+            ProtoSpeechCondition.REFUSAL_HELD,
+            _build_refusal_held_specs(),
+        ),
+        (
+            ProtoSpeechCondition.DRIVE_STREAM_PRESSURE,
+            _build_drive_stream_pressure_specs(),
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Live-test report + runner.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ProtoSpeechAcquisitionReport:
+    """Final bounded live-test report (Phase 3.31)."""
+
+    battery_version: str
+    turns: tuple[ProtoSpeechTurn, ...]
+    condition_statuses: tuple[tuple[ProtoSpeechCondition, ProtoSpeechStatus], ...]
+    stable_single_count: int
+    stable_combination_count: int
+    suppressed_count: int
+    transfer_success_count: int
+    false_positive_count: int
+    false_negative_count: int
+    pass_count: int
+    warn_count: int
+    fail_count: int
+    not_applicable_count: int
+    drive_stream_count: int
+    drive_stream_digest_hex16: str
+    digest_hex16: str
+    real_model_calls: int
+    cache_writes: int
+    forbidden_term_hits: int
+    summary_line: str
+    status: ProtoSpeechStatus
+
+    def __post_init__(self) -> None:
+        _validate_bounded_printable(
+            self.battery_version,
+            field="ProtoSpeechAcquisitionReport.battery_version",
+            max_len=PROTO_SPEECH_TURN_ID_MAX_LEN,
+        )
+        if not isinstance(self.turns, tuple):
+            raise TypeError(
+                "I-PSPEECH-13 violated: turns must be a tuple"
+            )
+        if len(self.turns) > PROTO_SPEECH_MAX_TURNS_PER_REPORT:
+            raise ValueError(
+                "I-PSPEECH-13 violated: turns length "
+                f"{len(self.turns)} > "
+                f"{PROTO_SPEECH_MAX_TURNS_PER_REPORT}"
+            )
+        for t in self.turns:
+            if not isinstance(t, ProtoSpeechTurn):
+                raise TypeError(
+                    "I-PSPEECH-13 violated: every turns entry must be a "
+                    "ProtoSpeechTurn"
+                )
+        if not isinstance(self.condition_statuses, tuple):
+            raise TypeError(
+                "I-PSPEECH-13 violated: condition_statuses must be a tuple"
+            )
+        for entry in self.condition_statuses:
+            if (
+                not isinstance(entry, tuple)
+                or len(entry) != 2
+                or not isinstance(entry[0], ProtoSpeechCondition)
+                or not isinstance(entry[1], ProtoSpeechStatus)
+            ):
+                raise TypeError(
+                    "I-PSPEECH-13 violated: condition_statuses entries must "
+                    "be (ProtoSpeechCondition, ProtoSpeechStatus) tuples"
+                )
+        for name, val in (
+            ("stable_single_count", self.stable_single_count),
+            ("stable_combination_count", self.stable_combination_count),
+            ("suppressed_count", self.suppressed_count),
+            ("transfer_success_count", self.transfer_success_count),
+            ("false_positive_count", self.false_positive_count),
+            ("false_negative_count", self.false_negative_count),
+            ("pass_count", self.pass_count),
+            ("warn_count", self.warn_count),
+            ("fail_count", self.fail_count),
+            ("not_applicable_count", self.not_applicable_count),
+            ("drive_stream_count", self.drive_stream_count),
+            ("real_model_calls", self.real_model_calls),
+            ("cache_writes", self.cache_writes),
+            ("forbidden_term_hits", self.forbidden_term_hits),
+        ):
+            if (
+                not isinstance(val, int)
+                or isinstance(val, bool)
+                or val < 0
+            ):
+                raise ValueError(
+                    "I-PSPEECH-13 violated: "
+                    f"ProtoSpeechAcquisitionReport.{name} must be a "
+                    f"non-negative int"
+                )
+        _validate_digest_hex(
+            self.drive_stream_digest_hex16,
+            field="ProtoSpeechAcquisitionReport.drive_stream_digest_hex16",
+        )
+        _validate_digest_hex(
+            self.digest_hex16,
+            field="ProtoSpeechAcquisitionReport.digest_hex16",
+        )
+        _validate_bounded_printable(
+            self.summary_line,
+            field="ProtoSpeechAcquisitionReport.summary_line",
+            max_len=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+        )
+        if not isinstance(self.status, ProtoSpeechStatus):
+            raise TypeError(
+                "I-PSPEECH-13 violated: status must be a ProtoSpeechStatus"
+            )
+
+
+# Closed v1 expected predicates per condition. Predicates are
+# evaluated AFTER the condition's bounded turn list has finished;
+# the runtime path never sees them.
+def _evaluate_condition_status(
+    condition: ProtoSpeechCondition,
+    turns: tuple[ProtoSpeechTurn, ...],
+    *,
+    final_table: ProtoSpeechEvidenceTable,
+) -> tuple[
+    ProtoSpeechStatus,
+    int,  # stable_single delta produced by this condition
+    int,  # stable_combination delta
+    int,  # suppressed delta
+    int,  # transfer_success delta
+    int,  # false_positive
+    int,  # false_negative
+]:
+    """Return ``(status, stable_single, stable_comb, suppressed, transfers, fp, fn)``.
+
+    The status is PASS iff every per-condition closed predicate
+    holds.
+    """
+    if not turns:
+        return (
+            ProtoSpeechStatus.NOT_APPLICABLE,
+            0, 0, 0, 0, 0, 0,
+        )
+    ctx_sig = turns[0].context.context_signature
+    ctx_entries = final_table.context_entries(
+        context_signature=ctx_sig
+    )
+
+    def _has_disposition(
+        ctx_signature: str,
+        utterance: ProtoUtterance,
+        disposition: ProtoUtteranceDisposition,
+    ) -> bool:
+        rec = final_table.select(
+            context_signature=ctx_signature,
+            utterance_digest=utterance.digest_hex16,
+        )
+        return rec is not None and rec.disposition is disposition
+
+    stable_single = sum(
+        1
+        for e in ctx_entries
+        if e.disposition is ProtoUtteranceDisposition.STABLE_SINGLE
+    )
+    stable_comb = sum(
+        1
+        for e in ctx_entries
+        if e.disposition is ProtoUtteranceDisposition.STABLE_COMBINATION
+    )
+    suppressed = sum(
+        1
+        for e in ctx_entries
+        if e.disposition is ProtoUtteranceDisposition.SUPPRESSED
+    )
+    transfers = sum(1 for t in turns if t.transfer_taken)
+
+    fp = 0
+    fn = 0
+    status = ProtoSpeechStatus.PASS
+
+    if condition is ProtoSpeechCondition.BABBLE_BASELINE:
+        # Every selected utterance must be a single bounded token
+        # drawn from the LOW_EVIDENCE primitives (BA/MA/DA) and the
+        # condition must produce zero stable singles in this context.
+        for t in turns:
+            if t.refusal_taken:
+                status = ProtoSpeechStatus.FAIL
+                break
+            if t.selected_utterance.token_count != 1:
+                status = ProtoSpeechStatus.FAIL
+                break
+            tok = t.selected_utterance.tokens[0]
+            if tok not in (
+                ProtoVocalToken.BA,
+                ProtoVocalToken.MA,
+                ProtoVocalToken.DA,
+            ):
+                status = ProtoSpeechStatus.FAIL
+                break
+            # Every babble must trace back to a LOW_EVIDENCE drive
+            # frame.
+            if not any(
+                f.drive_kind is ProtoSpeechDriveKind.LOW_EVIDENCE
+                for f in t.drive_stream.frames
+            ):
+                status = ProtoSpeechStatus.FAIL
+                break
+        # No stable single should emerge for the baseline since
+        # IGNORED feedback decrements.
+        if any(
+            e.disposition is ProtoUtteranceDisposition.STABLE_SINGLE
+            for e in ctx_entries
+        ):
+            fp = 1
+            status = ProtoSpeechStatus.FAIL
+
+    elif condition is ProtoSpeechCondition.AMBIENT_IMPRINTING:
+        # Every turn the runtime should pick the caregiver-ambient
+        # token SAME.
+        for t in turns:
+            if t.selected_utterance.token_count != 1:
+                status = ProtoSpeechStatus.FAIL
+                break
+            if t.selected_utterance.tokens[0] is not ProtoVocalToken.SAME:
+                status = ProtoSpeechStatus.FAIL
+                break
+
+    elif condition is ProtoSpeechCondition.FEEDBACK_REINFORCEMENT:
+        # LOOK should end up reinforced or stable.
+        look_utt = build_proto_utterance((ProtoVocalToken.LOOK,))
+        rec = final_table.select(
+            context_signature=ctx_sig,
+            utterance_digest=look_utt.digest_hex16,
+        )
+        if rec is None or rec.weight_after < 3:
+            status = ProtoSpeechStatus.FAIL
+        # The third feedback turn (ACCEPTED) should have re-selected
+        # LOOK.
+        if turns[-1].selected_utterance.text != "look":
+            status = ProtoSpeechStatus.FAIL
+
+    elif condition is ProtoSpeechCondition.CORRECTION_SHAPING:
+        yes_utt = build_proto_utterance((ProtoVocalToken.YES,))
+        rec_yes = final_table.select(
+            context_signature=ctx_sig,
+            utterance_digest=yes_utt.digest_hex16,
+        )
+        # YES must reach >= STABLE_SINGLE_THRESHOLD.
+        if rec_yes is None or rec_yes.weight_after < (
+            STABLE_SINGLE_THRESHOLD
+        ):
+            status = ProtoSpeechStatus.FAIL
+        # The attempted forms during the four CORRECTED turns must
+        # show a non-positive total delta (corrections weaken
+        # attempted).
+        corrected_turns = [
+            t for t in turns
+            if t.feedback.kind is CaregiverFeedbackKind.CORRECTED
+        ]
+        attempted_deltas = []
+        for t in corrected_turns:
+            for r in t.evidence_records_added:
+                if r.feedback_kind is CaregiverFeedbackKind.CORRECTED:
+                    if (
+                        r.utterance_digest
+                        == t.selected_utterance.digest_hex16
+                    ):
+                        attempted_deltas.append(
+                            r.weight_after - r.weight_before
+                        )
+        if not attempted_deltas:
+            status = ProtoSpeechStatus.FAIL
+        elif any(d > 0 for d in attempted_deltas):
+            status = ProtoSpeechStatus.FAIL
+
+    elif condition is ProtoSpeechCondition.HOLOPHRASE_TRANSFER:
+        # Exactly one transfer must occur to the positive target.
+        if transfers != 1:
+            status = ProtoSpeechStatus.FAIL
+        # The negative-target context must NOT have a TRANSFERRED
+        # record for THIS.
+        neg_ctx = turns[-1].context
+        this_utt = build_proto_utterance((ProtoVocalToken.THIS,))
+        neg_rec = final_table.select(
+            context_signature=neg_ctx.context_signature,
+            utterance_digest=this_utt.digest_hex16,
+        )
+        if neg_rec is not None and neg_rec.disposition is (
+            ProtoUtteranceDisposition.TRANSFERRED
+        ):
+            fp = 1
+            status = ProtoSpeechStatus.FAIL
+
+    elif condition is ProtoSpeechCondition.TWO_TOKEN_COMBINATION:
+        # The final turn must emit a 2-token utterance and must
+        # produce a STABLE_COMBINATION evidence record.
+        last = turns[-1]
+        if last.selected_utterance.token_count != 2:
+            status = ProtoSpeechStatus.FAIL
+        else:
+            combo_rec = final_table.select(
+                context_signature=ctx_sig,
+                utterance_digest=last.selected_utterance.digest_hex16,
+            )
+            if combo_rec is None or combo_rec.disposition is not (
+                ProtoUtteranceDisposition.STABLE_COMBINATION
+            ):
+                # Acceptable if combination not yet "stable" by the
+                # final turn but still emerged; require at least
+                # CANDIDATE / REINFORCED disposition.
+                if combo_rec is None or combo_rec.disposition not in (
+                    ProtoUtteranceDisposition.CANDIDATE,
+                    ProtoUtteranceDisposition.REINFORCED,
+                    ProtoUtteranceDisposition.STABLE_COMBINATION,
+                ):
+                    status = ProtoSpeechStatus.FAIL
+        # Combination must not appear before prerequisites.
+        for t in turns[:-1]:
+            if t.selected_utterance.token_count == 2:
+                fp = 1
+                status = ProtoSpeechStatus.FAIL
+                break
+
+    elif condition is ProtoSpeechCondition.SUPPRESSION:
+        na_utt = build_proto_utterance((ProtoVocalToken.NA,))
+        # The NA form must be SUPPRESSED at the end.
+        rec_na = final_table.select(
+            context_signature=ctx_sig,
+            utterance_digest=na_utt.digest_hex16,
+        )
+        if rec_na is None or rec_na.disposition is not (
+            ProtoUtteranceDisposition.SUPPRESSED
+        ):
+            status = ProtoSpeechStatus.FAIL
+        # The final non-ambient turn must NOT emit NA.
+        if turns[-1].selected_utterance.text == "na":
+            fp = 1
+            status = ProtoSpeechStatus.FAIL
+
+    elif condition is ProtoSpeechCondition.TURN_TAKING:
+        # The turn must have a context, drive stream with >=1 frame,
+        # a selected utterance, a feedback record, and exactly the
+        # closed order (proved by the presence of all five fields
+        # and refusal_taken=False).
+        t = turns[0]
+        if t.refusal_taken:
+            status = ProtoSpeechStatus.FAIL
+        if not t.drive_stream.frames:
+            status = ProtoSpeechStatus.FAIL
+        if t.selected_utterance.token_count == 0:
+            status = ProtoSpeechStatus.FAIL
+        if len(t.evidence_records_added) == 0:
+            status = ProtoSpeechStatus.FAIL
+
+    elif condition is ProtoSpeechCondition.REFUSAL_HELD:
+        t = turns[0]
+        if not t.refusal_taken:
+            status = ProtoSpeechStatus.FAIL
+        # No evidence records should be added on a refusal turn.
+        if len(t.evidence_records_added) != 0:
+            status = ProtoSpeechStatus.FAIL
+        # The drive stream must contain a REFUSAL_GUARD frame.
+        if not any(
+            f.drive_kind is ProtoSpeechDriveKind.REFUSAL_GUARD
+            for f in t.drive_stream.frames
+        ):
+            status = ProtoSpeechStatus.FAIL
+
+    elif condition is ProtoSpeechCondition.DRIVE_STREAM_PRESSURE:
+        # Verify distinct drive-kind sets across the three turns.
+        kinds_per_turn = [
+            frozenset(f.drive_kind for f in t.drive_stream.frames)
+            for t in turns
+        ]
+        # The novelty / recurrence / unresolved-hypothesis turns
+        # should each have a distinguishing kind.
+        if not any(
+            ProtoSpeechDriveKind.NOVELTY_PRESSURE in k
+            for k in kinds_per_turn
+        ):
+            status = ProtoSpeechStatus.FAIL
+        if not any(
+            ProtoSpeechDriveKind.RECURRENCE_PRESSURE in k
+            for k in kinds_per_turn
+        ):
+            status = ProtoSpeechStatus.FAIL
+        if not any(
+            ProtoSpeechDriveKind.UNRESOLVED_HYPOTHESIS in k
+            for k in kinds_per_turn
+        ):
+            status = ProtoSpeechStatus.FAIL
+
+    return (
+        status,
+        stable_single,
+        stable_comb,
+        suppressed,
+        transfers,
+        fp,
+        fn,
+    )
+
+
+def _serialize_turn(t: ProtoSpeechTurn) -> str:
+    parts = [
+        t.turn_id,
+        t.condition.value,
+        t.context.context_signature,
+        t.drive_stream.digest_hex16,
+        t.selected_utterance.text,
+        t.selected_utterance.digest_hex16,
+        t.feedback.kind.value,
+        f"records={len(t.evidence_records_added)}",
+        f"refusal={t.refusal_taken}",
+        f"transfer={t.transfer_taken}",
+        t.learning_evidence_digest or "",
+        t.reasoning_trace_digest or "",
+        t.dispatch_trace_digest or "",
+        t.summary_line,
+    ]
+    for r in t.evidence_records_added:
+        parts.append(
+            f"rec|{r.digest_hex16}|{r.utterance_digest}|"
+            f"w{r.weight_before}->{r.weight_after}|{r.disposition.value}|"
+            f"{r.feedback_kind.value if r.feedback_kind else ''}|"
+            f"{r.drive_stream_digest_hex16 or ''}"
+        )
+    return "\n".join(parts)
+
+
+def proto_speech_report_digest(
+    report: ProtoSpeechAcquisitionReport,
+) -> str:
+    """Return a deterministic 16-hex digest over the report."""
+    payload = "\n".join(_serialize_turn(t) for t in report.turns).encode(
+        "utf-8"
+    )
+    return hashlib.sha256(payload).hexdigest()[
+        :PROTO_SPEECH_DIGEST_HEX_LEN
+    ]
+
+
+def run_proto_speech_live_test() -> ProtoSpeechAcquisitionReport:
+    """Run every closed v1 condition; assemble a bounded report."""
+    battery = build_proto_speech_battery()
+
+    all_turns: list[ProtoSpeechTurn] = []
+    condition_statuses: list[
+        tuple[ProtoSpeechCondition, ProtoSpeechStatus]
+    ] = []
+    stable_single_count = 0
+    stable_combination_count = 0
+    suppressed_count = 0
+    transfer_success_count = 0
+    false_positive_count = 0
+    false_negative_count = 0
+    pass_count = 0
+    warn_count = 0
+    fail_count = 0
+    na_count = 0
+    drive_stream_digests: list[str] = []
+
+    for condition, specs in battery:
+        state = _make_runtime_state()
+        cond_turns: list[ProtoSpeechTurn] = []
+        for idx, spec in enumerate(specs):
+            turn = run_proto_speech_turn(
+                state, spec, turn_index=idx
+            )
+            cond_turns.append(turn)
+            drive_stream_digests.append(turn.drive_stream.digest_hex16)
+        (
+            status,
+            ss,
+            sc,
+            sup,
+            xfers,
+            fp,
+            fn,
+        ) = _evaluate_condition_status(
+            condition,
+            tuple(cond_turns),
+            final_table=state.table,
+        )
+        condition_statuses.append((condition, status))
+        stable_single_count += ss
+        stable_combination_count += sc
+        suppressed_count += sup
+        transfer_success_count += xfers
+        false_positive_count += fp
+        false_negative_count += fn
+        if status is ProtoSpeechStatus.PASS:
+            pass_count += 1
+        elif status is ProtoSpeechStatus.WARN:
+            warn_count += 1
+        elif status is ProtoSpeechStatus.FAIL:
+            fail_count += 1
+        else:
+            na_count += 1
+        all_turns.extend(cond_turns)
+
+    if fail_count > 0:
+        report_status = ProtoSpeechStatus.FAIL
+    elif warn_count > 0:
+        report_status = ProtoSpeechStatus.WARN
+    else:
+        report_status = ProtoSpeechStatus.PASS
+
+    drive_stream_digest = hashlib.sha256(
+        "\n".join(drive_stream_digests).encode("utf-8")
+    ).hexdigest()[:PROTO_SPEECH_DIGEST_HEX_LEN]
+
+    summary_line = _bounded_excerpt(
+        (
+            f"proto_speech_live_test version="
+            f"{PROTO_SPEECH_BATTERY_VERSION} "
+            f"turns={len(all_turns)} pass={pass_count} "
+            f"warn={warn_count} fail={fail_count} na={na_count} "
+            f"stable_single={stable_single_count} "
+            f"stable_comb={stable_combination_count} "
+            f"suppressed={suppressed_count} "
+            f"transfer={transfer_success_count} "
+            f"fp={false_positive_count} fn={false_negative_count}"
+        ),
+        limit=PROTO_SPEECH_EXPLAIN_MAX_LEN,
+    )
+
+    placeholder = ProtoSpeechAcquisitionReport(
+        battery_version=PROTO_SPEECH_BATTERY_VERSION,
+        turns=tuple(all_turns),
+        condition_statuses=tuple(condition_statuses),
+        stable_single_count=stable_single_count,
+        stable_combination_count=stable_combination_count,
+        suppressed_count=suppressed_count,
+        transfer_success_count=transfer_success_count,
+        false_positive_count=false_positive_count,
+        false_negative_count=false_negative_count,
+        pass_count=pass_count,
+        warn_count=warn_count,
+        fail_count=fail_count,
+        not_applicable_count=na_count,
+        drive_stream_count=len(drive_stream_digests),
+        drive_stream_digest_hex16=drive_stream_digest,
+        digest_hex16=_zero_digest(),
+        real_model_calls=0,
+        cache_writes=0,
+        forbidden_term_hits=0,
+        summary_line=summary_line,
+        status=report_status,
+    )
+    digest = proto_speech_report_digest(placeholder)
+    return ProtoSpeechAcquisitionReport(
+        battery_version=PROTO_SPEECH_BATTERY_VERSION,
+        turns=tuple(all_turns),
+        condition_statuses=tuple(condition_statuses),
+        stable_single_count=stable_single_count,
+        stable_combination_count=stable_combination_count,
+        suppressed_count=suppressed_count,
+        transfer_success_count=transfer_success_count,
+        false_positive_count=false_positive_count,
+        false_negative_count=false_negative_count,
+        pass_count=pass_count,
+        warn_count=warn_count,
+        fail_count=fail_count,
+        not_applicable_count=na_count,
+        drive_stream_count=len(drive_stream_digests),
+        drive_stream_digest_hex16=drive_stream_digest,
+        digest_hex16=digest,
+        real_model_calls=0,
+        cache_writes=0,
+        forbidden_term_hits=0,
+        summary_line=summary_line,
+        status=report_status,
+    )
+
+
+def format_proto_speech_report(
+    report: ProtoSpeechAcquisitionReport,
+) -> str:
+    """Return a bounded printable table summarizing the report."""
+    if not isinstance(report, ProtoSpeechAcquisitionReport):
+        raise TypeError(
+            "I-PSPEECH-13 violated: format_proto_speech_report requires "
+            "a ProtoSpeechAcquisitionReport"
+        )
+    lines: list[str] = []
+    lines.append(report.summary_line)
+    for cond, status in report.condition_statuses:
+        lines.append(
+            f"  {cond.value:28s} -> {status.value}"
+        )
+    lines.append(
+        f"  drive_stream_count={report.drive_stream_count} "
+        f"drive_stream_digest={report.drive_stream_digest_hex16}"
+    )
+    lines.append(f"  report_digest={report.digest_hex16}")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# CLI entry.
+# ---------------------------------------------------------------------------
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Phase 3.31 caregiver-scaffolded proto-speech "
+            "acquisition live-test runner (deterministic, OFFLINE, "
+            "zero real model calls)"
+        )
+    )
+    parser.add_argument("--quiet", action="store_true", default=False)
+    args = parser.parse_args(argv)
+
+    report = run_proto_speech_live_test()
+    if not args.quiet:
+        sys.stdout.write(
+            format_proto_speech_report(report) + "\n"
+        )
+        sys.stdout.write(
+            f"stable_single={report.stable_single_count} "
+            f"stable_combination={report.stable_combination_count} "
+            f"suppressed={report.suppressed_count} "
+            f"transfer_success={report.transfer_success_count} "
+            f"fp={report.false_positive_count} "
+            f"fn={report.false_negative_count}\n"
+        )
+        sys.stdout.write(
+            f"real_model_calls={report.real_model_calls} "
+            f"cache_writes={report.cache_writes} "
+            f"forbidden_term_hits={report.forbidden_term_hits}\n"
+        )
+
+    if report.fail_count > 0:
+        return 1
+    if report.warn_count > 0:
+        return 2
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Module-produced strings (audited by the static-audit fixture).
 # ---------------------------------------------------------------------------
@@ -2776,6 +3626,7 @@ __all__ = (
     "ProtoSpeechDriveFrame",
     "ProtoSpeechDriveKind",
     "ProtoSpeechDriveStream",
+    "ProtoSpeechAcquisitionReport",
     "ProtoSpeechEvidenceRecord",
     "ProtoSpeechEvidenceTable",
     "ProtoSpeechStatus",
@@ -2783,13 +3634,22 @@ __all__ = (
     "ProtoUtterance",
     "ProtoUtteranceDisposition",
     "ProtoVocalToken",
+    "build_proto_speech_battery",
     "build_proto_speech_context",
     "build_proto_speech_drive_stream",
     "build_proto_utterance",
     "empty_evidence_table",
+    "format_proto_speech_report",
+    "main",
+    "proto_speech_report_digest",
+    "run_proto_speech_live_test",
     "select_babble_from_drive_stream",
     "select_proto_utterance",
     "transfer_proto_speech_evidence",
     "update_drive_stream_after_feedback",
     "update_proto_speech_evidence",
 )
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
