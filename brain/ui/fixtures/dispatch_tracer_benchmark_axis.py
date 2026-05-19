@@ -21,7 +21,7 @@ from brain.invariants import register
 @register("I-DTRACE-11", status="REQUIRED")
 def check_dispatch_tracer_benchmark_green() -> None:
     """Audit the A10 dispatch_trace axis and the extended full battery."""
-    assert BATTERY_VERSION == "phase3.26.v1"
+    assert BATTERY_VERSION == "phase3.30.v1"
 
     # Axis-only run.
     a10 = run_axis_a10_dispatch_trace()
@@ -56,12 +56,13 @@ def check_dispatch_tracer_benchmark_green() -> None:
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
-    assert len(axes_seen) == 13
+    assert len(axes_seen) == 14
     assert BenchmarkAxis.DISPATCH_TRACE in axes_seen
     assert BenchmarkAxis.WORLDLET_FEEDBACK in axes_seen
     assert BenchmarkAxis.OSMOTIC_LEARNING in axes_seen
-    assert axes_seen[-1] is BenchmarkAxis.ACTIVE_HYPOTHESIS
-    assert run.case_total == 105
+    assert BenchmarkAxis.ACTIVE_HYPOTHESIS in axes_seen
+    assert axes_seen[-1] is BenchmarkAxis.CURRICULUM_CONSOLIDATION
+    assert run.case_total == 119
     assert run.case_warned == 1  # documented A3.04
     assert run.case_failed == 0
     assert run.real_model_calls == 0

@@ -70,7 +70,7 @@ def check_active_hypothesis_runner_green() -> None:
 @register("I-AHYP-13", status="REQUIRED")
 def check_active_hypothesis_benchmark_green() -> None:
     """A13 axis is green; BATTERY_VERSION bumped; full battery extended."""
-    assert BATTERY_VERSION == "phase3.26.v1"
+    assert BATTERY_VERSION == "phase3.30.v1"
 
     # Axis-only run.
     a13 = run_axis_a13_active_hypothesis()
@@ -102,9 +102,10 @@ def check_active_hypothesis_benchmark_green() -> None:
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
-    assert len(axes_seen) == 13
-    assert axes_seen[-1] is BenchmarkAxis.ACTIVE_HYPOTHESIS
-    assert run.case_total == 105
+    assert len(axes_seen) == 14
+    assert BenchmarkAxis.ACTIVE_HYPOTHESIS in axes_seen
+    assert axes_seen[-1] is BenchmarkAxis.CURRICULUM_CONSOLIDATION
+    assert run.case_total == 119
     assert run.case_warned == 1  # documented A3.04
     assert run.case_failed == 0
     assert run.real_model_calls == 0

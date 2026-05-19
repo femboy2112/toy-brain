@@ -1,7 +1,6 @@
-"""Phase 3.24 worldlet feedback benchmark axis fixture.
+"""Phase 3.30 curriculum runner-green + benchmark axis fixture.
 
-Drives ``I-WFDBK-11`` (REQUIRED). Audits the A11 worldlet_feedback
-axis and the extended full battery.
+Drives ``I-CURR-13`` (REQUIRED).
 """
 from __future__ import annotations
 
@@ -10,36 +9,36 @@ from brain.development.agent_benchmark import (
     BenchmarkAxis,
     BenchmarkCaseStatus,
     BenchmarkRun,
-    run_axis_a11_worldlet_feedback,
+    run_axis_a14_curriculum_consolidation,
     run_full_battery,
-    run_partial_battery_phase3_24,
+    run_partial_battery_phase3_30,
 )
 from brain.invariants import register
 
 
-@register("I-WFDBK-11", status="REQUIRED")
-def check_worldlet_feedback_benchmark_green() -> None:
-    """Audit the A11 worldlet_feedback axis + the extended full battery."""
+@register("I-CURR-13", status="REQUIRED")
+def check_curriculum_benchmark_green() -> None:
+    """A14 axis green; BATTERY_VERSION bumped; full battery extended."""
     assert BATTERY_VERSION == "phase3.30.v1"
 
     # Axis-only run.
-    a11 = run_axis_a11_worldlet_feedback()
-    assert a11.axis is BenchmarkAxis.WORLDLET_FEEDBACK
-    assert len(a11.cases) == 12
-    expected_ids = tuple(f"A11.{i:02d}" for i in range(1, 13))
-    actual_ids = tuple(c.case_id for c in a11.cases)
+    a14 = run_axis_a14_curriculum_consolidation()
+    assert a14.axis is BenchmarkAxis.CURRICULUM_CONSOLIDATION
+    assert len(a14.cases) == 14
+    expected_ids = tuple(f"A14.{i:02d}" for i in range(1, 15))
+    actual_ids = tuple(c.case_id for c in a14.cases)
     assert actual_ids == expected_ids, actual_ids
-    for c in a11.cases:
+    for c in a14.cases:
         assert c.status is BenchmarkCaseStatus.PASS, (
-            f"I-WFDBK-11 violated: {c.case_id} not PASS ({c.status.value}): "
+            f"I-CURR-13 violated: {c.case_id} not PASS ({c.status.value}): "
             f"{c.summary!r}"
         )
 
-    # Partial-battery (A11 only).
-    partial = run_partial_battery_phase3_24()
+    # Partial-battery (A14 only).
+    partial = run_partial_battery_phase3_30()
     assert isinstance(partial, BenchmarkRun)
-    assert partial.case_total == 12
-    assert partial.case_passed == 12
+    assert partial.case_total == 14
+    assert partial.case_passed == 14
     assert partial.case_warned == 0
     assert partial.case_failed == 0
     assert partial.real_model_calls == 0
@@ -48,17 +47,11 @@ def check_worldlet_feedback_benchmark_green() -> None:
     assert partial.determinism_failures == 0
     assert partial.invariant_failures == 0
 
-    # Full battery: thirteen axes in canonical order. Phase 3.26
-    # widens the battery beyond OSMOTIC_LEARNING with the
-    # ACTIVE_HYPOTHESIS axis; WORLDLET_FEEDBACK is still present
-    # but is no longer the last axis.
+    # Full battery: fourteen axes ending with CURRICULUM_CONSOLIDATION.
     run = run_full_battery()
     assert isinstance(run, BenchmarkRun)
     axes_seen = tuple(ax.axis for ax in run.axes)
     assert len(axes_seen) == 14
-    assert BenchmarkAxis.WORLDLET_FEEDBACK in axes_seen
-    assert BenchmarkAxis.OSMOTIC_LEARNING in axes_seen
-    assert BenchmarkAxis.ACTIVE_HYPOTHESIS in axes_seen
     assert axes_seen[-1] is BenchmarkAxis.CURRICULUM_CONSOLIDATION
     assert run.case_total == 119
     assert run.case_warned == 1  # documented A3.04

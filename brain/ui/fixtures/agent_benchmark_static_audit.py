@@ -49,6 +49,8 @@ _EXPECTED_AXIS_VALUES = frozenset(
         "osmotic_learning",
         # Phase 3.26 (I-AHYP-13): active hypothesis battery axis.
         "active_hypothesis",
+        # Phase 3.30 (I-CURR-13): curriculum consolidation battery axis.
+        "curriculum_consolidation",
     }
 )
 
